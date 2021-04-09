@@ -1,0 +1,19 @@
+/* styles */
+h1 {
+    font-size: 32px;
+    color: #242A31;
+}
+h2 {
+    font-size: 24px;
+    color: #242A31;
+}
+a {
+    color: 	#960000;
+    text-decoration: none;
+}
+a:hover {
+    text-decoration: underline;
+}
+.paragraph {
+    display: flex;
+}

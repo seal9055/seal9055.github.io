@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script>const pageOpenedDirectly=true;</script>
+    <link rel="stylesheet" href="../css/posts-styles.css">
+    <link rel="stylesheet" href="../css/style.css">
+    <title>seal9055</title>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-inner">
+                <div class="menuBtn">
+                    <div class="menuButton">
+                        <div class="hamburger"></div>
+                    </div>
+                </div>
+                <div class="header-left">
+                    <div class="logo">
+                        <a href="../index.html"><img src="../imgs/logo.png" alt="" height="80"></a>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <nav>
+                        <ul>
+                            <li><a href="./">CTF-Writeups</a></li>
+                            <li><a href="../hackthebox">Hackthebox</a></li>
+                            <li><a href="../posts">Posts</a></li>
+                            <li><a href="../contact.html">Contact</a></li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </header>
+        <div class="body-content">
+            <div class="sidebar">
+                <div class="sidebar-inner">
+                    <div class="sidebar-content">
+                        <div class="sidebar-content-inner">
+                            <div class="github-twitter">
+                                <div class="github">
+                                    <a href="https://github.com/seal9055" target="_blank">Github</a>
+                                </div>
+                                <div class="twitter">
+                                    <a href="https://twitter.com/seal9055" target="_blank">Twitter</a>
+                                </div>
+                            </div>
+                            <div class="sidebar-posts">
+                                <div class="item">
+                                    <div class="subject" id="pico">Pico</div>
+                                    <div class="post-items">
+                                        <div data-target="challenge1">Binary Gauntlet 0</div>
+                                        <div data-target="challenge2">Binary Gauntlet 1</div>
+                                        <div data-target="challenge3">Binary Gauntlet 2</div>
+                                    </div>
+                                </div>
+                                <div class="item">
+                                    <div class="subject" id="rop-emporium">Rop-Emporium</div>
+                                    <div class="post-items">
+                                        <div data-target="ret2win">ret2win</div>
+                                        <div data-target="split">split</div>
+                                        <div data-target="callme">callme</div>
+                                        <div data-target="write4">write4</div>
+                                        <div data-target="badchars">badchars</div>
+                                        <div data-target="fluff">fluff</div>
+                                        <div data-target="pivot">pivot</div>
+                                        <div data-target="ret2csu">ret2csu</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sidebar-page-nav"> <!-- Show only for mobile -->
+                        <div class="go-to">
+                            <p>Go to other pages</p>
+                        </div>
+                        <div class="other-pages">
+                            <div class="side-page1">
+                                <li><a href="./">CTF-Writeups</a></li>
+                            </div>
+                            <div class="side-page2">
+                                <p><a href="../hackthebox">Hackthebox</a></p>
+                            </div>
+                            <div class="side-page3">
+                                <p><a href="../posts">Posts</a></p>
+                            </div>
+                            <div class="side-page4">
+                                <p><a href="../contact.html">Contact</a></p>
+                            </div>
+                        </div>
+                    </div> <!-- End -->
+                </div>
+            </div>
+            <div class="content-page">
+                <div class="content-page-inner">
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Scripts -->
+    <script src="../javascript/main.js"></script>
+    
+    <!-- Handles content replacement -->
+    <script>
+        var counter = 0;
+        $.ajaxSetup ({
+            // Disable caching of AJAX responses
+            cache: false
+        });
+
+        if (location.href.indexOf("#") !== -1) {
+            let category = location.href.substring(location.href.lastIndexOf('/') + 1);
+            $(`${category}`).click();
+        }
+
+        // Replaces content with post
+        $(document).ready(function(){
+            // Set trigger and container variables
+            var trigger = $('.item .post-items div'),
+                container = $('.content-page-inner');
+            
+            const queryString = window.location.search;
+            const urlParams = new URLSearchParams(queryString);
+            if (urlParams.has('p')) {
+                let container = $('.content-page-inner');
+                let pageParam = urlParams.get('p');
+                let dirParam = urlParams.get('d');
+                let targetUrl = dirParam + "/" + pageParam + '.html';
+                // Load target page into container
+                container.load(targetUrl);
+            }
+            
+            // Fire on click
+            trigger.on('click', function(){
+            // Set $this for re-use. Set target from data attribute
+            var $this = $(this),
+                target = $this.data('target');
+
+            let directory = $this.parent().parent().find(".subject").text().toLowerCase();
+            var targetUrl = directory + "/" + target + '.html';
+            if (counter > 0) targetUrl = "../" + directory + "/" + target + '.html';
+
+            // Load target page into container
+            container.load(targetUrl, function() {
+                history.replaceState({}, null, targetUrl);
+                $('.content-page-inner img').each(function(index){
+                    $(this).attr("src","../"+$(this).attr("src"));
+                });
+            });
+
+            if (counter === 0) {
+                $("a").each(function(index){
+                    $(this).attr("href", "../"+$(this).attr("href"));
+                });
+            }
+
+            counter++;
+
+            // Stop normal link behavior
+            return false;
+            });
+        });
+        $('.content-page-inner').load('main/ctf-writeups-main.html');
+    </script>
+</body>
+</html>

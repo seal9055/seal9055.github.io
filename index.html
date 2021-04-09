@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="css/posts-styles.css">
+    <link rel="stylesheet" href="css/style.css">
+    <title>seal9055</title>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-inner">
+                <div class="menuBtn">
+                    <div class="menuButton">
+                        <div class="hamburger"></div>
+                    </div>
+                </div>
+                <div class="header-left">
+                    <div class="logo">
+                        <a href="index.html"><img src="imgs/logo.png" alt="" height="80"></a>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <nav>
+                        <ul>
+                            <li><a href="ctf-writeups">CTF-Writeups</a></li>
+                            <li><a href="hackthebox">Hackthebox</a></li>
+                            <li><a href="posts">Posts</a></li>
+                            <li><a href="contact.html">Contact</a></li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </header>
+        <div class="body-content">
+            <div class="sidebar">
+                <div class="sidebar-inner">
+                    <div class="sidebar-content">
+                        <div class="sidebar-content-inner">
+                            <div class="github-twitter">
+                                <div class="github">
+                                    <a href="https://github.com/seal9055" target="_blank">Github</a>
+                                </div>
+                                <div class="twitter">
+                                    <a href="https://twitter.com/seal9055" target="_blank">Twitter</a>
+                                </div>
+                            </div>
+                            <div class="sidebar-posts">
+                                <div class="item">
+                                    <div class="subject" data-target="oscp-notes">Oscp-notes</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sidebar-page-nav">
+                        <div class="go-to">
+                            <p>Go to other pages</p>
+                        </div>
+                        <div class="other-pages">
+                            <div class="side-page1">
+                                <li><a href="ctf-writeups">CTF-Writeups</a></li>
+                            </div>
+                            <div class="side-page2">
+                                <p><a href="hackthebox">Hackthebox</a></p>
+                            </div>
+                            <div class="side-page3">
+                                <p><a href="posts">Posts</a></p>
+                            </div>
+                            <div class="side-page4">
+                                <p><a href="contact.html">Contact</a></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="content-page">
+                <div class="content-page-inner">
+
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Scripts -->
+    <script src="javascript/main.js"></script>
+    
+    <!-- Handles content replacement -->
+    <script>
+        // Replaces content with post
+        $(document).ready(function(){
+            // Set trigger and container variables
+            var trigger = $('.item div'),
+                container = $('.content-page-inner');
+            
+            // Fire on click
+            trigger.on('click', function(){
+            // Set $this for re-use. Set target from data attribute
+            var $this = $(this),
+                target = $this.data('target');     
+            
+            // Load target page into container
+            container.load('posts/index-posts/' + target + '.html');
+
+            // Stop normal link behavior
+            return false;
+            });
+        });
+        $('.content-page-inner').load('posts/index-posts/index-main.html');
+    </script>
+    <style>
+        .subject, .subject.active {
+            background-image: none;
+        }
+        .subject:hover {
+            color: #00ffff;
+        }
+    </style>
+</body>
+</html>

