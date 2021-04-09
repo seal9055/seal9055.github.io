@@ -118,17 +118,19 @@
     
     <!-- Handles content replacement -->
     <script>
+        trigger2 = $('.recent-post div .recent-post-header h1');
         $.ajaxSetup ({
             // Disable caching of AJAX responses
             cache: false
         });
         var counter = 0;
+
+        // Set trigger and container variables
+        var trigger = $('.item .post-items div'),
+        container = $('.content-page-inner');
+
         // Replaces content with post
         $(document).ready(function(){
-            // Set trigger and container variables
-            var trigger = $('.item .post-items div'),
-                trigger2 = $('.recent-post div .recent-post-header h1'),
-                container = $('.content-page-inner');
 
             const queryString = window.location.search;
             const urlParams = new URLSearchParams(queryString);
@@ -140,28 +142,6 @@
                 // Load target page into container
                 container.load(targetUrl);
             }
-
-             // Fire on click   
-            trigger2.on('click', function(){
-                var $this = $(this),
-                target = $this.data('target');
-                let directory = target.split("-")[0];
-                var targetUrl = directory + "/" + target + '.html';
-                container.load(targetUrl, function(){
-                    history.replaceState({}, null, targetUrl);
-                    $('.content-page-inner img').each(function(index){
-                        $(this).attr("src","../"+$(this).attr("src"));
-                    });
-                });
-                if (counter === 0) {
-                    $("a").each(function(index){
-                        $(this).attr("href", "../"+$(this).attr("href"));
-                    });
-                }
-                counter++;
-                // Stop normal link behavior
-                return false;
-            });
 
             // Fire on click
             trigger.on('click', function(){
@@ -193,7 +173,28 @@
             return false;
             });
         });
-        $('.content-page-inner').load('main/hackthebox-main.html');
+        $('.content-page-inner').load('main/hackthebox-main.html', function(){
+            // Fire on click
+            trigger2 = $('.recent-post div .recent-post-header h1');
+            trigger2.on("click", function(e){
+                var $this = $(this),
+                target = $this.data('target');
+                let directory = target.split("-")[0];
+                var targetUrl = directory + "/" + target + '.html';
+                container.load(targetUrl, function(){
+                    history.replaceState({}, null, targetUrl);
+                    $('.content-page-inner img').each(function(index){
+                        $(this).attr("src","../"+$(this).attr("src"));
+                    });
+                });
+                if (counter === 0) {
+                    $("a").each(function(index){
+                        $(this).attr("href", "../"+$(this).attr("href"));
+                    });
+                }
+                counter++;
+            });
+        });
     </script>
 </body>
 </html>
