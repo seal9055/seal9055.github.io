@@ -1,49 +1,115 @@
 <div class="page-header">
     <div class="page-header-inner">
         <div class="page-header-inner2">
-            <h1>Binary Gauntlet 0 Writeup</h1>
+            <h1>PicoCTF 2020 Mini - Otp Implementation</h1>
+            <h2>April 2021</h2>
         </div>
     </div>
 </div>
 <H4>Problem</H4>
 <div class="paragraph">
     <p>
-		<br>
-        This series of problems has to do with binary protections and how they affect exploiting a very simple program. How far can you make it in the gauntlet? <a href=../docs/pico/gauntlet_0>gauntlet</a> nc mercury.picoctf.net 12294
-    	<br>
+        Yay reversing! Relevant files: <a href=../docs/other/otp_implementation/otp>otp</a> <a href=../docs/other/otp_implementation/flag.txt>flag.txt</a>
+        <br>
     </p>
 </div>
 <H4>Solution</H4>
 <div class="paragraph">
     <p>
-    	<br>
-    	This challenge gives us a binary to download and develop the exploit for locally, and then an address to connect to and retrieve the flag from using the developed exploit.
+        I am going to use a combination of binary ninja, gdb and pwntools to solve this challenge.
         <br>
-    	When running the binary, it asks us for input, and then prints that input back out. Then it asks for input one more time.
-    	<br><br>
-    </p>
-</div>
-<div>
-    <img src="../imgs/pico/chall1_1.png" alt="">
-</div>
-<div class="paragraph">
-    <p>
-        <br>
-        In gdb we can see that the print is done using the printf function. 
-        <br>
-    </p>
-</div>
-<div>
-    <img src="../imgs/pico/chall1_2.png" alt="">
-</div>
-<div class="paragraph">
-    <p>
-        <br><br>
-        This makes it very likely that the binary is vulnerable to a format string exploit. We test this out using a few different parameters, and almost immediately get back the correct flag.
+        Loading up the binary in binary ninja for static analysis shows us that there are three custom functions relevant to this challenge: main, valid_char and jumble. Main takes in a commandline argument and then runs it through the valid_char and jumble functions to verify my input. 
         <br><br>
     </p>
 </div>
 <div>
-    <img src="../imgs/pico/chall1_3.png" alt="">
+    <img src="../imgs/other/otp_implementation/1.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br>
+        Starting with the valid_char function we see that it runs 4 separate compare instructions. If all of them pass, it returns with a value of 1. If one of them fails, it returns with a value of 0. The comparisons basically end up checking if a character is in range [0-9] or [a-f]. If it isn't, it returns 0. Looking back at main, a return value of 0 causes the strncpy function to not be executed, which means that our input string will not be properly used in later areas of the program.
+        <br>
+        This tells us that our input string needs to only contain characters in the range [0-9] or [a-f].
+        <br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/other/otp_implementation/2.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br>
+        Similarly to the valid_char function, the jumble function is called for every character of our input string. This function performs several arithmetic operations on our character. This function is called for every character of our input string by a loop, before the program moves on. Once we have the correct key, the program prints out that we should xor it with the string in the flag.txt file.
+        <br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/other/otp_implementation/3.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br>
+        Back in main, after jumble has been cast on our entire string, the main function checks that our string is 100 characters long, and if it is, a strcmp is called against the string: "lfmhjmnaha...". 
+        <br>
+        My initial idea was to reverse the encryption algorithm used by the jumble function in a python script to obtain the correct key, however after playing around with the binary for a bit I realized that since my string is formated character by character, I could brute force the encryption instead, saving me the pain of reversing the encryption. 
+        <br>
+        Below you can find my final script that I used to bruteforce the correct key. After finding the key, it can be xored against the string found in flag.txt to decrypt the flag. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+from pwn import *
+
+flag="a5d47ae6ffa911de9d2b1b7611c47a1c43202a32f0042246f822c82345328becd5b8ec4118660f9b8cdc98bd1a41141943a9"
+chars="0123456789abcdef"
+res=""
+
+p = process(["gdb","./otp"])
+
+p.recvuntil("(gdb) ")
+p.sendline("break *main+431")   #break on the strcmp
+p.recvuntil("(gdb) ")
+
+for i in range(100):
+    for c in chars:
+        p.sendline("run "+res+c+'a'*(99-i))
+        p.recvuntil("(gdb) ")
+        p.sendline("x/s $rsi")
+        str1 = ((p.recvuntil("(gdb) "))[25:-8].strip())
+        p.sendline("x/s $rdi")
+        str2 = ((p.recvuntil("(gdb) "))[25:-8].strip())
+        if str1[i]==str2[i]: 
+            res +=c
+            print(res)
+            break
+
+result = int(res, 16) ^ int(flag, 16)
+print('{:x}'.format(result))
+        </code>
+    </pre>
+</div>
+<div>
+    <img src="../imgs/other/otp_implementation/4.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br>
+        After our script completes we simply convert the hex string to ascii to get the flag.
+        <br>
+    </p>
 </div>
 <script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>
