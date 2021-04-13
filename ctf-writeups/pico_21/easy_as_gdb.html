@@ -1,0 +1,84 @@
+<div class="page-header">
+    <div class="page-header-inner">
+        <div class="page-header-inner2">
+            <h1>Easy as GDB</h1>
+            <h2>April 2021</h2>
+        </div>
+    </div>
+</div>
+<H4>Problem</H4>
+<div class="paragraph">
+    <p>
+        The flag has got to be checked somewhere... File: <a href=../docs/pico/brute>brute</a>
+        <br>
+    </p>
+</div>
+<H4>Solution</H4>
+<div class="paragraph">
+    <p>
+        I am going to use a combination of binary ninja, gdb and pwntools to solve this challenge.
+        <br>
+        Looking at the function in binary ninja we see that main calls 3 separate functions that transform our input before it is finally compared against the password in the third functions. Luckily for us the characters are checked 1 by 1, so we do not have to spend time reversing the encryption algorithms of all 3 functions. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/pico/easy_as_gdb_1.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br>
+        Below you can find my final script that I used to bruteforce the correct input, which as it turns out is also the flag. This script checks every character 1 by 1 until the final flag is eventually printed out. Overall this script took about 3 minutes to produce the flag. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+from pwn import *
+
+flag = ""
+p = process(["gdb","./brute"])
+p.recvuntil("(gdb) ")
+p.sendline("break *0x5655598e")     #breakpoint on character comparison
+p.recvuntil("(gdb) ")
+alphabet = string.ascii_letters + string.digits + "{}_"
+
+while(1):
+    for c in alphabet:
+        p.sendline("run")
+        p.sendline(flag + c)
+        for x in range(len(flag)):
+            p.recvuntil("(gdb) ")
+            p.sendline("continue")
+        if len(flag) == 0:
+            p.recvuntil("(gdb) ")
+        p.sendline("p $eax")
+        p.recvuntil(" = ")
+        str1 = ((p.recvuntil("(gdb) ")).strip())[:-6]
+        p.sendline("p $edx")
+        p.recvuntil(" = ")
+        str2 = ((p.recvuntil("(gdb) ")).strip())[:-6]
+        if str1 == str2: 
+            flag +=c
+            print(flag)
+            break
+        </code>
+    </pre>
+</div>
+<div>
+    <img src="../imgs/pico/easy_as_gdb_2.png" alt="">
+</div>
+<br><br><br>
+<script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>
