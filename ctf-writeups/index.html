@@ -133,7 +133,7 @@
                 let container = $('.content-page-inner');
                 let pageParam = urlParams.get('p');
                 let dirParam = urlParams.get('d');
-                let targetUrl = dirParam + "/" + pageParam + '.html';
+                let targetUrl = dirParam + "/" + pageParam;
                 // Load target page into container
                 container.load(targetUrl);
             }
@@ -145,8 +145,8 @@
                 target = $this.data('target');
 
             let directory = $this.parent().parent().find(".subject").text().toLowerCase();
-            var targetUrl = directory + "/" + target + '.html';
-            if (counter > 0) targetUrl = "../" + directory + "/" + target + '.html';
+            var targetUrl = directory + "/" + target;
+            if (counter > 0) targetUrl = "../" + directory + "/" + target;
 
             // Load target page into container
             container.load(targetUrl, function() {

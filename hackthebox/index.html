@@ -138,7 +138,7 @@
                 let container = $('.content-page-inner');
                 let pageParam = urlParams.get('p');
                 let dirParam = urlParams.get('d');
-                let targetUrl = dirParam + "/" + pageParam + '.html';
+                let targetUrl = dirParam + "/" + pageParam;
                 // Load target page into container
                 container.load(targetUrl);
             }
@@ -150,8 +150,8 @@
                 target = $this.data('target');
 
             let directory = target.split("-")[0];
-            var targetUrl = directory + "/" + target + '.html';
-            if (counter > 0) targetUrl = "../" + directory + "/" + target + '.html';
+            var targetUrl = directory + "/" + target;
+            if (counter > 0) targetUrl = "../" + directory + "/" + target;
 
             // Load target page into container
             container.load(targetUrl, function() {
@@ -180,7 +180,7 @@
                 var $this = $(this),
                 target = $this.data('target');
                 let directory = target.split("-")[0];
-                var targetUrl = directory + "/" + target + '.html';
+                var targetUrl = directory + "/" + target;
                 container.load(targetUrl, function(){
                     history.replaceState({}, null, targetUrl);
                     $('.content-page-inner img').each(function(index){
