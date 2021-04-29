@@ -162,11 +162,15 @@
             });
 
             if (counter === 0) {
-                $("a").each(function(index){
-                    $(this).attr("href", "../"+$(this).attr("href"));
-                });
+                $('a').each(function (index) {
+                            if (!$(this).attr('href').includes('http')) {
+                                $(this).attr(
+                                    'href',
+                                    '../' + $(this).attr('href')
+                                );
+                            }
+                        });
             }
-
             counter++;
 
             // Stop normal link behavior
@@ -188,9 +192,14 @@
                     });
                 });
                 if (counter === 0) {
-                    $("a").each(function(index){
-                        $(this).attr("href", "../"+$(this).attr("href"));
-                    });
+                    $('a').each(function (index) {
+                            if (!$(this).attr('href').includes('http')) {
+                                $(this).attr(
+                                    'href',
+                                    '../' + $(this).attr('href')
+                                );
+                            }
+                        });
                 }
                 counter++;
             });
