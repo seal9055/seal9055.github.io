@@ -10,7 +10,7 @@
 <H4>Problem</H4>
 <div class="paragraph">
     <p>
-        Sort the useful gadgets from the fluff to construct another write primitive in this challenge. You'll have to get creative though, the gadgets aren't straightforward.<a href=../../docs/rop_emporium/fluff>fluff</a>
+        Sort the useful gadgets from the fluff to construct another write primitive in this challenge. You'll have to get creative though, the gadgets aren't straightforward. <a href=../../docs/rop_emporium/fluff>fluff</a>
     	<br>
     </p>
 </div>
@@ -40,13 +40,13 @@
 		2. xlat: This gadget sets al equal to rbx + al. We can set al to 0 prior to starting our chain, and since we control rbx using bextr, we have control over al.
 		<br>
 		3. stos: This gadget basically does: 'mov [rdi], al ; inc rdi'. Since we have control over both al and rdi, we can write al to an arbitrary location in memory.
-        <br><br>
+        <br>
     </p>
 </div>
 <div class="paragraph">
     <p>
         <br><br>
-		We now have everything we need to store our string into memory. To start off we first set rdi to a location in memory to which we want to write our string. We can then loop through our "flag.txt" string and use pwntools 'elf.search()' function to retrieve the address of each individual char.	We can then use the bextr gadget with appropriate arguments in combination with this address to set rbx to the address of each character. Next we can call xlat and stos, to first set al correctly using rbx, and then write the character to rdi. Stos automatically increments rdi, so the next character will automatically be written to the next byte in memory on the next loop iteration.
+		We now have everything we need to store our string into memory. To start off, we first set rdi to a location in memory to which we want to write our string. We can then loop through our "flag.txt" string and use pwntools 'elf.search()' function to retrieve the address of each individual char. Next we can use the bextr gadget with appropriate arguments in combination with this address to set rbx to the address of each character. Next we can call xlat and stos, to first set al correctly using rbx, and then write the character to rdi. Stos automatically increments rdi, so the next character will automatically be written to the next byte in memory on the next loop iteration.
 		<br>
 		We can now call the print_file function using our "flag.txt" location as its argument to retrieve the flag. The full exploit is posted below. 
         <br><br>
