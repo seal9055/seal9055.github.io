@@ -177,12 +177,13 @@ header ul li:hover::before {
 .sidebar-inner.fixedSidebar {
     position: fixed;
     top:0;
+	width: auto;
 }
 .sidebar-posts {
     margin-top: 50px;
 }
 .sidebar-posts .item {
-    margin-bottom: 25px;
+    margin-bottom: 20px;
 }
 .subject {
     background-image: url('../Imgs/arrow-right.png');
