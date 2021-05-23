@@ -25,10 +25,10 @@
         prints out the flag. To successfuly decrypt the flag we need to call 'ret2win' with the following parameters: 
         ret2win(0xdeadbeefdeadbeef,0xcafebabecafebabe,0xd00df00dd00df00d).
 		<br><br>
-		The name and challenge description hint that we are supposed to use the ret2csu technique to complete this channel. The fact that we need to set the 3 gadgets
-        rdi, rsi & rdx to appropriate values without a 'pop rdx' gadget support this idea. The ret2csu technique makes use of the function '__libc_csu_init'. This function's
+		The name and challenge description hint that we are supposed to use the ret2csu technique to complete this challenge. The fact that we need to set the 3 gadgets
+        rdi, rsi & rdx to appropriate values without a 'pop rdx' gadget support this idea. The ret2csu technique makes use of the function '__libc_csu_init'. This functions'
         original purpose was to calculate the difference between the __init_array's start and end location and then initialize the array accordingly. <br><br>
-        We are interested in this function since it contains 2 sets of gadgets that allow us to set up edi, rsi and rdx, which can be very useful for binaries with limited
+        We however, are interested in this function since it contains 2 sets of gadgets that allow us to set up edi, rsi and rdx, which can be very useful for binaries with limited
         gadgets such as this one. 
     	<br><br>
     </p>
@@ -46,8 +46,8 @@
         <br><br>
         We can solve this issue by calling the _init function. As you can see below this function does not modify any of our relevant registers and is thus a perfect target.
         Once this function returns we will be back in our __libc_csu_init function. If you look at the previous screenshot you can see that as long as we do not trigger the conditional
-        jump, none of our relevant registers are modified until we finally reach the ret and can redirect execution as usual. To accomplish this we just need to set rbp to (rbx+1), aka 1
-        since rbx is equal to 0 at this point due to our previous ropchain.
+        jump, none of our relevant registers are modified until we finally reach the ret and can redirect execution as usual. To accomplish this we just need to set rbp to (rbx+1), which equates
+		to 1 since rbx is equal to 0 at this point due to our previous ropchain.
     	<br><br>
     </p>
 </div>
