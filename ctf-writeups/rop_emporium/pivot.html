@@ -11,7 +11,7 @@
 <div class="paragraph">
     <p>
         Stack space is at a premium in this challenge and you'll have to pivot the stack onto a second 
-		ROP chain elsewhere in memory to ensure your success. <a href=../../docs/rop_emporium/pivot>pivot</a> <a href=../../docs/rop_emporium/libpivot.so>pivot</a>
+		ROP chain elsewhere in memory to ensure your success. <a href=../../docs/rop_emporium/pivot>pivot</a> <a href=../../docs/rop_emporium/libpivot.so>libpivot.so</a>
     	<br>
     </p>
 </div>
@@ -37,7 +37,7 @@
 		make use of the special gadgets provided. This method also only requires 8 bytes of space, which is more than enough considering we have 24 bytes. The leave gadget
 		basically executes 'pop rbp ; mov rsp, rbp'. Since we overwrite the contents of the rbp register using our 40 byte padding towards code execution, we can overwrite
 		it with our leaked pivot address and execute the leave gadget to pivot the stack to our chain.
-		<br>
+		<br><br>
 		Now that we have a much larger buffer to work with, we need to decide how we want to get the flag. Looking through the provided library, we find a ret2win function
 		that prints out the flag when called. This sounds like an easy target. 
 		before we can call ret2win. 
@@ -52,9 +52,9 @@
     	<br><br>
 		We know our target, however we do not yet have a valid address from our libraries, so we will need another leak. Since the binary does not have pie enabled, we have
 		access to the plt and got table addresses. We can use this to our advantage and call Puts_plt with puts_got as the argument to leak out the address of puts_got. We 
-		can then use this leak to find the address of the ret2win function since from here on out, everything is at a set offset from our leak. <br>
+		can then use this leak to find the address of the ret2win function since from here on out, everything is at a set offset from our leak. <br><br>
 		Finally we just need a way to trigger the vulnerability again to redirect code execution to the ret2win function. This can be done by just calling main at the 
-		end of our chain, and redirecting execution to ret2win. <br>
+		end of our chain, and redirecting execution to ret2win. <br><br>
 		Executing our script gives us the flag. The full exploit is posted below. 
     	<br><br>
     </p>
