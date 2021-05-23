@@ -1,14 +1,119 @@
 <div class="page-header">
     <div class="page-header-inner">
         <div class="page-header-inner2">
-            <h1>Rop-Emporium - Ret2csu</h1>
+            <h1>Ret2csu Writeup</h1>
+            <h2>May 2021</h2>           
+            <h4>Ret2csu</h4>           
         </div>
     </div>
 </div>
+<H4>Problem</H4>
 <div class="paragraph">
-    <p>Lorem, ipsum dolor sit amet consectetur adipisicing elit. Distinctio excepturi asperiores voluptate quisquam! Temporibus minus esse obcaecati recusandae exercitationem quam adipisci laboriosam veniam, est molestiae reiciendis at, nobis autem soluta?</p>
+    <p>
+        Learn a ROP technique that lets you populate useful calling convention registers like rdi, rsi and rdx even in an 
+        environment where gadgets are sparse. <a href=../../docs/rop_emporium/ret2csu>ret2csu</a> 
+        <a href=../../docs/rop_emporium/encrypted_flag.dat.so>encrypted_flag.dat.so</a> 
+        <a href=../../docs/rop_emporium/key.dat.so>key.dat.so</a> 
+        <a href=../../docs/rop_emporium/libret2csu.so>libret2csu.so</a>
+    	<br>
+    </p>
+</div>
+<H4>Solution</H4>
+<div class="paragraph">
+    <p>
+    	This challenge gives us multiple files to craft our exploit for. The purpose is to call a win function with the correct parameters which then decrypts and
+        prints out the flag. To successfuly decrypt the flag we need to call 'ret2win' with the following parameters: 
+        ret2win(0xdeadbeefdeadbeef,0xcafebabecafebabe,0xd00df00dd00df00d).
+		<br><br>
+		The name and challenge description hint that we are supposed to use the ret2csu technique to complete this channel. The fact that we need to set the 3 gadgets
+        rdi, rsi & rdx to appropriate values without a 'pop rdx' gadget support this idea. The ret2csu technique makes use of the function '__libc_csu_init'. This function's
+        original purpose was to calculate the difference between the __init_array's start and end location and then initialize the array accordingly. <br><br>
+        We are interested in this function since it contains 2 sets of gadgets that allow us to set up edi, rsi and rdx, which can be very useful for binaries with limited
+        gadgets such as this one. 
+    	<br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/rop_emporium/ret2csu1.png" alt="">
 </div>
 <div class="paragraph">
-    <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Laudantium inventore vel ut, a eum harum. Aliquam est hic maxime, temporibus neque minima optio, quia alias sequi non dolores distinctio dolore?</p>
+    <p>
+    	<br><br>
+        We can first call the bottom set of gadgets to set up rbx, rbp, r12, r13, r14, and r15. Next we can return onto the top set of gadgets to then set up rdx, rsi and edi before
+        calling [r12 + rbx*8]. by setting rbx to 0, we can just call r12 making it a bit simpler for us. However there is one issue with this, the instruction is 'call [r12]' and
+        not 'call r12'. This makes this a bit troublesome since we do not have a simple way to write an address into memory, and the address of our ret2win function is not already 
+        stored in memory. 
+        <br><br>
+        We can solve this issue by calling the _init function. As you can see below this function does not modify any of our relevant registers and is thus a perfect target.
+        Once this function returns we will be back in our __libc_csu_init function. If you look at the previous screenshot you can see that as long as we do not trigger the conditional
+        jump, none of our relevant registers are modified until we finally reach the ret and can redirect execution as usual. To accomplish this we just need to set rbp to (rbx+1), aka 1
+        since rbx is equal to 0 at this point due to our previous ropchain.
+    	<br><br>
+    </p>
 </div>
+<div>
+    <img src="../imgs/rop_emporium/ret2csu2.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+    	<br><br>
+		We can retrieve the address of a pointer to _init using gef's search-pattern functionality as shown below. We can use the address 0x400398.
+    	<br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/rop_emporium/ret2csu3.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        We now have everything we need to craft our exploit. The only thing we need to watch out for is that since the ret2csu technique overwrites edi instead of rdi, it 
+        does not copy '0xdeadbeefdeadbeef' entirely into rdi. This can be solved easily by adding a pop_rdi to the end of our chain. Once that is completed all registers are setup
+        appropriately and we can call the ret2win function to retrieve the flag. 
+        <br><br>
+        Executing the exploit successfuly decrypt's the flag and prints it out. The full exploit script is posted below. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/rop_emporium/ret2csu4.png" alt="">
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+
+from pwn import *
+elf = context.binary = ELF('./ret2csu')
+libc = elf.libc
+
+p = elf.process()
+
+csu_pop = p64(0x40069a) #pop rbx,rbp,r12,r13,r14,r15; ret
+csu_mov = p64(0x400680) #mov rdx,r15; mov rsi,r14; mov edi,r13d; call r12+rbx*8
+pop_rdi = p64(0x4006a3)
+win = p64(elf.sym.ret2win)
+t = p64(0)
+init = p64(0x400398)    #address to _init pointer
+
+payload = b'A'*40 + csu_pop + t + p64(0x1) + init + t + p64(0xcafebabecafebabe) + p64(0xd00df00dd00df00d) + csu_mov 
+payload += b'A'*8*7 + pop_rdi + p64(0xdeadbeefdeadbeef) + win
+
+p.sendlineafter('> ', payload)
+
+p.interactive()
+        </code>
+    </pre>
+</div>
+<br><br>
 <script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

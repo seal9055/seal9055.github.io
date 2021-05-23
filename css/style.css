@@ -183,7 +183,7 @@ header ul li:hover::before {
     margin-top: 50px;
 }
 .sidebar-posts .item {
-    margin-bottom: 20px;
+    margin-bottom: 10px;
 }
 .subject {
     background-image: url('../Imgs/arrow-right.png');
