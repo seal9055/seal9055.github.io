@@ -28,7 +28,6 @@
                         <ul>
                             <li><a href="ctf-writeups">CTF-Writeups</a></li>
                             <li><a href="blog">Blog</a></li>
-                            <li><a href="posts">Posts</a></li>
                             <li><a href="contact.html">Contact</a></li>
                         </ul>
                     </nav>
@@ -48,11 +47,6 @@
                                     <a href="https://twitter.com/seal9055" target="_blank">Twitter</a>
                                 </div>
                             </div>
-                            <div class="sidebar-posts">
-                                <div class="item">
-                                    <a href="posts/index-posts/oscp-notes.html">Oscp-Notes</a>
-                                </div>
-                            </div>
                         </div>
                     </div>
                     <div class="sidebar-page-nav">
@@ -67,9 +61,6 @@
                                 <p><a href="blog">Blog</a></p>
                             </div>
                             <div class="side-page3">
-                                <p><a href="posts">Posts</a></p>
-                            </div>
-                            <div class="side-page4">
                                 <p><a href="contact.html">Contact</a></p>
                             </div>
                         </div>
@@ -83,39 +74,5 @@
             </div>
         </div>
     </div>
-    <!-- Scripts -->
-    <script src="javascript/main.js"></script>
-    
-    <!-- Handles content replacement -->
-    <script>
-        // Replaces content with post
-        $(document).ready(function(){
-            // Set trigger and container variables
-            var trigger = $('.item div'),
-                container = $('.content-page-inner');
-            
-            // Fire on click
-            trigger.on('click', function(){
-            // Set $this for re-use. Set target from data attribute
-            var $this = $(this),
-                target = $this.data('target');     
-            
-            // Load target page into container
-            container.load('posts/index-posts/' + target);
-
-            // Stop normal link behavior
-            return false;
-            });
-        });
-        $('.content-page-inner').load('posts/index-posts/index-main.html');
-    </script>
-    <style>
-        .subject, .subject.active {
-            background-image: none;
-        }
-        .subject:hover {
-            color: #00ffff;
-        }
-    </style>
 </body>
 </html>
