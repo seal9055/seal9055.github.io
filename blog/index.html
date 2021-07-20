@@ -131,7 +131,7 @@
             let directory = target.split("-")[0];
 			let end = target.split("-")[1];
             var targetUrl = directory + "/" + end;
-            if (counter > 0) targetUrl = "../" + directory + "/" + target;
+            if (counter > 0) targetUrl = "../" + directory + "/" + end;
 
             // Load target page into container
             container.load(targetUrl, function() {
