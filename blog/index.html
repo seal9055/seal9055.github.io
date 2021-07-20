@@ -68,7 +68,7 @@
                                 <div class="item">
                                     <div class="subject">Game-Hacking</div>
                                     <div class="post-items">
-                                        <div data-target="a-minesweeper">Minesweeper</div>
+                                        <div data-target="game-minesweeper">Minesweeper</div>
                                     </div>
                                 </div>
                             </div>
@@ -83,7 +83,7 @@
                                 <li><a href="../ctf-writeups">CTF-Writeups</a></li>
                             </div>
                             <div class="side-page2">
-                                <p><a href="./">Hackthebox</a></p>
+                                <p><a href="./">Blog</a></p>
                             </div>
                             <div class="side-page3">
                                 <p><a href="../contact.html">Contact</a></p>
@@ -136,7 +136,8 @@
                 target = $this.data('target');
 
             let directory = target.split("-")[0];
-            var targetUrl = directory + "/" + target;
+			let end = target.split("-")[1];
+            var targetUrl = directory + "/" + end;
             if (counter > 0) targetUrl = "../" + directory + "/" + target;
 
             // Load target page into container
@@ -170,7 +171,8 @@
                 var $this = $(this),
                 target = $this.data('target');
                 let directory = target.split("-")[0];
-                var targetUrl = directory + "/" + target;
+				let end = target.split("-")[1];
+                var targetUrl = directory + "/" + end;
                 container.load(targetUrl, function(){
                     history.replaceState({}, null, targetUrl);
                     $('.content-page-inner img').each(function(index){
