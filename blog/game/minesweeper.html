@@ -23,7 +23,7 @@
 <div class="paragraph">
     <p>
         <br><br>
-        The first goal actually did not require much reversing at all. After playing the game for a bit I noticed that there was a distinct exploding sound whenever I hit a bomb and thus lost the game. Since minesweeper only has a couple of sounds (< 5), I figured this would be a good place to start. I opened up binary ninja and checked the code references for the windows api PlaySoundW() Function. As it turns out my suspicion was confirmed. This function is only called by 3 different functions which I decided to name play_sound[a,b,c]. 
+        The first goal actually did not require much reversing at all. After playing the game for a bit I noticed that there was a distinct exploding sound whenever I hit a bomb and thus lost the game. Since minesweeper only has a couple of sounds (< 5), I figured this would be a good place to start. I opened up binary ninja and checked the code references for the windows api function: PlaySoundW(). As it turns out my suspicion was confirmed. This function is only called by 3 different functions which I decided to name play_sound[a,b,c]. 
         <br><br>
     </p>
 </div>
@@ -43,7 +43,7 @@
 <div class="paragraph">
     <p>
         <br><br>
-        What caught my attention here was that there are 2 slightly different code paths. The first pushes 0x0 before calling a series of functions that lead to PlaySoundW() while the second path pushes 0x1 before doing the same. I decided to play around with this a little, and quickly noticed that patching the 'push 0x0' to a 'push 0x1' I could get the game to register a win instead of exploding. <br> Making this small patch resulted in us receiving the success message and a spot on the leaderboards upon hitting a bomb.  
+        What caught my attention here was that there are 2 slightly different code paths. The first pushes 0x0 before calling a series of functions that lead to PlaySoundW() while the second path pushes 0x1 before doing the same. I decided to play around with this a little, and quickly noticed that by patching the 'push 0x0' to a 'push 0x1', I could get the game to register a win instead of exploding. <br> Making this small patch resulted in the success message and a spot on the leaderboards upon hitting a bomb.
         <br><br>
     </p>
 </div>
@@ -53,7 +53,7 @@
 <div class="paragraph">
     <p>
         <br><br>
-        Now you may be thinking that this was super simple and didn't actually require any proper reversing. Well, you're right. That's where the second part comes in. I decided to reverse the application's entire execution going through almost every single function to properly map out what it does. I am only going to cover the relevant parts for this writeup though. <br><br> Now, lets get started with our second goal, printing out all bombs before the game starts. Lets start by taking a look at the main function. This is where I spent most of my time reversing. Since minesweeper is a gui app, it ended up having a lot of functions to properly set everything up. Therefore main starts out by calling several different functions and api calls to both start the program window, and draw the necessary structures. While this was quite interesting to reverse, its not directly relevant to this problem, so I will just leave a small snipped of the main function below to showcase a general overview of the steps it took. 
+        Now you may be thinking that this was super simple and didn't actually require any proper reversing. Well, you're right. That's where the second part comes in. I decided to reverse the application's entire execution going through almost every single function to properly map out what it does. I am only going to cover the relevant parts for this writeup though. <br><br> Lets get started with our second goal, printing out all bombs before the game starts. We will start by taking a look at the main function. This is where I spent most of my time reversing. Since minesweeper is a gui app, it ended up having a lot of functions to properly set everything up. Therefore main starts out by calling several different functions and api calls to both start the program window, and draw the necessary structures. While this was quite interesting to reverse, its not directly relevant to this problem, so I will just leave a small snippet of the main function below to showcase a general overview of the steps it took. 
         <br><br>
     </p>
 </div>
@@ -63,7 +63,7 @@
 <div class="paragraph">
     <p>
         <br><br>
-        Now we will get to the interesting part. Further down in main we can find this infinite loop. After starting out first game, this loop runs all the way until we press the x to exit out of the application. It even continues if we hit a bomb. Since this loop is called right before starting the game, I decided that it would probably be interesting to work around it and make sure to execute the function to print out the bombs beforehand. Additionally, since the exit branch on the right side is never called until we actually close the program, it will make for a perfect code cave that we overwrite with our own code. 
+        Now we will get to the interesting part. Further down in main we can find this infinite loop. After starting the first game, this loop runs all the way until we press the x to exit out of the application. It even continues if we hit a bomb. Since this loop is called right before starting the game, I decided that it would probably be interesting to work around it and make sure to execute the function to print out the bombs beforehand. Additionally, since the exit branch on the right side is never called until we actually close the program, it will make for a perfect code cave that we overwrite with our own code. 
         <br><br>
     </p>
 </div>
@@ -73,7 +73,7 @@
 <div class="paragraph">
     <p>
         <br><br>
-        At this point there is only one more thing we have to find. At this point we will return back to our earlier approach from the first part. Since we already know which set of functions is executed upon hitting a bomb, we can work backwards from there to figure out which function exactly is responsible for printing out the bombs. By using some breakpoints and single stepping through the code I eventually found the function I labeled 'draw_bombs'. This function is called by another function that is a direct xref from the previous sound_c function which is how I came upon it. <br><br> We don't need the specifics of the function (it mainly just checks which fields contain bombs, and then prints everything out), however it is noteworthy how eax is pushed onto the stack right before the function is called. I set a breakpoint on this instruction and ran the game a couple of times until I confirmed that eax would always equal 0xa.
+        At this point there is only one more thing we have to find. We will return back to our earlier approach from the first part. Since we already know which set of functions is executed upon hitting a bomb, we can work backwards from there to figure out which function exactly is responsible for printing out the bombs. By using some breakpoints and single stepping through the code I eventually found the function I labeled 'draw_bombs'. This function is called by another function that is a direct xref from the previous sound_c function which is how I found it. <br><br> We don't need the specifics of the function (it mainly just checks which fields contain bombs, and then prints everything out), however it is noteworthy how eax is pushed onto the stack right before the function is called. I set a breakpoint on this instruction and ran the game a couple of times until I eventually confirmed that eax would always equal 0xa.
         <br><br>
     </p>
 </div>
@@ -83,7 +83,7 @@
 <div class="paragraph">
     <p>
         <br><br>
-         At this point we have everything needed to accomplish goal #2, the draw_bombs() function alongside its arguments, the location we want to call it from, and a location for our code cave. Moving back to main, I patched out the instructions immediately prior to the loop to a jmp to our code cave. At this location I then execute 'push 0xa; call draw_bombs' before replacing the instructions I previously patched out and returning to normal execution. Now that all is done, when we open minesweeper all bombs are immediately printed out to us, thus giving us the ability to easily ignore the dangerous fields. <br><br>
+         Now we have everything needed to accomplish goal #2: the draw_bombs() function alongside its arguments, the location we want to call it from, and a location for our code cave. Moving back to main, I patched out the instructions immediately prior to the loop to a jmp to our code cave. At this location I then execute 'push 0xa; call draw_bombs' before replacing the instructions I previously patched out and returning to normal execution. Now that all is done, when we open minesweeper all bombs are immediately printed out to us, thus giving us the ability to easily ignore the dangerous fields. <br><br>
          I hope you enjoyed this writeup. If you have any questions or comments, feel free to dm me on discord and I'll be sure to respond. 
         <br><br>
     </p>
