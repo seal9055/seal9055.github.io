@@ -12,7 +12,12 @@
             <h1 data-target="game-minesweeper">Hacking Minesweeper</h1>
         </div>
         <div class="paragraph">
-            <p>Lorem ipsum dolor sit amet consectetur adipisicing elit. Itaque sequi maiores, obcaecati facilis, corrupti veniam ex modi numquam est vel ipsum in repellat. Expedita mollitia eveniet excepturi in aspernatur quis...</p>
+            <p>
+                I recently decided that I wanted to start learning a bit about game hacking to become a better reverse engineer, and figured, what better target than the classic minesweeper game? This is the first game I ever reversed, so my process was definitely not the most efficient, but after about 5 hours I accomplished the 2 goals I set for myself when starting this:<br>
+                1. Guaranteed Win - I accomplished this by patching the binary to call the terminating function with arguments that result in a win upon hitting a bomb
+                <br>
+                2. Print out all bombs at game start - This was a bit more difficult. I had to create a code cave, and redirect execution to it to call a function that prints out the bombs right at the beginning before continuing execution without hangups. 
+            </p>
             <img src="../imgs/game/minesweeper/logo.webp" width="200" height="200" alt="">
         </div>
     </div>
