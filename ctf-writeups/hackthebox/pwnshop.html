@@ -19,7 +19,7 @@
     <p>
     	This challenge gives us a binary to download and develop the exploit for locally, and then an address to connect to remotely and retrieve the flag from using the developed exploit.
         <br>
-    	So far going through the htb pwn retired challenges, this has been my favorite from the list. It came with pie and nx enabled, so we needed multiple leaks to finally craft a working exploit.<br> There are 3 functions that are interesting to us in this binary. As in some of the previous challenges, all the main does is run in an infinite loop and execute one of 2 functions depending on the users input. Func_1() is fairly short. After printing some error messages it reads in 0x50 bytes into a local buffer. The interesting part about this function is that this read() actually contains a buffer overflow vulnerability. Unfortunately since both pie and aslr are enabled, we need to continue looking for leaks first before attempting to exploit this overflow. 
+    	So far going through the htb pwn retired challenges, this has been my favorite from the list. It came with pie and nx enabled, so we needed multiple leaks to finally craft a working exploit.<br> There are 3 functions that are interesting to us in this binary. As in some of the previous challenges, all main does is run in an infinite loop and execute one of 2 functions depending on the users input. Func_1() is fairly short. After printing some error messages it reads in 0x50 bytes into a local buffer. The interesting part about this function is that this read() actually contains a buffer overflow vulnerability. Unfortunately since both pie and aslr are enabled, we need to continue looking for leaks first before attempting to exploit this overflow. 
     	<br><br>
     </p>
 </div>
@@ -42,7 +42,7 @@
 <div class="paragraph">
     <p>
         <br><br>
-        As it turns out, the only relevant part of this to us is the print. Since it does not nullterminate our string, we can send in 8 bytes. This will leave the stack in a state of 16 continous bytes at the 'printf("%s")' call. The first 8 of those bytes are our string and the second 8 bytes contain address from the binary that can be used to calculate the binary's base address thus beating pie. 
+        As it turns out, to us, the only relevant part of this is the print. Since it does not nullterminate our string, sending in 8 bytes will leave the stack in a state of 16 continous bytes at the 'printf("%s")' call. The first 8 of those bytes are our string and the second 8 bytes contain address from the binary that can be used to calculate the binary's base address thus beating pie. 
         <br><br>
     </p>
 </div>
@@ -52,8 +52,8 @@
 <div class="paragraph">
     <p>
         <br><br>
-        Now that we have pie leaked, we have access to quite a few rop gadgets, so we can actually start using the previously found buffer overflow now. Unfortunately these gadgets are not enough to spawn a shell in this case so we will also need a libc leak. We can achieve this using the got & plt which we can now access due to our pie leak. <br> 'chain = pop_rdi + PUTS_GOT + PUTS_PLT + main' <br> This will call puts(&puts) and thus leak a valid libc address. Attempting to add this chain to the end of our overflow buffer however fails. As it turns out we have to work with a very limited overflow. We have enough to overwrite rip but nothing further. This means that we need to pivot the stack to a suitable address. <br><br>
-        At this point I initially thought about the write we can make to the data section. My idea was to place my chain there, and redirect execution to that location. However this ended up not being feasible. We do not have control over any registers that we could point to the data section to accomplish this. Fortunately for us however, the binary included a very useful gadget: 'sub rsp, 0x28'. This would decrease rsp by 40 bytes, thus pointing it into the middle of our padding towards the overflow. 
+        Now that we have pie leaked, we have access to quite a few rop gadgets, so we can actually start using the previously found buffer overflow. Unfortunately these gadgets are not enough to spawn a shell in this case so we will also need a libc leak. We can achieve this using the got & plt tables which we can now access due to our pie leak. <br> 'chain = pop_rdi + PUTS_GOT + PUTS_PLT + main' <br> This will call puts(&puts) and thus leak a valid libc address. Attempting to add this chain to the end of our overflow buffer however fails. As it turns out we have to work with a very limited overflow. We have enough to overwrite rip but nothing further. This means that we need to pivot the stack to a suitable address. <br><br>
+        At this point I initially thought about the write we can make to the data section. My idea was to place my chain there, and redirect execution to that location. However this ended up not being feasible. We do not have control over any registers that we could point to the data section to accomplish this. Fortunately for us however, the binary included a very useful gadget: 'sub rsp, 0x28'. This would decrease rsp by 40 bytes, thus pointing it into the middle of our padding in the overflow. 
         <br><br>
     </p>
 </div>
@@ -78,7 +78,7 @@ payload = b'A'*40 + chain + sub_rsp_40                  #Execute 'sub rsp, 0x28'
 <div class="paragraph">
     <p>
         <br><br>
-        This payload will first overflow into rip, overwriting it with our sub rsp gadget, which will then pivot the stack onto our chain that will leak a libc address. Finally we will redirect execution back towards main so that we can hopefully abuse this vulnerability again to spawn a shell using our leaks. <br> Since the challenge did not come with a provided libc, we now need to first figure out which libc we are dealing with. The leak that we get running our exploit on remote indicated that the address of puts() ends in 0x6a0 on remote. Using libc.blukat, we get 3 possible options for the problems libc. I decided to chose the newer 64 bit version since that appeared to be the most likely candidate. 
+        This payload will first overflow into rip, overwriting it with our sub rsp gadget, which will then pivot the stack onto our chain that will leak a libc address. Finally we will redirect execution back towards main so that we can hopefully abuse this vulnerability again to spawn a shell using our leaks. <br> Since the challenge did not come with a provided libc, we now need to first figure out which libc we are dealing with. The leak that we get running our exploit on remote indicated that the address of puts() ends in 0x6a0. Using libc.blukat, we get 3 possible options for the servers libc. I decided to chose the newer 64 bit version since that appeared to be the most likely candidate. 
         <br><br>
     </p>
 </div>
