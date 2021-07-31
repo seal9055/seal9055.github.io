@@ -18,8 +18,8 @@
 <div class="paragraph">
     <p>
     	This challenge gives us a binary to download and develop the exploit for locally, and then an address to connect to remotely and retrieve the flag from using the developed exploit.
-        <br>
-    	The binary only has 1 function of concern to us, main. This function takes a random number, and then checks if 'rand_num * 0x1337c0de == winner'. If so, we get the flag. Now we could run the binary a couple thousand times, and eventually we might get the flag, however a much better way is to abuse the fomat string vulnerability that occurs on the highlighted line. 
+        <br><br>
+    	The binary only has 1 function of concern to us: main. This function takes a random number, and then checks if 'rand_num * 0x1337c0de == winner'. If so, we get the flag. Now we could run the binary a couple thousand times, and eventually we might get the flag, however a much better way is to abuse the fomat string vulnerability that occurs on the highlighted line. 
     	<br><br>
     </p>
 </div>
@@ -39,7 +39,7 @@
 <div class="paragraph">
     <p>
         <br><br>
-        The seventh value printed out from the stack is the random value. We can now calculate the win value we need to overwrite the winner variable with. We will now loop through this win variable and use the format string vulnerability to overwrite the winner variable one byte at a time. This allows us to pass the check, and the flag is printed out to us. <br><br> The full exploit is posted below.
+        The seventh value printed out from the stack is the random value. We can now calculate the win value we need to overwrite the winner variable with. Now we can loop through this win variable and use the format string vulnerability to overwrite the winner variable one byte at a time. This allows us to pass the check, and the flag is printed out to us. <br><br> The full exploit is posted below.
         <br><br>
     </p>
 </div>

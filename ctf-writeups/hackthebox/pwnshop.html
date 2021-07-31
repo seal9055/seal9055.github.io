@@ -18,7 +18,7 @@
 <div class="paragraph">
     <p>
     	This challenge gives us a binary to download and develop the exploit for locally, and then an address to connect to remotely and retrieve the flag from using the developed exploit.
-        <br>
+        <br><br>
     	So far going through the htb pwn retired challenges, this has been my favorite from the list. It came with pie and nx enabled, so we needed multiple leaks to finally craft a working exploit.<br> There are 3 functions that are interesting to us in this binary. As in some of the previous challenges, all main does is run in an infinite loop and execute one of 2 functions depending on the users input. Func_1() is fairly short. After printing some error messages it reads in 0x50 bytes into a local buffer. The interesting part about this function is that this read() actually contains a buffer overflow vulnerability. Unfortunately since both pie and aslr are enabled, we need to continue looking for leaks first before attempting to exploit this overflow. 
     	<br><br>
     </p>

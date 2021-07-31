@@ -18,7 +18,7 @@
 <div class="paragraph">
     <p>
     	This challenge gives us a binary to download and develop the exploit for locally, and then an address to connect to remotely and retrieve the flag from using the developed exploit.
-        <br>
+        <br><br>
     	We will start off by reversing the binary. It has 4 interesting functions. The main function runs in an infinite loop and calls either func_1() or func_2() depending on our input. There is no way to exit this loop from the main function. Func_1() reads in 0x100 bytes into a local buffer and then copies it over into stderr using fprintf(). This actually has a format string vulnerability, however since output is redirected into stderr we can not use it to leak any data. We may however be able to use it for a format string write exploit.
     	<br><br>
     </p>
@@ -29,7 +29,7 @@
 <div class="paragraph">
     <p>
         <br><br>
-        Lets now look at func_2() and check(). Func_2() starts off by reading in 6 bytes. It then calls the check function to compare this string to 'lulzk'. If the strings are equal, a success message is printed out and exit(0) is called. After this check there is another format string vulnerability. Lots of those in this binary it seems. This time it seems like we can actually use it to perform format string leaks. We now have a way to leak values from the stack, and a way to write values to arbitrary locations with out format string vulnerabilities.  
+        Lets now look at func_2() and check(). Func_2() starts off by reading in 6 bytes. It then calls the check function to compare this string to 'lulzk'. If the strings are equal, a success message is printed out and exit(0) is called. After this check there is another format string vulnerability. Lots of those in this binary it seems. <br><br>This time it seems like we can actually use it to perform format string leaks. We now have a way to leak values from the stack, and a way to write values to arbitrary locations with out format string vulnerabilities.  
         <br><br>
     </p>
 </div>
@@ -39,7 +39,7 @@
 <div class="paragraph">
     <p>
         <br><br>
-        Lets check the protections before we start planning out our exploit. The binary comes with all protections enabled except relro. This is very interesting since relro being disabled means that both exit handlers (such as the fini array) and the got table are writeable. This means that given the proper leaks, we may be able to overwrite a got entry with an address of our choosing and thus get a shell.
+        Lets check the protections before we start planning out our exploit. The binary comes with all protections enabled except relro. This is very interesting since relro being disabled means that both exit handlers (such as the fini array) and the got table are writeable. Given the proper leaks, we may be able to overwrite a got entry with an address of our choosing and thus get a shell.
         <br><br>
     </p>
 </div>
@@ -49,7 +49,7 @@
 <div class="paragraph">
     <p>
         <br><br>
-        Lets start off by getting our leaks. We will need both a pie leak and a libc leak. We can get both of these using the format string vulnerability in func_2(). Pie can be leaked out at the first stack offset and a valid libc address can be leaked out at the 13th offset. 
+        Lets start by getting our leaks. We will need both a pie leak and a libc leak. We can get both of these using the format string vulnerability in func_2(). Pie can be leaked out at the first stack offset and a valid libc address can be leaked out at the 13th offset. 
         <br><br>
         Now that we have our leaks, we can start working on our exploit. We can perform all of our format string writes using func_1(). Since strncmp() is only called in func_2(), it will make the perfect target for a got overwrite. My initial idea was to overwrite this address with a one gadget. Unfortunately none of the one gadgets ended up working in this case so I had to chose a different route. 
         <br><br>

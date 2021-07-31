@@ -18,7 +18,7 @@
 <div class="paragraph">
     <p>
     	This challenge gives us a binary to download and develop the exploit for locally, and then an address to connect to remotely and retrieve the flag from using the developed exploit.
-        <br>
+        <br><br>
     	The provided binary is fairly short. If we enter 'y' at the first prompt to continue with execution, it starts off by asking us for our email and age. Both of these are completely irrelevant. Next it asks us for the length of our name, and then it executes 'read(stdin,stack_var,name_length);' using the provided length as an argument. This is an obvious overflow bug, however there is still one small obstacle. A check is done to make sure that our provided length is less than 65. If it is higher it exits. Providing a length lower than 65 does not benefit us, since that is not a big enough read to overflow the return address. Luckily for us however, the length is treated as a signed integer, so if we provide a negative number, the check will pass, but read will still allow us to read in a large amount of bytes and overflow.
     	<br><br>
     </p>
