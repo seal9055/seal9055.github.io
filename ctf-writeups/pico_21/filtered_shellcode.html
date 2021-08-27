@@ -60,76 +60,62 @@
 <div>
     <img src="../imgs/pico/chall7_3.png" alt="">
 </div>
-<div>
-    <style 
-        type="text/css">
-            pre code {
-                      background-color: #008080;
-                      border: 1px solid #999;
-                      display: block;
-                      padding: 15px;
-                      color:  #F5F5DC;
-                    }
-    </style>
-    <pre>
-        <code>
-global _start
-section .text
-_start:
-  xor eax, eax
-  xor ecx, ecx
-  xor edx, edx
-  push eax
-  nop
+<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #268bd2">global</span> <span style="color: #268bd2">_start</span>
+<span style="color: #268bd2">section</span> <span style="color: #839496">.</span><span style="color: #268bd2">text</span>
+<span style="color: #268bd2">_start:</span>
+  <span style="color: #268bd2">xor</span> <span style="color: #268bd2">eax</span><span style="color: #586e75">,</span> <span style="color: #268bd2">eax</span>
+  <span style="color: #268bd2">xor</span> <span style="color: #268bd2">ecx</span><span style="color: #586e75">,</span> <span style="color: #268bd2">ecx</span>
+  <span style="color: #268bd2">xor</span> <span style="color: #268bd2">edx</span><span style="color: #586e75">,</span> <span style="color: #268bd2">edx</span>
+  <span style="color: #268bd2">push</span> <span style="color: #268bd2">eax</span>
+  <span style="color: #268bd2">nop</span>
 
-  mov edx, esp
+  <span style="color: #268bd2">mov</span> <span style="color: #268bd2">edx</span><span style="color: #586e75">,</span> <span style="color: #268bd2">esp</span>
 
-  mov al, 0x2f
-  mov [edx], al
-  inc edx
-  nop
+  <span style="color: #268bd2">mov</span> <span style="color: #268bd2">al</span><span style="color: #586e75">,</span> <span style="color: #2aa198">0x2f</span>
+  <span style="color: #268bd2">mov</span> <span style="color: #cb4b16">[</span><span style="color: #268bd2">edx</span><span style="color: #cb4b16">]</span><span style="color: #586e75">,</span> <span style="color: #268bd2">al</span>
+  <span style="color: #268bd2">inc</span> <span style="color: #268bd2">edx</span>
+  <span style="color: #268bd2">nop</span>
 
-  mov al, 0x62
-  mov [edx], al
-  inc edx
-  nop
+  <span style="color: #268bd2">mov</span> <span style="color: #268bd2">al</span><span style="color: #586e75">,</span> <span style="color: #2aa198">0x62</span>
+  <span style="color: #268bd2">mov</span> <span style="color: #cb4b16">[</span><span style="color: #268bd2">edx</span><span style="color: #cb4b16">]</span><span style="color: #586e75">,</span> <span style="color: #268bd2">al</span>
+  <span style="color: #268bd2">inc</span> <span style="color: #268bd2">edx</span>
+  <span style="color: #268bd2">nop</span>
 
-  mov al, 0x69
-  mov [edx], al
-  inc edx
-  nop
+  <span style="color: #268bd2">mov</span> <span style="color: #268bd2">al</span><span style="color: #586e75">,</span> <span style="color: #2aa198">0x69</span>
+  <span style="color: #268bd2">mov</span> <span style="color: #cb4b16">[</span><span style="color: #268bd2">edx</span><span style="color: #cb4b16">]</span><span style="color: #586e75">,</span> <span style="color: #268bd2">al</span>
+  <span style="color: #268bd2">inc</span> <span style="color: #268bd2">edx</span>
+  <span style="color: #268bd2">nop</span>
 
-  mov al, 0x6e
-  mov [edx], al
-  inc edx
-  nop
+  <span style="color: #268bd2">mov</span> <span style="color: #268bd2">al</span><span style="color: #586e75">,</span> <span style="color: #2aa198">0x6e</span>
+  <span style="color: #268bd2">mov</span> <span style="color: #cb4b16">[</span><span style="color: #268bd2">edx</span><span style="color: #cb4b16">]</span><span style="color: #586e75">,</span> <span style="color: #268bd2">al</span>
+  <span style="color: #268bd2">inc</span> <span style="color: #268bd2">edx</span>
+  <span style="color: #268bd2">nop</span>
 
-  mov al, 0x2f
-  mov [edx], al
-  inc edx
-  nop
+  <span style="color: #268bd2">mov</span> <span style="color: #268bd2">al</span><span style="color: #586e75">,</span> <span style="color: #2aa198">0x2f</span>
+  <span style="color: #268bd2">mov</span> <span style="color: #cb4b16">[</span><span style="color: #268bd2">edx</span><span style="color: #cb4b16">]</span><span style="color: #586e75">,</span> <span style="color: #268bd2">al</span>
+  <span style="color: #268bd2">inc</span> <span style="color: #268bd2">edx</span>
+  <span style="color: #268bd2">nop</span>
 
-  mov al, 0x73
-  mov [edx], al
-  inc edx
-  nop
+  <span style="color: #268bd2">mov</span> <span style="color: #268bd2">al</span><span style="color: #586e75">,</span> <span style="color: #2aa198">0x73</span>
+  <span style="color: #268bd2">mov</span> <span style="color: #cb4b16">[</span><span style="color: #268bd2">edx</span><span style="color: #cb4b16">]</span><span style="color: #586e75">,</span> <span style="color: #268bd2">al</span>
+  <span style="color: #268bd2">inc</span> <span style="color: #268bd2">edx</span>
+  <span style="color: #268bd2">nop</span>
 
-  mov al, 0x68
-  mov [edx], al
-  inc edx
-  nop
+  <span style="color: #268bd2">mov</span> <span style="color: #268bd2">al</span><span style="color: #586e75">,</span> <span style="color: #2aa198">0x68</span>
+  <span style="color: #268bd2">mov</span> <span style="color: #cb4b16">[</span><span style="color: #268bd2">edx</span><span style="color: #cb4b16">]</span><span style="color: #586e75">,</span> <span style="color: #268bd2">al</span>
+  <span style="color: #268bd2">inc</span> <span style="color: #268bd2">edx</span>
+  <span style="color: #268bd2">nop</span>
 
-  mov al, 0x00
-  mov [edx], al
-  inc edx
-  nop
+  <span style="color: #268bd2">mov</span> <span style="color: #268bd2">al</span><span style="color: #586e75">,</span> <span style="color: #2aa198">0x00</span>
+  <span style="color: #268bd2">mov</span> <span style="color: #cb4b16">[</span><span style="color: #268bd2">edx</span><span style="color: #cb4b16">]</span><span style="color: #586e75">,</span> <span style="color: #268bd2">al</span>
+  <span style="color: #268bd2">inc</span> <span style="color: #268bd2">edx</span>
+  <span style="color: #268bd2">nop</span>
 
-  xor eax, eax
-  xor edx, edx
-  mov ebx, esp
-  mov al, 0xb
-  int 0x80
-        </code>
-    </pre>
-</div>
+  <span style="color: #268bd2">xor</span> <span style="color: #268bd2">eax</span><span style="color: #586e75">,</span> <span style="color: #268bd2">eax</span>
+  <span style="color: #268bd2">xor</span> <span style="color: #268bd2">edx</span><span style="color: #586e75">,</span> <span style="color: #268bd2">edx</span>
+  <span style="color: #268bd2">mov</span> <span style="color: #268bd2">ebx</span><span style="color: #586e75">,</span> <span style="color: #268bd2">esp</span>
+  <span style="color: #268bd2">mov</span> <span style="color: #268bd2">al</span><span style="color: #586e75">,</span> <span style="color: #2aa198">0xb</span>
+  <span style="color: #268bd2">int</span> <span style="color: #2aa198">0x80</span>
+</pre></div>
+<br><br>
 <script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

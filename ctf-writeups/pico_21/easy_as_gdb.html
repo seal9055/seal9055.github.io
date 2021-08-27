@@ -33,51 +33,36 @@
         <br><br>
     </p>
 </div>
-<div>
-    <style 
-        type="text/css">
-            pre code {
-                      background-color: #008080;
-                      border: 1px solid #999;
-                      display: block;
-                      padding: 15px;
-                      color:  #F5F5DC;
-                    }
-    </style>
-    <pre>
-        <code>
-#!/usr/bin/env python
-from pwn import *
+<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #586e75; font-style: italic">#!/usr/bin/env python</span>
+<span style="color: #cb4b16">from</span> <span style="color: #268bd2">pwn</span> <span style="color: #cb4b16">import</span> <span style="color: #586e75">*</span>
 
-flag = ""
-p = process(["gdb","./brute"])
-p.recvuntil("(gdb) ")
-p.sendline("break *0x5655598e")     #breakpoint on character comparison
-p.recvuntil("(gdb) ")
-alphabet = string.ascii_letters + string.digits + "{}_"
+<span style="color: #839496">flag</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">""</span>
+<span style="color: #839496">p</span> <span style="color: #586e75">=</span> <span style="color: #839496">process([</span><span style="color: #2aa198">"gdb"</span><span style="color: #839496">,</span><span style="color: #2aa198">"./brute"</span><span style="color: #839496">])</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">recvuntil(</span><span style="color: #2aa198">"(gdb) "</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">"break *0x5655598e"</span><span style="color: #839496">)</span>     <span style="color: #586e75; font-style: italic">#breakpoint on character comparison</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">recvuntil(</span><span style="color: #2aa198">"(gdb) "</span><span style="color: #839496">)</span>
+<span style="color: #839496">alphabet</span> <span style="color: #586e75">=</span> <span style="color: #839496">string</span><span style="color: #586e75">.</span><span style="color: #839496">ascii_letters</span> <span style="color: #586e75">+</span> <span style="color: #839496">string</span><span style="color: #586e75">.</span><span style="color: #839496">digits</span> <span style="color: #586e75">+</span> <span style="color: #2aa198">"{}_"</span>
 
-while(1):
-    for c in alphabet:
-        p.sendline("run")
-        p.sendline(flag + c)
-        for x in range(len(flag)):
-            p.recvuntil("(gdb) ")
-            p.sendline("continue")
-        if len(flag) == 0:
-            p.recvuntil("(gdb) ")
-        p.sendline("p $eax")
-        p.recvuntil(" = ")
-        str1 = ((p.recvuntil("(gdb) ")).strip())[:-6]
-        p.sendline("p $edx")
-        p.recvuntil(" = ")
-        str2 = ((p.recvuntil("(gdb) ")).strip())[:-6]
-        if str1 == str2: 
-            flag +=c
-            print(flag)
-            break
-        </code>
-    </pre>
-</div>
+<span style="color: #859900">while</span><span style="color: #839496">(</span><span style="color: #2aa198">1</span><span style="color: #839496">):</span>
+    <span style="color: #859900">for</span> <span style="color: #839496">c</span> <span style="color: #859900">in</span> <span style="color: #839496">alphabet:</span>
+        <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">"run"</span><span style="color: #839496">)</span>
+        <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(flag</span> <span style="color: #586e75">+</span> <span style="color: #839496">c)</span>
+        <span style="color: #859900">for</span> <span style="color: #839496">x</span> <span style="color: #859900">in</span> <span style="color: #268bd2">range</span><span style="color: #839496">(</span><span style="color: #268bd2">len</span><span style="color: #839496">(flag)):</span>
+            <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">recvuntil(</span><span style="color: #2aa198">"(gdb) "</span><span style="color: #839496">)</span>
+            <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">"continue"</span><span style="color: #839496">)</span>
+        <span style="color: #859900">if</span> <span style="color: #268bd2">len</span><span style="color: #839496">(flag)</span> <span style="color: #586e75">==</span> <span style="color: #2aa198">0</span><span style="color: #839496">:</span>
+            <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">recvuntil(</span><span style="color: #2aa198">"(gdb) "</span><span style="color: #839496">)</span>
+        <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">"p $eax"</span><span style="color: #839496">)</span>
+        <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">recvuntil(</span><span style="color: #2aa198">" = "</span><span style="color: #839496">)</span>
+        <span style="color: #839496">str1</span> <span style="color: #586e75">=</span> <span style="color: #839496">((p</span><span style="color: #586e75">.</span><span style="color: #839496">recvuntil(</span><span style="color: #2aa198">"(gdb) "</span><span style="color: #839496">))</span><span style="color: #586e75">.</span><span style="color: #839496">strip())[:</span><span style="color: #586e75">-</span><span style="color: #2aa198">6</span><span style="color: #839496">]</span>
+        <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">"p $edx"</span><span style="color: #839496">)</span>
+        <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">recvuntil(</span><span style="color: #2aa198">" = "</span><span style="color: #839496">)</span>
+        <span style="color: #839496">str2</span> <span style="color: #586e75">=</span> <span style="color: #839496">((p</span><span style="color: #586e75">.</span><span style="color: #839496">recvuntil(</span><span style="color: #2aa198">"(gdb) "</span><span style="color: #839496">))</span><span style="color: #586e75">.</span><span style="color: #839496">strip())[:</span><span style="color: #586e75">-</span><span style="color: #2aa198">6</span><span style="color: #839496">]</span>
+        <span style="color: #859900">if</span> <span style="color: #839496">str1</span> <span style="color: #586e75">==</span> <span style="color: #839496">str2:</span> 
+            <span style="color: #839496">flag</span> <span style="color: #586e75">+=</span><span style="color: #839496">c</span>
+            <span style="color: #268bd2">print</span><span style="color: #839496">(flag)</span>
+            <span style="color: #859900">break</span>
+</pre></div>
 <div>
     <img src="../imgs/pico/easy_as_gdb_2.png" alt="">
 </div>

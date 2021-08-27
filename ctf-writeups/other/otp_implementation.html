@@ -59,50 +59,35 @@
         <br><br>
     </p>
 </div>
-<div>
-    <style 
-        type="text/css">
-            pre code {
-                      background-color: #008080;
-                      border: 1px solid #999;
-                      display: block;
-                      padding: 15px;
-                      color:  #F5F5DC;
-                    }
-    </style>
-    <pre>
-        <code>
-#!/usr/bin/env python
-from pwn import *
+<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #586e75; font-style: italic">#!/usr/bin/env python</span>
+<span style="color: #cb4b16">from</span> <span style="color: #268bd2">pwn</span> <span style="color: #cb4b16">import</span> <span style="color: #586e75">*</span>
 
-flag="a5d47ae6ffa911de9d2b1b7611c47a1c43202a32f0042246f822c82345328becd5b8ec4118660f9b8cdc98bd1a41141943a9"
-chars="0123456789abcdef"
-res=""
+<span style="color: #839496">flag</span><span style="color: #586e75">=</span><span style="color: #2aa198">"a5d47ae6ffa911de9d2b1b7611c47a1c43202a32f0042246f822c82345328becd5b8ec4118660f9b8cdc98bd1a41141943a9"</span>
+<span style="color: #839496">chars</span><span style="color: #586e75">=</span><span style="color: #2aa198">"0123456789abcdef"</span>
+<span style="color: #839496">res</span><span style="color: #586e75">=</span><span style="color: #2aa198">""</span>
 
-p = process(["gdb","./otp"])
+<span style="color: #839496">p</span> <span style="color: #586e75">=</span> <span style="color: #839496">process([</span><span style="color: #2aa198">"gdb"</span><span style="color: #839496">,</span><span style="color: #2aa198">"./otp"</span><span style="color: #839496">])</span>
 
-p.recvuntil("(gdb) ")
-p.sendline("break *main+431")   #break on the strcmp
-p.recvuntil("(gdb) ")
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">recvuntil(</span><span style="color: #2aa198">"(gdb) "</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">"break *main+431"</span><span style="color: #839496">)</span>   <span style="color: #586e75; font-style: italic">#break on the strcmp</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">recvuntil(</span><span style="color: #2aa198">"(gdb) "</span><span style="color: #839496">)</span>
 
-for i in range(100):
-    for c in chars:
-        p.sendline("run "+res+c+'a'*(99-i))
-        p.recvuntil("(gdb) ")
-        p.sendline("x/s $rsi")
-        str1 = ((p.recvuntil("(gdb) "))[25:-8].strip())
-        p.sendline("x/s $rdi")
-        str2 = ((p.recvuntil("(gdb) "))[25:-8].strip())
-        if str1[i]==str2[i]: 
-            res +=c
-            print(res)
-            break
+<span style="color: #859900">for</span> <span style="color: #839496">i</span> <span style="color: #859900">in</span> <span style="color: #268bd2">range</span><span style="color: #839496">(</span><span style="color: #2aa198">100</span><span style="color: #839496">):</span>
+    <span style="color: #859900">for</span> <span style="color: #839496">c</span> <span style="color: #859900">in</span> <span style="color: #839496">chars:</span>
+        <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">"run "</span><span style="color: #586e75">+</span><span style="color: #839496">res</span><span style="color: #586e75">+</span><span style="color: #839496">c</span><span style="color: #586e75">+</span><span style="color: #2aa198">'a'</span><span style="color: #586e75">*</span><span style="color: #839496">(</span><span style="color: #2aa198">99</span><span style="color: #586e75">-</span><span style="color: #839496">i))</span>
+        <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">recvuntil(</span><span style="color: #2aa198">"(gdb) "</span><span style="color: #839496">)</span>
+        <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">"x/s $rsi"</span><span style="color: #839496">)</span>
+        <span style="color: #839496">str1</span> <span style="color: #586e75">=</span> <span style="color: #839496">((p</span><span style="color: #586e75">.</span><span style="color: #839496">recvuntil(</span><span style="color: #2aa198">"(gdb) "</span><span style="color: #839496">))[</span><span style="color: #2aa198">25</span><span style="color: #839496">:</span><span style="color: #586e75">-</span><span style="color: #2aa198">8</span><span style="color: #839496">]</span><span style="color: #586e75">.</span><span style="color: #839496">strip())</span>
+        <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">"x/s $rdi"</span><span style="color: #839496">)</span>
+        <span style="color: #839496">str2</span> <span style="color: #586e75">=</span> <span style="color: #839496">((p</span><span style="color: #586e75">.</span><span style="color: #839496">recvuntil(</span><span style="color: #2aa198">"(gdb) "</span><span style="color: #839496">))[</span><span style="color: #2aa198">25</span><span style="color: #839496">:</span><span style="color: #586e75">-</span><span style="color: #2aa198">8</span><span style="color: #839496">]</span><span style="color: #586e75">.</span><span style="color: #839496">strip())</span>
+        <span style="color: #859900">if</span> <span style="color: #839496">str1[i]</span><span style="color: #586e75">==</span><span style="color: #839496">str2[i]:</span> 
+            <span style="color: #839496">res</span> <span style="color: #586e75">+=</span><span style="color: #839496">c</span>
+            <span style="color: #268bd2">print</span><span style="color: #839496">(res)</span>
+            <span style="color: #859900">break</span>
 
-result = int(res, 16) ^ int(flag, 16)
-print('{:x}'.format(result))
-        </code>
-    </pre>
-</div>
+<span style="color: #839496">result</span> <span style="color: #586e75">=</span> <span style="color: #268bd2">int</span><span style="color: #839496">(res,</span> <span style="color: #2aa198">16</span><span style="color: #839496">)</span> <span style="color: #586e75">^</span> <span style="color: #268bd2">int</span><span style="color: #839496">(flag,</span> <span style="color: #2aa198">16</span><span style="color: #839496">)</span>
+<span style="color: #268bd2">print</span><span style="color: #839496">(</span><span style="color: #2aa198">'{:x}'</span><span style="color: #586e75">.</span><span style="color: #839496">format(result))</span>
+</pre></div>
 <div>
     <img src="../imgs/other/otp_implementation/4.png" alt="">
 </div>

