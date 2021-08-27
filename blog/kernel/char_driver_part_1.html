@@ -292,181 +292,179 @@ all:
         <br><br>
     </p>
 </div>
-<div class="highlight"><pre><span></span><span class="cm">/*</span>
-    <span class="cm"> * @file   s_driver.c</span>
-    <span class="cm"> * @author seal9055</span>
-    <span class="cm"> * @date   26 August 2021</span>
-    <span class="cm"> * @version    1.0</span>
-    <span class="cm"> * @brief  Introductory linux character kernel driver that implements basic functionality. </span>
-    <span class="cm"> *              This driver will be expanded/improved in future versions.</span>
-    <span class="cm"> *              Blogpost describing functionality at: https://seal9055.com/blog/kernel/char_driver_part-1</span>
-    <span class="cm"> */</span>
+<div class="highlight" style="background: #f8f8f8"><pre style="line-height: 125%;"><span></span><span style="color: #408080; font-style: italic">/*</span>
+<span style="color: #408080; font-style: italic"> * @file   s_driver.c</span>
+<span style="color: #408080; font-style: italic"> * @author seal9055</span>
+<span style="color: #408080; font-style: italic"> * @date   26 August 2021</span>
+<span style="color: #408080; font-style: italic"> * @version    1.0</span>
+<span style="color: #408080; font-style: italic"> * @brief  Introductory linux character kernel driver that implements basic functionality. </span>
+<span style="color: #408080; font-style: italic"> *              This driver will be expanded/improved in future versions.</span>
+<span style="color: #408080; font-style: italic"> *              Blogpost describing functionality at: https://seal9055.com/blog/kernel/char_driver_part-1</span>
+<span style="color: #408080; font-style: italic"> */</span><span style="color: #bbbbbb"></span>
 
-    <span class="cp">#include</span> <span class="cpf">&lt;linux/module.h&gt;</span><span class="cp"></span>
-    <span class="cp">#include</span> <span class="cpf">&lt;linux/init.h&gt;</span><span class="cp"></span>
-    <span class="cp">#include</span> <span class="cpf">&lt;linux/kernel.h&gt;</span><span class="c1">       /* printk() */</span><span class="cp"></span>
-    <span class="cp">#include</span> <span class="cpf">&lt;linux/fs.h&gt;</span><span class="c1">           /* everything... */</span><span class="cp"></span>
-    <span class="cp">#include</span> <span class="cpf">&lt;linux/errno.h&gt;</span><span class="c1">        /* error codes */</span><span class="cp"></span>
-    <span class="cp">#include</span> <span class="cpf">&lt;linux/types.h&gt;</span><span class="c1">        /* size_t */</span><span class="cp"></span>
-    <span class="cp">#include</span> <span class="cpf">&lt;linux/cdev.h&gt;</span><span class="cp"></span>
-    <span class="cp">#include</span> <span class="cpf">&lt;linux/uaccess.h&gt;</span><span class="cp"></span>
+<span style="color: #BC7A00">#include</span><span style="color: #bbbbbb"> </span><span style="color: #408080; font-style: italic">&lt;linux/module.h&gt;</span><span style="color: #BC7A00"></span>
+<span style="color: #BC7A00">#include</span><span style="color: #bbbbbb"> </span><span style="color: #408080; font-style: italic">&lt;linux/init.h&gt;</span><span style="color: #BC7A00"></span>
+<span style="color: #BC7A00">#include</span><span style="color: #bbbbbb"> </span><span style="color: #408080; font-style: italic">&lt;linux/kernel.h&gt;       /* printk() */</span><span style="color: #BC7A00"></span>
+<span style="color: #BC7A00">#include</span><span style="color: #bbbbbb"> </span><span style="color: #408080; font-style: italic">&lt;linux/fs.h&gt;           /* everything... */</span><span style="color: #BC7A00"></span>
+<span style="color: #BC7A00">#include</span><span style="color: #bbbbbb"> </span><span style="color: #408080; font-style: italic">&lt;linux/errno.h&gt;        /* error codes */</span><span style="color: #BC7A00"></span>
+<span style="color: #BC7A00">#include</span><span style="color: #bbbbbb"> </span><span style="color: #408080; font-style: italic">&lt;linux/types.h&gt;        /* size_t */</span><span style="color: #BC7A00"></span>
+<span style="color: #BC7A00">#include</span><span style="color: #bbbbbb"> </span><span style="color: #408080; font-style: italic">&lt;linux/cdev.h&gt;</span><span style="color: #BC7A00"></span>
+<span style="color: #BC7A00">#include</span><span style="color: #bbbbbb"> </span><span style="color: #408080; font-style: italic">&lt;linux/uaccess.h&gt;</span><span style="color: #BC7A00"></span>
 
-    <span class="cp">#define BUFSIZE 512</span>
-    <span class="cp">#define NAME &quot;s_driver&quot;</span>
-    <span class="cp">#define NUM_MINORS 1</span>
-    <span class="cp">#define FIRST_MINOR 1</span>
-    <span class="cp">#define MESSAGE &quot;Hello World\n&quot;</span>
+<span style="color: #BC7A00">#define BUFSIZE 512</span>
+<span style="color: #BC7A00">#define NAME "s_driver"</span>
+<span style="color: #BC7A00">#define NUM_MINORS 1</span>
+<span style="color: #BC7A00">#define FIRST_MINOR 1</span>
+<span style="color: #BC7A00">#define MESSAGE "Hello World\n"</span>
 
-    <span class="k">struct</span> <span class="nc">s_driver_dev_data</span> <span class="p">{</span>
-            <span class="k">struct</span> <span class="nc">cdev</span> <span class="n">cdev</span><span class="p">;</span>
-            <span class="kt">char</span> <span class="n">buffer</span><span class="p">[</span><span class="n">BUFSIZE</span><span class="p">];</span>
-            <span class="kt">size_t</span> <span class="n">size</span><span class="p">;</span>
-    <span class="p">}</span><span class="n">devs</span><span class="p">[</span><span class="n">NUM_MINORS</span><span class="p">];</span>
+<span style="color: #008000; font-weight: bold">struct</span> <span style="color: #0000FF; font-weight: bold">s_driver_dev_data</span><span style="color: #bbbbbb"> </span>{<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">        </span><span style="color: #008000; font-weight: bold">struct</span> <span style="color: #0000FF; font-weight: bold">cdev</span><span style="color: #bbbbbb"> </span>cdev;<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">        </span><span style="color: #B00040">char</span><span style="color: #bbbbbb"> </span>buffer[BUFSIZE];<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">        </span><span style="color: #B00040">size_t</span><span style="color: #bbbbbb"> </span>size;<span style="color: #bbbbbb"></span>
+}devs[NUM_MINORS];<span style="color: #bbbbbb"></span>
 
-    <span class="kt">int</span> <span class="n">major</span><span class="p">;</span>
+<span style="color: #B00040">int</span><span style="color: #bbbbbb"> </span>major;<span style="color: #bbbbbb"></span>
 
-    <span class="cm">/*</span>
-    <span class="cm"> * Open function</span>
-    <span class="cm"> * This function is called whenever the open syscall is invoked onto a device that this driver handles.</span>
-    <span class="cm"> * Returns 0 on success.</span>
-    <span class="cm"> */</span>
-    <span class="k">static</span> <span class="kt">int</span> <span class="n">s_open</span><span class="p">(</span><span class="k">struct</span> <span class="nc">inode</span> <span class="o">*</span><span class="n">
-    <span class="p">{</span>
-            <span class="k">struct</span> <span class="nc">s_driver_dev_data</span> <span class="o">*</span><span class="n">data</span><span class="p">;</span>
-            <span class="n">data</span> <span class="o">=</span> <span class="n">container_of</span><span class="p">(</span><span class="n">inode</span><span class="o">-&gt;</span><span class="n">i_cdev</span><span>
+<span style="color: #408080; font-style: italic">/*</span>
+<span style="color: #408080; font-style: italic"> * Open function</span>
+<span style="color: #408080; font-style: italic"> * This function is called whenever the open syscall is invoked onto a device that this driver handles.</span>
+<span style="color: #408080; font-style: italic"> * Returns 0 on success.</span>
+<span style="color: #408080; font-style: italic"> */</span><span style="color: #bbbbbb"></span>
+<span style="color: #008000; font-weight: bold">static</span><span style="color: #bbbbbb"> </span><span style="color: #B00040">int</span><span style="color: #bbbbbb"> </span><span style="color: #0000FF">s_open</span>(<span style="color: #008000; font-weight: bold">struct</span> <span style="color: #0000FF; font-weight: bold">inode</span><span style="color: #bbbbbb"> </span><span style="color: #666666">*</span>inode,<span style="color: #bbbbbb"> </span><span style="color: #008000; font-weight: bold">struct</span> <span style="color: #0000FF; font-weight: bold">file</span><span style="color: #bbbbbb"> </span><span style="color: #666666">*</span>file)<span style="color: #bbbbbb"></span>
+{<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">        </span><span style="color: #008000; font-weight: bold">struct</span> <span style="color: #0000FF; font-weight: bold">s_driver_dev_data</span><span style="color: #bbbbbb"> </span><span style="color: #666666">*</span>data;<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">        </span>data<span style="color: #bbbbbb"> </span><span style="color: #666666">=</span><span style="color: #bbbbbb"> </span>container_of(inode<span style="color: #666666">-&gt;</span>i_cdev,<span style="color: #bbbbbb"> </span><span style="color: #008000; font-weight: bold">struct</span> <span style="color: #0000FF; font-weight: bold">s_driver_dev_data</span>,<span style="color: #bbbbbb"> </span>cdev);<span style="color: #bbbbbb"></span>
 
-            <span class="n">file</span><span class="o">-&gt;</span><span class="n">private_data</span> <span class="o">=</span> <span class="n">data</span><span class="p">;</span>
+<span style="color: #bbbbbb">        </span>file<span style="color: #666666">-&gt;</span>private_data<span style="color: #bbbbbb"> </span><span style="color: #666666">=</span><span style="color: #bbbbbb"> </span>data;<span style="color: #bbbbbb"></span>
 
-        <span class="n">printk</span><span class="p">(</span><span class="n">KERN_ALERT</span> <span class="s">&quot;Device opened</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);>
+<span style="color: #bbbbbb">       </span>printk(KERN_ALERT<span style="color: #bbbbbb"> </span><span style="color: #BA2121">"Device opened</span><span style="color: #BB6622; font-weight: bold">\n</span><span style="color: #BA2121">"</span>);<span style="color: #bbbbbb"></span>
 
-        <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
-    <span class="p">}</span>
+<span style="color: #bbbbbb">       </span><span style="color: #008000; font-weight: bold">return</span><span style="color: #bbbbbb"> </span><span style="color: #666666">0</span>;<span style="color: #bbbbbb"></span>
+}<span style="color: #bbbbbb"></span>
 
-    <span class="cm">/*</span>
-    <span class="cm"> * Release function</span>
-    <span class="cm"> * This function is called when close() is called onto the last instance of the device.</span>
-    <span class="cm"> * Returns 0 on success.</span>
-    <span class="cm"> */</span>
-    <span class="k">static</span> <span class="kt">int</span> <span class="n">s_release</span><span class="p">(</span><span class="k">struct</span> <span class="nc">inode</span> <span class="o">*</span><span class=>
-    <span class="p">{</span>
-            <span class="n">printk</span><span class="p">(</span><span class="n">KERN_ALERT</span> <span class="s">&quot;All device&#39;s closed</span><span class="se">\n</span><span class="s">&quot;</span><span cl>
-            <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
-    <span class="p">}</span>
+<span style="color: #408080; font-style: italic">/*</span>
+<span style="color: #408080; font-style: italic"> * Release function</span>
+<span style="color: #408080; font-style: italic"> * This function is called when close() is called onto the last instance of the device.</span>
+<span style="color: #408080; font-style: italic"> * Returns 0 on success.</span>
+<span style="color: #408080; font-style: italic"> */</span><span style="color: #bbbbbb"></span>
+<span style="color: #008000; font-weight: bold">static</span><span style="color: #bbbbbb"> </span><span style="color: #B00040">int</span><span style="color: #bbbbbb"> </span><span style="color: #0000FF">s_release</span>(<span style="color: #008000; font-weight: bold">struct</span> <span style="color: #0000FF; font-weight: bold">inode</span><span style="color: #bbbbbb"> </span><span style="color: #666666">*</span>inode,<span style="color: #bbbbbb"> </span><span style="color: #008000; font-weight: bold">struct</span> <span style="color: #0000FF; font-weight: bold">file</span><span style="color: #bbbbbb"> </span><span style="color: #666666">*</span>file)<span style="color: #bbbbbb"></span>
+{<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">       </span>printk(KERN_ALERT<span style="color: #bbbbbb"> </span><span style="color: #BA2121">"All device's closed</span><span style="color: #BB6622; font-weight: bold">\n</span><span style="color: #BA2121">"</span>);<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">       </span><span style="color: #008000; font-weight: bold">return</span><span style="color: #bbbbbb"> </span><span style="color: #666666">0</span>;<span style="color: #bbbbbb"></span>
+}<span style="color: #bbbbbb"></span>
 
-    <span class="cm">/*</span>
-    <span class="cm"> * Read function</span>
-    <span class="cm"> * This function is called whenever the read syscall is invoked onto a device that this driver handles.</span>
-    <span class="cm"> * Returns number of bytes read.</span>
-    <span class="cm"> */</span>
-    <span class="k">static</span> <span class="kt">ssize_t</span> <span class="n">s_read</span><span class="p">(</span><span class="k">struct</span> <span class="nc">file</span> <span class="o">*</span><span class=>
-    <span class="p">{</span>
-            <span class="k">struct</span> <span class="nc">s_driver_dev_data</span> <span class="o">*</span><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="k">struct</span>>
-            <span class="kt">size_t</span> <span class="n">len</span> <span class="o">=</span> <span class="n">min</span><span class="p">((</span><span class="kt">size_t</span><span class="p">)(</span><span class=">
+<span style="color: #408080; font-style: italic">/*</span>
+<span style="color: #408080; font-style: italic"> * Read function</span>
+<span style="color: #408080; font-style: italic"> * This function is called whenever the read syscall is invoked onto a device that this driver handles.</span>
+<span style="color: #408080; font-style: italic"> * Returns number of bytes read.</span>
+<span style="color: #408080; font-style: italic"> */</span><span style="color: #bbbbbb"></span>
+<span style="color: #008000; font-weight: bold">static</span><span style="color: #bbbbbb"> </span><span style="color: #B00040">ssize_t</span><span style="color: #bbbbbb"> </span><span style="color: #0000FF">s_read</span>(<span style="color: #008000; font-weight: bold">struct</span> <span style="color: #0000FF; font-weight: bold">file</span><span style="color: #bbbbbb"> </span><span style="color: #666666">*</span>file,<span style="color: #bbbbbb"> </span><span style="color: #B00040">char</span><span style="color: #bbbbbb"> </span>__user<span style="color: #bbbbbb"> </span><span style="color: #666666">*</span>ubuf,<span style="color: #bbbbbb"> </span><span style="color: #B00040">size_t</span><span style="color: #bbbbbb"> </span>size,<span style="color: #bbbbbb"> </span>loff_t<span style="color: #bbbbbb"> </span><span style="color: #666666">*</span>offset)<span style="color: #bbbbbb"></span>
+{<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">        </span><span style="color: #008000; font-weight: bold">struct</span> <span style="color: #0000FF; font-weight: bold">s_driver_dev_data</span><span style="color: #bbbbbb"> </span><span style="color: #666666">*</span>data<span style="color: #bbbbbb"> </span><span style="color: #666666">=</span><span style="color: #bbbbbb"> </span>(<span style="color: #008000; font-weight: bold">struct</span> <span style="color: #0000FF; font-weight: bold">s_driver_dev_data</span><span style="color: #bbbbbb"> </span><span style="color: #666666">*</span>)<span style="color: #bbbbbb"> </span>file<span style="color: #666666">-&gt;</span>private_data;<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">        </span><span style="color: #B00040">size_t</span><span style="color: #bbbbbb"> </span>len<span style="color: #bbbbbb"> </span><span style="color: #666666">=</span><span style="color: #bbbbbb"> </span>min((<span style="color: #B00040">size_t</span>)(data<span style="color: #666666">-&gt;</span>size<span style="color: #bbbbbb"> </span><span style="color: #666666">-</span><span style="color: #bbbbbb"> </span><span style="color: #666666">*</span>offset),<span style="color: #bbbbbb"> </span>size);<span style="color: #bbbbbb"></span>
 
-            <span class="k">if</span> <span class="p">(</span><span class="n">len</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)</span>
-                    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span style="color: #bbbbbb">        </span><span style="color: #008000; font-weight: bold">if</span><span style="color: #bbbbbb"> </span>(len<span style="color: #bbbbbb"> </span><span style="color: #666666">&lt;=</span><span style="color: #bbbbbb"> </span><span style="color: #666666">0</span>)<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">                </span><span style="color: #008000; font-weight: bold">return</span><span style="color: #bbbbbb"> </span><span style="color: #666666">0</span>;<span style="color: #bbbbbb"></span>
 
-            <span class="k">if</span> <span class="p">(</span><span class="n">copy_to_user</span><span class="p">(</span><span class="n">ubuf</span><span class="p">,</span> <span class="n">data</span><span class="o>
-                    <span class="k">return</span> <span class="o">-</span><span class="n">EFAULT</span><span class="p">;</span>
-            <span class="o">*</span><span class="n">offset</span> <span class="o">+=</span> <span class="n">len</span><span class="p">;</span>
+<span style="color: #bbbbbb">        </span><span style="color: #008000; font-weight: bold">if</span><span style="color: #bbbbbb"> </span>(copy_to_user(ubuf,<span style="color: #bbbbbb"> </span>data<span style="color: #666666">-&gt;</span>buffer<span style="color: #bbbbbb"> </span><span style="color: #666666">+</span><span style="color: #bbbbbb"> </span><span style="color: #666666">*</span>offset,<span style="color: #bbbbbb"> </span>len))<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">                </span><span style="color: #008000; font-weight: bold">return</span><span style="color: #bbbbbb"> </span><span style="color: #666666">-</span>EFAULT;<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">        </span><span style="color: #666666">*</span>offset<span style="color: #bbbbbb"> </span><span style="color: #666666">+=</span><span style="color: #bbbbbb"> </span>len;<span style="color: #bbbbbb"></span>
 
-            <span class="n">printk</span><span class="p">(</span><span class="n">KERN_ALERT</span> <span class="s">&quot;Device read</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</>
-            <span class="k">return</span> <span class="n">len</span><span class="p">;</span>
-    <span class="p">}</span>
+<span style="color: #bbbbbb">       </span>printk(KERN_ALERT<span style="color: #bbbbbb"> </span><span style="color: #BA2121">"Device read</span><span style="color: #BB6622; font-weight: bold">\n</span><span style="color: #BA2121">"</span>);<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">       </span><span style="color: #008000; font-weight: bold">return</span><span style="color: #bbbbbb"> </span>len;<span style="color: #bbbbbb"></span>
+}<span style="color: #bbbbbb"></span>
 
-    <span class="cm">/*</span>
-    <span class="cm"> * Write function</span>
-    <span class="cm"> * This function is called whenever the write syscall is invoked onto a device that this driver handles.</span>
-    <span class="cm"> * Returns number of bytes written.</span>
-    <span class="cm"> */</span>
-    <span class="k">static</span> <span class="kt">ssize_t</span> <span class="n">s_write</span><span class="p">(</span><span class="k">struct</span> <span class="nc">file</span> <span class="o">*</span><span class>
-    <span class="p">{</span>
-            <span class="k">struct</span> <span class="nc">s_driver_dev_data</span> <span class="o">*</span><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="k">struct</span>>
-            <span class="kt">size_t</span> <span class="n">len</span> <span class="o">=</span> <span class="n">min</span><span class="p">((</span><span class="kt">size_t</span><span class="p">)(</span><span class=">
+<span style="color: #408080; font-style: italic">/*</span>
+<span style="color: #408080; font-style: italic"> * Write function</span>
+<span style="color: #408080; font-style: italic"> * This function is called whenever the write syscall is invoked onto a device that this driver handles.</span>
+<span style="color: #408080; font-style: italic"> * Returns number of bytes written.</span>
+<span style="color: #408080; font-style: italic"> */</span><span style="color: #bbbbbb"></span>
+<span style="color: #008000; font-weight: bold">static</span><span style="color: #bbbbbb"> </span><span style="color: #B00040">ssize_t</span><span style="color: #bbbbbb"> </span><span style="color: #0000FF">s_write</span>(<span style="color: #008000; font-weight: bold">struct</span> <span style="color: #0000FF; font-weight: bold">file</span><span style="color: #bbbbbb"> </span><span style="color: #666666">*</span>file,<span style="color: #bbbbbb"> </span><span style="color: #008000; font-weight: bold">const</span><span style="color: #bbbbbb"> </span><span style="color: #B00040">char</span><span style="color: #bbbbbb"> </span>__user<span style="color: #bbbbbb"> </span><span style="color: #666666">*</span>ubuf,<span style="color: #bbbbbb"> </span><span style="color: #B00040">size_t</span><span style="color: #bbbbbb"> </span>size,<span style="color: #bbbbbb"> </span>loff_t<span style="color: #bbbbbb"> </span><span style="color: #666666">*</span>offset)<span style="color: #bbbbbb"></span>
+{<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">        </span><span style="color: #008000; font-weight: bold">struct</span> <span style="color: #0000FF; font-weight: bold">s_driver_dev_data</span><span style="color: #bbbbbb"> </span><span style="color: #666666">*</span>data<span style="color: #bbbbbb"> </span><span style="color: #666666">=</span><span style="color: #bbbbbb"> </span>(<span style="color: #008000; font-weight: bold">struct</span> <span style="color: #0000FF; font-weight: bold">s_driver_dev_data</span><span style="color: #bbbbbb"> </span><span style="color: #666666">*</span>)<span style="color: #bbbbbb"> </span>file<span style="color: #666666">-&gt;</span>private_data;<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">        </span><span style="color: #B00040">size_t</span><span style="color: #bbbbbb"> </span>len<span style="color: #bbbbbb"> </span><span style="color: #666666">=</span><span style="color: #bbbbbb"> </span>min((<span style="color: #B00040">size_t</span>)(data<span style="color: #666666">-&gt;</span>size<span style="color: #bbbbbb"> </span><span style="color: #666666">-</span><span style="color: #bbbbbb"> </span><span style="color: #666666">*</span>offset),<span style="color: #bbbbbb"> </span>size);<span style="color: #bbbbbb"></span>
 
-            <span class="k">if</span> <span class="p">(</span><span class="n">len</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)</span>
-                    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+<span style="color: #bbbbbb">        </span><span style="color: #008000; font-weight: bold">if</span><span style="color: #bbbbbb"> </span>(len<span style="color: #bbbbbb"> </span><span style="color: #666666">&lt;=</span><span style="color: #bbbbbb"> </span><span style="color: #666666">0</span>)<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">                </span><span style="color: #008000; font-weight: bold">return</span><span style="color: #bbbbbb"> </span><span style="color: #666666">0</span>;<span style="color: #bbbbbb"></span>
 
-            <span class="k">if</span> <span class="p">(</span><span class="n">copy_from_user</span><span class="p">(</span><span class="n">data</span><span class="o">-&gt;</span><span class="n">buffer</span> <span >
-                    <span class="k">return</span> <span class="o">-</span><span class="n">EFAULT</span><span class="p">;</span>
-            <span class="o">*</span><span class="n">offset</span> <span class="o">+=</span> <span class="n">len</span><span class="p">;</span>
-            
-            <span class="n">printk</span><span class="p">(</span><span class="n">KERN_ALERT</span> <span class="s">&quot;Device written</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)>
-        <span class="k">return</span> <span class="n">len</span><span class="p">;</span>
-    <span class="p">}</span>
+<span style="color: #bbbbbb">        </span><span style="color: #008000; font-weight: bold">if</span><span style="color: #bbbbbb"> </span>(copy_from_user(data<span style="color: #666666">-&gt;</span>buffer<span style="color: #bbbbbb"> </span><span style="color: #666666">+</span><span style="color: #bbbbbb"> </span><span style="color: #666666">*</span>offset,<span style="color: #bbbbbb"> </span>ubuf,<span style="color: #bbbbbb"> </span>len))<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">                </span><span style="color: #008000; font-weight: bold">return</span><span style="color: #bbbbbb"> </span><span style="color: #666666">-</span>EFAULT;<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">        </span><span style="color: #666666">*</span>offset<span style="color: #bbbbbb"> </span><span style="color: #666666">+=</span><span style="color: #bbbbbb"> </span>len;<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">        </span>
+<span style="color: #bbbbbb">        </span>printk(KERN_ALERT<span style="color: #bbbbbb"> </span><span style="color: #BA2121">"Device written</span><span style="color: #BB6622; font-weight: bold">\n</span><span style="color: #BA2121">"</span>);<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">       </span><span style="color: #008000; font-weight: bold">return</span><span style="color: #bbbbbb"> </span>len;<span style="color: #bbbbbb"></span>
+}<span style="color: #bbbbbb"></span>
 
-    <span class="k">static</span> <span class="k">const</span> <span class="k">struct</span> <span class="nc">file_operations</span> <span class="n">fops</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="p">.</span><span class="n">owner</span> <span class="o">=</span> <span class="n">THIS_MODULE</span><span class="p">,</span>
-        <span class="p">.</span><span class="n">open</span>    <span class="o">=</span> <span class="n">s_open</span><span class="p">,</span>
-        <span class="p">.</span><span class="n">read</span>    <span class="o">=</span> <span class="n">s_read</span><span class="p">,</span>
-        <span class="p">.</span><span class="n">write</span>   <span class="o">=</span> <span class="n">s_write</span><span class="p">,</span>
-        <span class="p">.</span><span class="n">release</span> <span class="o">=</span> <span class="n">s_release</span>
-    <span class="p">};</span>
+<span style="color: #008000; font-weight: bold">static</span><span style="color: #bbbbbb"> </span><span style="color: #008000; font-weight: bold">const</span><span style="color: #bbbbbb"> </span><span style="color: #008000; font-weight: bold">struct</span> <span style="color: #0000FF; font-weight: bold">file_operations</span><span style="color: #bbbbbb"> </span>fops<span style="color: #bbbbbb"> </span><span style="color: #666666">=</span><span style="color: #bbbbbb"> </span>{<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">   </span>.owner<span style="color: #bbbbbb"> </span><span style="color: #666666">=</span><span style="color: #bbbbbb"> </span>THIS_MODULE,<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">   </span>.open<span style="color: #bbbbbb">    </span><span style="color: #666666">=</span><span style="color: #bbbbbb"> </span>s_open,<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">       </span>.read<span style="color: #bbbbbb">    </span><span style="color: #666666">=</span><span style="color: #bbbbbb"> </span>s_read,<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">       </span>.write<span style="color: #bbbbbb">   </span><span style="color: #666666">=</span><span style="color: #bbbbbb"> </span>s_write,<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">       </span>.release<span style="color: #bbbbbb"> </span><span style="color: #666666">=</span><span style="color: #bbbbbb"> </span>s_release<span style="color: #bbbbbb"></span>
+};<span style="color: #bbbbbb"></span>
 
-    <span class="cm">/*</span>
-    <span class="cm"> * Initialization function</span>
-    <span class="cm"> * This function is called once when the driver is initialized, and is then discarded.</span>
-    <span class="cm"> * It starts by registering the driver to a dynamically chosen major number using alloc_chrdev_region().</span>
-    <span class="cm"> * Next it initializes the devices memory to &quot;Hello World\n&quot;.</span>
-    <span class="cm"> * Finally it initializes cdev using our fops struct and adds the device to the system using cdev_add,</span>
-    <span class="cm"> * making it live immediately. </span>
-    <span class="cm"> * Returns 0 on success.</span>
-    <span class="cm"> */</span>
-    <span class="k">static</span> <span class="kt">int</span> <span class="n">__init</span> <span class="n">init_func</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
-    <span class="p">{</span>
-        <span class="kt">dev_t</span> <span class="n">dev</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
-            <span class="kt">int</span> <span class="n">i</span><span class="p">;</span>
+<span style="color: #408080; font-style: italic">/*</span>
+<span style="color: #408080; font-style: italic"> * Initialization function</span>
+<span style="color: #408080; font-style: italic"> * This function is called once when the driver is initialized, and is then discarded.</span>
+<span style="color: #408080; font-style: italic"> * It starts by registering the driver to a dynamically chosen major number using alloc_chrdev_region().</span>
+<span style="color: #408080; font-style: italic"> * Next it initializes the devices memory to "Hello World\n".</span>
+<span style="color: #408080; font-style: italic"> * Finally it initializes cdev using our fops struct and adds the device to the system using cdev_add,</span>
+<span style="color: #408080; font-style: italic"> * making it live immediately. </span>
+<span style="color: #408080; font-style: italic"> * Returns 0 on success.</span>
+<span style="color: #408080; font-style: italic"> */</span><span style="color: #bbbbbb"></span>
+<span style="color: #008000; font-weight: bold">static</span><span style="color: #bbbbbb"> </span><span style="color: #B00040">int</span><span style="color: #bbbbbb"> </span>__init<span style="color: #bbbbbb"> </span>init_func(<span style="color: #B00040">void</span>)<span style="color: #bbbbbb"></span>
+{<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">   </span><span style="color: #B00040">dev_t</span><span style="color: #bbbbbb"> </span>dev<span style="color: #bbbbbb"> </span><span style="color: #666666">=</span><span style="color: #bbbbbb"> </span><span style="color: #666666">0</span>;<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">       </span><span style="color: #B00040">int</span><span style="color: #bbbbbb"> </span>i;<span style="color: #bbbbbb"></span>
 
-        <span class="k">if</span> <span class="p">(</span><span class="n">alloc_chrdev_region</span><span class="p">(</span><span class="o">&amp;</span><span class="n">dev</span><span class="p">,</span> <span c 
-            <span class="n">printk</span><span class="p">(</span><span class="n">KERN_WARNING</span> <span class="s">&quot;Registration failed</span><span class="se">\n</span><span class="s">&quot;</span><s>
-            <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
-        <span class="p">}</span>
-        <span class="n">major</span> <span class="o">=</span> <span class="n">MAJOR</span><span class="p">(</span><span class="n">dev</span><span class="p">);</span>
+<span style="color: #bbbbbb">   </span><span style="color: #008000; font-weight: bold">if</span><span style="color: #bbbbbb"> </span>(alloc_chrdev_region(<span style="color: #666666">&amp;</span>dev,<span style="color: #bbbbbb"> </span>FIRST_MINOR,<span style="color: #bbbbbb"> </span>NUM_MINORS,<span style="color: #bbbbbb"> </span>NAME)<span style="color: #bbbbbb"> </span><span style="color: #666666">&lt;</span><span style="color: #bbbbbb"> </span><span style="color: #666666">0</span>)<span style="color: #bbbbbb"> </span>{<span style="color: #bbbbbb"> </span>
+<span style="color: #bbbbbb">       </span>printk(KERN_WARNING<span style="color: #bbbbbb"> </span><span style="color: #BA2121">"Registration failed</span><span style="color: #BB6622; font-weight: bold">\n</span><span style="color: #BA2121">"</span>);<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">       </span><span style="color: #008000; font-weight: bold">return</span><span style="color: #bbbbbb"> </span><span style="color: #666666">1</span>;<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">   </span>}<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">   </span>major<span style="color: #bbbbbb"> </span><span style="color: #666666">=</span><span style="color: #bbbbbb"> </span>MAJOR(dev);<span style="color: #bbbbbb"></span>
 
-            <span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span>
-                    <span class="n">printk</span><span class="p">(</span><span class="n">KERN_ALERT</span> <span class="s">&quot;Create device using mknod /dev/%s%d c %d %d</span><span class="se">\n</span><span cla>
+<span style="color: #bbbbbb">        </span><span style="color: #008000; font-weight: bold">for</span><span style="color: #bbbbbb"> </span>(i<span style="color: #bbbbbb"> </span><span style="color: #666666">=</span><span style="color: #bbbbbb"> </span><span style="color: #666666">0</span>;<span style="color: #bbbbbb"> </span>i<span style="color: #bbbbbb"> </span><span style="color: #666666">&lt;</span><span style="color: #bbbbbb"> </span>NUM_MINORS;<span style="color: #bbbbbb"> </span>i<span style="color: #666666">++</span>)<span style="color: #bbbbbb"> </span>{<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">                </span>printk(KERN_ALERT<span style="color: #bbbbbb"> </span><span style="color: #BA2121">"Create device using mknod /dev/%s%d c %d %d</span><span style="color: #BB6622; font-weight: bold">\n</span><span style="color: #BA2121">"</span>,<span style="color: #bbbbbb"> </span>NAME,<span style="color: #bbbbbb"> </span>i,<span style="color: #bbbbbb"> </span>major,<span style="color: #bbbbbb"> </span>i);<span style="color: #bbbbbb"></span>
 
-                    <span class="n">memcpy</span><span class="p">(</span><span class="n">devs</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">buffer</span><span class=>
-                    <span class="n">devs</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">size</span> <span class="o">=</span> <span class="n">BUFSIZE</span><span class>
+<span style="color: #bbbbbb">                </span>memcpy(devs[i].buffer,<span style="color: #bbbbbb"> </span>MESSAGE,<span style="color: #bbbbbb"> </span><span style="color: #008000; font-weight: bold">sizeof</span>(MESSAGE));<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">                </span>devs[i].size<span style="color: #bbbbbb"> </span><span style="color: #666666">=</span><span style="color: #bbbbbb"> </span>BUFSIZE;<span style="color: #bbbbbb"></span>
 
-                    <span class="n">cdev_init</span><span class="p">(</span><span class="o">&amp;</span><span class="n">devs</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span clas>
-                    <span class="n">cdev_add</span><span class="p">(</span><span class="o">&amp;</span><span class="n">devs</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class>
-            <span class="p">}</span>
+<span style="color: #bbbbbb">                </span>cdev_init(<span style="color: #666666">&amp;</span>devs[i].cdev,<span style="color: #bbbbbb"> </span><span style="color: #666666">&amp;</span>fops);<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">                </span>cdev_add(<span style="color: #666666">&amp;</span>devs[i].cdev,<span style="color: #bbbbbb"> </span>MKDEV(major,<span style="color: #bbbbbb"> </span>i),<span style="color: #bbbbbb"> </span><span style="color: #666666">1</span>);<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">        </span>}<span style="color: #bbbbbb"></span>
 
-            <span class="n">printk</span><span class="p">(</span><span class="n">KERN_ALERT</span> <span class="s">&quot;Module successfuly initialized</span><span class="se">\n</span><span class="s">&quot;</span><>
-            <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
-    <span class="p">}</span>
+<span style="color: #bbbbbb">        </span>printk(KERN_ALERT<span style="color: #bbbbbb"> </span><span style="color: #BA2121">"Module successfuly initialized</span><span style="color: #BB6622; font-weight: bold">\n</span><span style="color: #BA2121">"</span>);<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">        </span><span style="color: #008000; font-weight: bold">return</span><span style="color: #bbbbbb"> </span><span style="color: #666666">0</span>;<span style="color: #bbbbbb"></span>
+}<span style="color: #bbbbbb"></span>
 
-    <span class="cm">/*</span>
-    <span class="cm"> * Exit function</span>
-    <span class="cm"> * This function is invoked once the driver is unloaded.</span>
-    <span class="cm"> * It handles all necessary cleanup to cleanly remove the driver from the kernel.</span>
-    <span class="cm"> */</span>
-    <span class="k">static</span> <span class="kt">void</span> <span class="n">__exit</span> <span class="n">exit_func</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
-    <span class="p">{</span>
-            <span class="kt">int</span> <span class="n">i</span><span class="p">;</span>
+<span style="color: #408080; font-style: italic">/*</span>
+<span style="color: #408080; font-style: italic"> * Exit function</span>
+<span style="color: #408080; font-style: italic"> * This function is invoked once the driver is unloaded.</span>
+<span style="color: #408080; font-style: italic"> * It handles all necessary cleanup to cleanly remove the driver from the kernel.</span>
+<span style="color: #408080; font-style: italic"> */</span><span style="color: #bbbbbb"></span>
+<span style="color: #008000; font-weight: bold">static</span><span style="color: #bbbbbb"> </span><span style="color: #B00040">void</span><span style="color: #bbbbbb"> </span>__exit<span style="color: #bbbbbb"> </span>exit_func(<span style="color: #B00040">void</span>)<span style="color: #bbbbbb"></span>
+{<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">        </span><span style="color: #B00040">int</span><span style="color: #bbbbbb"> </span>i;<span style="color: #bbbbbb"></span>
 
-            <span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span>
-                    <span class="n">cdev_del</span><span class="p">(</span><span class="o">&amp;</span><span class="n">devs</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class>
-            <span class="p">}</span>
-        
-        <span class="n">unregister_chrdev_region</span><span class="p">(</span><span class="n">MKDEV</span><span class="p">(</span><span class="n">major</span><span class="p">,</span> <span class="n">FIRST_MINO>
+<span style="color: #bbbbbb">        </span><span style="color: #008000; font-weight: bold">for</span><span style="color: #bbbbbb"> </span>(i<span style="color: #bbbbbb"> </span><span style="color: #666666">=</span><span style="color: #bbbbbb"> </span><span style="color: #666666">0</span>;<span style="color: #bbbbbb"> </span>i<span style="color: #bbbbbb"> </span><span style="color: #666666">&lt;</span><span style="color: #bbbbbb"> </span>NUM_MINORS;<span style="color: #bbbbbb"> </span>i<span style="color: #666666">++</span>)<span style="color: #bbbbbb"> </span>{<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">                </span>cdev_del(<span style="color: #666666">&amp;</span>devs[i].cdev);<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">        </span>}<span style="color: #bbbbbb"></span>
+<span style="color: #bbbbbb">   </span>
+<span style="color: #bbbbbb">   </span>unregister_chrdev_region(MKDEV(major,<span style="color: #bbbbbb"> </span>FIRST_MINOR),<span style="color: #bbbbbb"> </span>NUM_MINORS);<span style="color: #bbbbbb"></span>
 
-        <span class="n">printk</span><span class="p">(</span><span class="n">KERN_ALERT</span> <span class="s">&quot;Module successfuly unloaded</span><span class="se">\n</span><span class="s">&quot;</span><spa>
-    <span class="p">}</span>
+<span style="color: #bbbbbb">       </span>printk(KERN_ALERT<span style="color: #bbbbbb"> </span><span style="color: #BA2121">"Module successfuly unloaded</span><span style="color: #BB6622; font-weight: bold">\n</span><span style="color: #BA2121">"</span>);<span style="color: #bbbbbb"></span>
+}<span style="color: #bbbbbb"></span>
 
-    <span class="cm">/*</span>
-    <span class="cm"> * Macros that define general information and the init and exit functions</span>
-    <span class="cm"> */</span>
-    <span class="n">MODULE_AUTHOR</span><span class="p">(</span><span class="s">&quot;seal9055 &lt;seal9055@gmail.com&gt;&quot;</span><span class="p">);</span>
-    <span class="n">MODULE_DESCRIPTION</span><span class="p">(</span><span class="s">&quot;Linux Character Device Driver&quot;</span><span class="p">);</span>
-    <span class="n">MODULE_LICENSE</span><span class="p">(</span><span class="s">&quot;GPL v2&quot;</span><span class="p">);</span>
-    <span class="n">MODULE_VERSION</span><span class="p">(</span><span class="s">&quot;1.0&quot;</span><span class="p">);</span>
-    <span class="n">module_init</span><span class="p">(</span><span class="n">init_func</span><span class="p">);</span>
-    <span class="n">module_exit</span><span class="p">(</span><span class="n">exit_func</span><span class="p">);</span>
-    </pre>
-</div>
-
+<span style="color: #408080; font-style: italic">/*</span>
+<span style="color: #408080; font-style: italic"> * Macros that define general information and the init and exit functions</span>
+<span style="color: #408080; font-style: italic"> */</span><span style="color: #bbbbbb"></span>
+MODULE_AUTHOR(<span style="color: #BA2121">"seal9055 &lt;seal9055@gmail.com&gt;"</span>);<span style="color: #bbbbbb"></span>
+MODULE_DESCRIPTION(<span style="color: #BA2121">"Linux Character Device Driver"</span>);<span style="color: #bbbbbb"></span>
+MODULE_LICENSE(<span style="color: #BA2121">"GPL v2"</span>);<span style="color: #bbbbbb"></span>
+MODULE_VERSION(<span style="color: #BA2121">"1.0"</span>);<span style="color: #bbbbbb"></span>
+module_init(init_func);<span style="color: #bbbbbb"></span>
+module_exit(exit_func);<span style="color: #bbbbbb"></span>
+</pre></div>
 <script>
     try {
         pageOpenedDirectly;
