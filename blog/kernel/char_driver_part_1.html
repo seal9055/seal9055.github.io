@@ -292,194 +292,181 @@ all:
         <br><br>
     </p>
 </div>
-<div>
-    <style 
-        type="text/css">
-            pre code {
-                      background-color: #008080;
-                      border: 1px solid #999;
-                      display: block;
-                      padding: 15px;
-                      color:  #F5F5DC;
-                    }
-    </style>
-    <pre>
-        <code>
-/*
- * @file    s_driver.c
- * @author  seal9055
- * @date    26 August 2021
- * @version 1.0
- * @brief   Introductory linux character kernel driver that implements basic functionality. 
- *              This driver will be expanded/improved in future versions.
- *              Blogpost describing functionality at: https://seal9055.com/blog/kernel/char_driver_part-1
- */
+<div class="highlight"><pre><span></span><span class="cm">/*</span>
+    <span class="cm"> * @file   s_driver.c</span>
+    <span class="cm"> * @author seal9055</span>
+    <span class="cm"> * @date   26 August 2021</span>
+    <span class="cm"> * @version    1.0</span>
+    <span class="cm"> * @brief  Introductory linux character kernel driver that implements basic functionality. </span>
+    <span class="cm"> *              This driver will be expanded/improved in future versions.</span>
+    <span class="cm"> *              Blogpost describing functionality at: https://seal9055.com/blog/kernel/char_driver_part-1</span>
+    <span class="cm"> */</span>
 
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/kernel.h>       /* printk */
-#include <linux/fs.h>           /* everything... */
-#include <linux/errno.h>        /* error codes */
-#include <linux/types.h>        /* size_t */
-#include <linux/uaccess.h>      /* copy_from/to_user */
-#include <linux/cdev.h>
+    <span class="cp">#include</span> <span class="cpf">&lt;linux/module.h&gt;</span><span class="cp"></span>
+    <span class="cp">#include</span> <span class="cpf">&lt;linux/init.h&gt;</span><span class="cp"></span>
+    <span class="cp">#include</span> <span class="cpf">&lt;linux/kernel.h&gt;</span><span class="c1">       /* printk() */</span><span class="cp"></span>
+    <span class="cp">#include</span> <span class="cpf">&lt;linux/fs.h&gt;</span><span class="c1">           /* everything... */</span><span class="cp"></span>
+    <span class="cp">#include</span> <span class="cpf">&lt;linux/errno.h&gt;</span><span class="c1">        /* error codes */</span><span class="cp"></span>
+    <span class="cp">#include</span> <span class="cpf">&lt;linux/types.h&gt;</span><span class="c1">        /* size_t */</span><span class="cp"></span>
+    <span class="cp">#include</span> <span class="cpf">&lt;linux/cdev.h&gt;</span><span class="cp"></span>
+    <span class="cp">#include</span> <span class="cpf">&lt;linux/uaccess.h&gt;</span><span class="cp"></span>
 
-#define BUFSIZE 512
-#define NAME "s_driver"
-#define NUM_MINORS 1
-#define FIRST_MINOR 1
-#define MESSAGE "Hello World\n"
+    <span class="cp">#define BUFSIZE 512</span>
+    <span class="cp">#define NAME &quot;s_driver&quot;</span>
+    <span class="cp">#define NUM_MINORS 1</span>
+    <span class="cp">#define FIRST_MINOR 1</span>
+    <span class="cp">#define MESSAGE &quot;Hello World\n&quot;</span>
 
-struct s_driver_dev_data {
-        struct cdev cdev;
-        char buffer[BUFSIZE];
-        size_t size;
-}devs[NUM_MINORS];
+    <span class="k">struct</span> <span class="nc">s_driver_dev_data</span> <span class="p">{</span>
+            <span class="k">struct</span> <span class="nc">cdev</span> <span class="n">cdev</span><span class="p">;</span>
+            <span class="kt">char</span> <span class="n">buffer</span><span class="p">[</span><span class="n">BUFSIZE</span><span class="p">];</span>
+            <span class="kt">size_t</span> <span class="n">size</span><span class="p">;</span>
+    <span class="p">}</span><span class="n">devs</span><span class="p">[</span><span class="n">NUM_MINORS</span><span class="p">];</span>
 
-int major;
+    <span class="kt">int</span> <span class="n">major</span><span class="p">;</span>
 
-/*
- * Open function
- * This function is called whenever the open syscall is invoked onto a device that this driver handles.
- * Returns 0 on success.
- */
-static int s_open(struct inode *inode, struct file *file)
-{
-        struct s_driver_dev_data *data;
-        data = container_of(inode->i_cdev, struct s_driver_dev_data, cdev);
+    <span class="cm">/*</span>
+    <span class="cm"> * Open function</span>
+    <span class="cm"> * This function is called whenever the open syscall is invoked onto a device that this driver handles.</span>
+    <span class="cm"> * Returns 0 on success.</span>
+    <span class="cm"> */</span>
+    <span class="k">static</span> <span class="kt">int</span> <span class="n">s_open</span><span class="p">(</span><span class="k">struct</span> <span class="nc">inode</span> <span class="o">*</span><span class="n">
+    <span class="p">{</span>
+            <span class="k">struct</span> <span class="nc">s_driver_dev_data</span> <span class="o">*</span><span class="n">data</span><span class="p">;</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">container_of</span><span class="p">(</span><span class="n">inode</span><span class="o">-&gt;</span><span class="n">i_cdev</span><span>
 
-        file->private_data = data;
+            <span class="n">file</span><span class="o">-&gt;</span><span class="n">private_data</span> <span class="o">=</span> <span class="n">data</span><span class="p">;</span>
 
-    printk(KERN_ALERT "Device opened\n");
+        <span class="n">printk</span><span class="p">(</span><span class="n">KERN_ALERT</span> <span class="s">&quot;Device opened</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);>
 
-    return 0;
-}
+        <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="p">}</span>
 
-/*
- * Release function
- * This function is called when close is called onto the last instance of the device.
- * Returns 0 on success.
- */
-static int s_release(struct inode *inode, struct file *file)
-{
-        printk(KERN_ALERT "All device's closed\n");
-        return 0;
-}
+    <span class="cm">/*</span>
+    <span class="cm"> * Release function</span>
+    <span class="cm"> * This function is called when close() is called onto the last instance of the device.</span>
+    <span class="cm"> * Returns 0 on success.</span>
+    <span class="cm"> */</span>
+    <span class="k">static</span> <span class="kt">int</span> <span class="n">s_release</span><span class="p">(</span><span class="k">struct</span> <span class="nc">inode</span> <span class="o">*</span><span class=>
+    <span class="p">{</span>
+            <span class="n">printk</span><span class="p">(</span><span class="n">KERN_ALERT</span> <span class="s">&quot;All device&#39;s closed</span><span class="se">\n</span><span class="s">&quot;</span><span cl>
+            <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="p">}</span>
 
-/*
- * Read function
- * This function is called whenever the read syscall is invoked onto a device that this driver handles.
- * Returns number of bytes read.
- */
-static ssize_t s_read(struct file *file, char __user *ubuf, size_t size, loff_t *offset)
-{
-        struct s_driver_dev_data *data = (struct s_driver_dev_data *) file->private_data;
-        size_t len = min((size_t)(data->size - *offset), size);
+    <span class="cm">/*</span>
+    <span class="cm"> * Read function</span>
+    <span class="cm"> * This function is called whenever the read syscall is invoked onto a device that this driver handles.</span>
+    <span class="cm"> * Returns number of bytes read.</span>
+    <span class="cm"> */</span>
+    <span class="k">static</span> <span class="kt">ssize_t</span> <span class="n">s_read</span><span class="p">(</span><span class="k">struct</span> <span class="nc">file</span> <span class="o">*</span><span class=>
+    <span class="p">{</span>
+            <span class="k">struct</span> <span class="nc">s_driver_dev_data</span> <span class="o">*</span><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="k">struct</span>>
+            <span class="kt">size_t</span> <span class="n">len</span> <span class="o">=</span> <span class="n">min</span><span class="p">((</span><span class="kt">size_t</span><span class="p">)(</span><span class=">
 
-        if (len <= 0)
-                return 0;
+            <span class="k">if</span> <span class="p">(</span><span class="n">len</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
 
-        if (copy_to_user(ubuf, data->buffer + *offset, len))
-                return -EFAULT;
-        *offset += len;
+            <span class="k">if</span> <span class="p">(</span><span class="n">copy_to_user</span><span class="p">(</span><span class="n">ubuf</span><span class="p">,</span> <span class="n">data</span><span class="o>
+                    <span class="k">return</span> <span class="o">-</span><span class="n">EFAULT</span><span class="p">;</span>
+            <span class="o">*</span><span class="n">offset</span> <span class="o">+=</span> <span class="n">len</span><span class="p">;</span>
 
-        printk(KERN_ALERT "Device read\n");
-        return len;
-}
+            <span class="n">printk</span><span class="p">(</span><span class="n">KERN_ALERT</span> <span class="s">&quot;Device read</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</>
+            <span class="k">return</span> <span class="n">len</span><span class="p">;</span>
+    <span class="p">}</span>
 
-/*
- * Write function
- * This function is called whenever the write syscall is invoked onto a device that this driver handles.
- * Returns number of bytes written.
- */
-static ssize_t s_write(struct file *file, const char __user *ubuf, size_t size, loff_t *offset)
-{
-        struct s_driver_dev_data *data = (struct s_driver_dev_data *) file->private_data;
-        size_t len = min((size_t)(data->size - *offset), size);
+    <span class="cm">/*</span>
+    <span class="cm"> * Write function</span>
+    <span class="cm"> * This function is called whenever the write syscall is invoked onto a device that this driver handles.</span>
+    <span class="cm"> * Returns number of bytes written.</span>
+    <span class="cm"> */</span>
+    <span class="k">static</span> <span class="kt">ssize_t</span> <span class="n">s_write</span><span class="p">(</span><span class="k">struct</span> <span class="nc">file</span> <span class="o">*</span><span class>
+    <span class="p">{</span>
+            <span class="k">struct</span> <span class="nc">s_driver_dev_data</span> <span class="o">*</span><span class="n">data</span> <span class="o">=</span> <span class="p">(</span><span class="k">struct</span>>
+            <span class="kt">size_t</span> <span class="n">len</span> <span class="o">=</span> <span class="n">min</span><span class="p">((</span><span class="kt">size_t</span><span class="p">)(</span><span class=">
 
-        if (len <= 0)
-                return 0;
+            <span class="k">if</span> <span class="p">(</span><span class="n">len</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
 
-        if (copy_from_user(data->buffer + *offset, ubuf, len))
-                return -EFAULT;
-        *offset += len;
+            <span class="k">if</span> <span class="p">(</span><span class="n">copy_from_user</span><span class="p">(</span><span class="n">data</span><span class="o">-&gt;</span><span class="n">buffer</span> <span >
+                    <span class="k">return</span> <span class="o">-</span><span class="n">EFAULT</span><span class="p">;</span>
+            <span class="o">*</span><span class="n">offset</span> <span class="o">+=</span> <span class="n">len</span><span class="p">;</span>
+            
+            <span class="n">printk</span><span class="p">(</span><span class="n">KERN_ALERT</span> <span class="s">&quot;Device written</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">)>
+        <span class="k">return</span> <span class="n">len</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="k">static</span> <span class="k">const</span> <span class="k">struct</span> <span class="nc">file_operations</span> <span class="n">fops</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="p">.</span><span class="n">owner</span> <span class="o">=</span> <span class="n">THIS_MODULE</span><span class="p">,</span>
+        <span class="p">.</span><span class="n">open</span>    <span class="o">=</span> <span class="n">s_open</span><span class="p">,</span>
+        <span class="p">.</span><span class="n">read</span>    <span class="o">=</span> <span class="n">s_read</span><span class="p">,</span>
+        <span class="p">.</span><span class="n">write</span>   <span class="o">=</span> <span class="n">s_write</span><span class="p">,</span>
+        <span class="p">.</span><span class="n">release</span> <span class="o">=</span> <span class="n">s_release</span>
+    <span class="p">};</span>
+
+    <span class="cm">/*</span>
+    <span class="cm"> * Initialization function</span>
+    <span class="cm"> * This function is called once when the driver is initialized, and is then discarded.</span>
+    <span class="cm"> * It starts by registering the driver to a dynamically chosen major number using alloc_chrdev_region().</span>
+    <span class="cm"> * Next it initializes the devices memory to &quot;Hello World\n&quot;.</span>
+    <span class="cm"> * Finally it initializes cdev using our fops struct and adds the device to the system using cdev_add,</span>
+    <span class="cm"> * making it live immediately. </span>
+    <span class="cm"> * Returns 0 on success.</span>
+    <span class="cm"> */</span>
+    <span class="k">static</span> <span class="kt">int</span> <span class="n">__init</span> <span class="n">init_func</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="kt">dev_t</span> <span class="n">dev</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+            <span class="kt">int</span> <span class="n">i</span><span class="p">;</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="n">alloc_chrdev_region</span><span class="p">(</span><span class="o">&amp;</span><span class="n">dev</span><span class="p">,</span> <span c 
+            <span class="n">printk</span><span class="p">(</span><span class="n">KERN_WARNING</span> <span class="s">&quot;Registration failed</span><span class="se">\n</span><span class="s">&quot;</span><s>
+            <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+        <span class="p">}</span>
+        <span class="n">major</span> <span class="o">=</span> <span class="n">MAJOR</span><span class="p">(</span><span class="n">dev</span><span class="p">);</span>
+
+            <span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span>
+                    <span class="n">printk</span><span class="p">(</span><span class="n">KERN_ALERT</span> <span class="s">&quot;Create device using mknod /dev/%s%d c %d %d</span><span class="se">\n</span><span cla>
+
+                    <span class="n">memcpy</span><span class="p">(</span><span class="n">devs</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">buffer</span><span class=>
+                    <span class="n">devs</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">size</span> <span class="o">=</span> <span class="n">BUFSIZE</span><span class>
+
+                    <span class="n">cdev_init</span><span class="p">(</span><span class="o">&amp;</span><span class="n">devs</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span clas>
+                    <span class="n">cdev_add</span><span class="p">(</span><span class="o">&amp;</span><span class="n">devs</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class>
+            <span class="p">}</span>
+
+            <span class="n">printk</span><span class="p">(</span><span class="n">KERN_ALERT</span> <span class="s">&quot;Module successfuly initialized</span><span class="se">\n</span><span class="s">&quot;</span><>
+            <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="cm">/*</span>
+    <span class="cm"> * Exit function</span>
+    <span class="cm"> * This function is invoked once the driver is unloaded.</span>
+    <span class="cm"> * It handles all necessary cleanup to cleanly remove the driver from the kernel.</span>
+    <span class="cm"> */</span>
+    <span class="k">static</span> <span class="kt">void</span> <span class="n">__exit</span> <span class="n">exit_func</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+    <span class="p">{</span>
+            <span class="kt">int</span> <span class="n">i</span><span class="p">;</span>
+
+            <span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span>
+                    <span class="n">cdev_del</span><span class="p">(</span><span class="o">&amp;</span><span class="n">devs</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class>
+            <span class="p">}</span>
         
-        printk(KERN_ALERT "Device written\n");
-    return len;
-}
+        <span class="n">unregister_chrdev_region</span><span class="p">(</span><span class="n">MKDEV</span><span class="p">(</span><span class="n">major</span><span class="p">,</span> <span class="n">FIRST_MINO>
 
-static const struct file_operations fops = {
-    .owner = THIS_MODULE,
-    .open    = s_open,
-    .read    = s_read,
-    .write   = s_write,
-    .release = s_release
-};
+        <span class="n">printk</span><span class="p">(</span><span class="n">KERN_ALERT</span> <span class="s">&quot;Module successfuly unloaded</span><span class="se">\n</span><span class="s">&quot;</span><spa>
+    <span class="p">}</span>
 
-/*
- * Initialization function
- * This function is called once when the driver is initialized, and is then discarded.
- * It starts by registering the driver to a dynamically chosen major number using alloc_chrdev_region.
- * Next it initializes the devices memory to "Hello World\n".
- * Finally it initializes cdev using our fops struct and adds the device to the system using cdev_add,
- * making it live immediately. 
- * Returns 0 on success.
- */
-static int __init init_func(void)
-{
-    dev_t dev = 0;
-        int i;
-
-    if (alloc_chrdev_region(&dev, FIRST_MINOR, NUM_MINORS, NAME) < 0) { 
-        printk(KERN_WARNING "Registration failed\n");
-        return 1;
-    }
-    major = MAJOR(dev);
-
-        for (i = 0; i < NUM_MINORS; i++) {
-                printk(KERN_ALERT "Create device using mknod /dev/%s%d c %d %d\n", NAME, i, major, i);
-
-                memcpy(devs[i].buffer, MESSAGE, sizeof(MESSAGE));
-                devs[i].size = BUFSIZE;
-
-                cdev_init(&devs[i].cdev, &fops);
-                cdev_add(&devs[i].cdev, MKDEV(major, i), 1);
-        }
-
-        printk(KERN_ALERT "Module successfuly initialized\n");
-        return 0;
-}
-
-/*
- * Exit function
- * This function is invoked once the driver is unloaded.
- * It handles all necessary cleanup to cleanly remove the driver from the kernel.
- */
-static void __exit exit_func(void)
-{
-        int i;
-
-        for (i = 0; i < NUM_MINORS; i++) {
-                cdev_del(&devs[i].cdev);
-        }
-    
-    unregister_chrdev_region(MKDEV(major, FIRST_MINOR), NUM_MINORS);
-
-    printk(KERN_ALERT "Module successfuly unloaded\n");
-}
-
-/*
- * Macros that define general information and the init and exit functions
- */
-MODULE_AUTHOR("seal9055 <seal9055@gmail.com>");
-MODULE_DESCRIPTION("Linux Character Device Driver");
-MODULE_LICENSE("GPL v2");
-MODULE_VERSION("1.0");
-module_init(init_func);
-module_exit(exit_func);
-        </code>
+    <span class="cm">/*</span>
+    <span class="cm"> * Macros that define general information and the init and exit functions</span>
+    <span class="cm"> */</span>
+    <span class="n">MODULE_AUTHOR</span><span class="p">(</span><span class="s">&quot;seal9055 &lt;seal9055@gmail.com&gt;&quot;</span><span class="p">);</span>
+    <span class="n">MODULE_DESCRIPTION</span><span class="p">(</span><span class="s">&quot;Linux Character Device Driver&quot;</span><span class="p">);</span>
+    <span class="n">MODULE_LICENSE</span><span class="p">(</span><span class="s">&quot;GPL v2&quot;</span><span class="p">);</span>
+    <span class="n">MODULE_VERSION</span><span class="p">(</span><span class="s">&quot;1.0&quot;</span><span class="p">);</span>
+    <span class="n">module_init</span><span class="p">(</span><span class="n">init_func</span><span class="p">);</span>
+    <span class="n">module_exit</span><span class="p">(</span><span class="n">exit_func</span><span class="p">);</span>
     </pre>
 </div>
+
 <script>
     try {
         pageOpenedDirectly;
