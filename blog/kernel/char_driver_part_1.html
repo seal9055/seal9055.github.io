@@ -205,12 +205,12 @@
     </p>
 </div>
 <H4>Testing</H4>
-<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #268bd2">obj-m</span> <span style="color: #586e75">=</span> s_driver.o
-<span style="color: #268bd2">KERNEL_VERSION</span><span style="color: #586e75">=</span><span style="color: #2aa198">5</span>.4
+<div class="highlight" style="background: #f8f8f8"><pre style="line-height: 125%;"><span></span><span style="color: #19177C">obj-m</span> <span style="color: #666666">=</span> s_driver.o
+<span style="color: #19177C">KERNEL_VERSION</span><span style="color: #666666">=5</span>.4
 
-<span style="color: #268bd2">all</span><span style="color: #586e75">:</span> 
-    <span style="color: #268bd2">echo</span> <span style="color: #859900">$(</span>OBJECTS<span style="color: #859900">)</span>
-    make -C ../linux-<span style="color: #859900">$(</span>KERNEL_VERSION<span style="color: #859900">)</span> <span style="color: #268bd2">M</span><span style="color: #586e75">=</span><span style="color: #859900">$(</span>PWD<span style="color: #859900">)</span> modules
+<span style="color: #0000FF">all</span><span style="color: #666666">:</span> 
+    <span style="color: #008000">echo</span> <span style="color: #008000; font-weight: bold">$(</span>OBJECTS<span style="color: #008000; font-weight: bold">)</span>
+    make -C ../linux-<span style="color: #008000; font-weight: bold">$(</span>KERNEL_VERSION<span style="color: #008000; font-weight: bold">)</span> <span style="color: #19177C">M</span><span style="color: #666666">=</span><span style="color: #008000; font-weight: bold">$(</span>PWD<span style="color: #008000; font-weight: bold">)</span> modules
 </pre></div>
 <div class="paragraph">
     <p>
