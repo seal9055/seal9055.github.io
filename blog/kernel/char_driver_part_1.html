@@ -53,9 +53,12 @@
     <p>
         Before we start actually writing the module, there is one last thing we need to cover. Character device drivers require a couple of different structures to properly function. The first being the cdev struct. This structure is used to register devices in the system. It holds crucial information about devices such as e.g. their major and minor numbers. In our case this structure will also hold a buffer which will simulate the devices memory. Apart from that there are 3 more important structures that our driver operations will need: struct file_operations, struct file and struct inode.
         <br><br>
-        <H5>Struct file_operations</H5><br>
+        Struct file_operations
+        <br><br>
         Since character device drivers receive syscalls made by the user by interacting with its devices, these syscalls need to be implemented in the driver. These operations are described using the fields of the file_operations struct. This structure maps syscalls to the drivers custom functions.
-        <H5>Inode and File Structures</H5><br>
+        <br><br>
+        Inode and File Structures
+        <br><br>
         The inode structure represents files as they are stored on the file system. This holds data such as the files name, size and other static information. The file structure in comparison holds the information of an opened file. This can include e.g. the cursor position or flags used when the file was opened.
         <br><br>
     </p>
