@@ -1,7 +1,7 @@
 <div class="page-header">
     <div class="page-header-inner">
         <div class="page-header-inner2">
-            <h1>Linux Character Device Driver Part-1</h1>
+            <h1>Linux Character Device Driver Part 1</h1>
             <h2>August 2021</h2>
         </div>
     </div>
@@ -166,34 +166,34 @@
 <H4>Read and Write</H4>
 <div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #859900">static</span><span style="color: #839496"> </span><span style="color: #b58900">ssize_t</span><span style="color: #839496"> </span><span style="color: #268bd2">s_read</span><span style="color: #839496">(</span><span style="color: #859900">struct</span> <span style="color: #268bd2">file</span><span style="color: #839496"> </span><span style="color: #586e75">*</span><span style="color: #839496">file, </span><span style="color: #b58900">char</span><span style="color: #839496"> __user </span><span style="color: #586e75">*</span><span style="color: #839496">ubuf, </span><span style="color: #b58900">size_t</span><span style="color: #839496"> size, loff_t </span><span style="color: #586e75">*</span><span style="color: #839496">offset)</span>
 <span style="color: #839496">{</span>
-<span style="color: #839496">    </span><span style="color: #859900">struct</span> <span style="color: #268bd2">s_driver_dev_data</span><span style="color: #839496"> </span><span style="color: #586e75">*</span><span style="color: #839496">data </span><span style="color: #586e75">=</span><span style="color: #839496"> (</span><span style="color: #859900">struct</span> <span style="color: #268bd2">s_driver_dev_data</span><span style="color: #839496"> </span><span style="color: #586e75">*</span><span style="color: #839496">) file</span><span style="color: #586e75">-&gt;</span><span style="color: #839496">private_data;</span>
-<span style="color: #839496">    </span><span style="color: #b58900">size_t</span><span style="color: #839496"> len </span><span style="color: #586e75">=</span><span style="color: #839496"> min((</span><span style="color: #b58900">size_t</span><span style="color: #839496">)(data</span><span style="color: #586e75">-&gt;</span><span style="color: #839496">size </span><span style="color: #586e75">-</span><span style="color: #839496"> </span><span style="color: #586e75">*</span><span style="color: #839496">offset), size);</span>
+<span style="color: #839496">        </span><span style="color: #859900">struct</span> <span style="color: #268bd2">s_driver_dev_data</span><span style="color: #839496"> </span><span style="color: #586e75">*</span><span style="color: #839496">data </span><span style="color: #586e75">=</span><span style="color: #839496"> (</span><span style="color: #859900">struct</span> <span style="color: #268bd2">s_driver_dev_data</span><span style="color: #839496"> </span><span style="color: #586e75">*</span><span style="color: #839496">) file</span><span style="color: #586e75">-&gt;</span><span style="color: #839496">private_data;</span>
+<span style="color: #839496">        </span><span style="color: #b58900">size_t</span><span style="color: #839496"> len </span><span style="color: #586e75">=</span><span style="color: #839496"> min((</span><span style="color: #b58900">size_t</span><span style="color: #839496">)(data</span><span style="color: #586e75">-&gt;</span><span style="color: #839496">size </span><span style="color: #586e75">-</span><span style="color: #839496"> </span><span style="color: #586e75">*</span><span style="color: #839496">offset), size);</span>
 
-<span style="color: #839496">    </span><span style="color: #859900">if</span><span style="color: #839496"> (len </span><span style="color: #586e75">&lt;=</span><span style="color: #839496"> </span><span style="color: #2aa198">0</span><span style="color: #839496">)</span>
-<span style="color: #839496">        </span><span style="color: #859900">return</span><span style="color: #839496"> </span><span style="color: #2aa198">0</span><span style="color: #839496">;</span>
+<span style="color: #839496">        </span><span style="color: #859900">if</span><span style="color: #839496"> (len </span><span style="color: #586e75">&lt;=</span><span style="color: #839496"> </span><span style="color: #2aa198">0</span><span style="color: #839496">)</span>
+<span style="color: #839496">                </span><span style="color: #859900">return</span><span style="color: #839496"> </span><span style="color: #2aa198">0</span><span style="color: #839496">;</span>
 
-<span style="color: #839496">    </span><span style="color: #859900">if</span><span style="color: #839496"> (copy_to_user(ubuf, data</span><span style="color: #586e75">-&gt;</span><span style="color: #839496">buffer </span><span style="color: #586e75">+</span><span style="color: #839496"> </span><span style="color: #586e75">*</span><span style="color: #839496">offset, len))</span>
-<span style="color: #839496">            </span><span style="color: #859900">return</span><span style="color: #839496"> </span><span style="color: #586e75">-</span><span style="color: #839496">EFAULT;</span>
-<span style="color: #839496">    </span><span style="color: #586e75">*</span><span style="color: #839496">offset </span><span style="color: #586e75">+=</span><span style="color: #839496"> len;</span>
+<span style="color: #839496">        </span><span style="color: #859900">if</span><span style="color: #839496"> (copy_to_user(ubuf, data</span><span style="color: #586e75">-&gt;</span><span style="color: #839496">buffer </span><span style="color: #586e75">+</span><span style="color: #839496"> </span><span style="color: #586e75">*</span><span style="color: #839496">offset, len))</span>
+<span style="color: #839496">                </span><span style="color: #859900">return</span><span style="color: #839496"> </span><span style="color: #586e75">-</span><span style="color: #839496">EFAULT;</span>
+<span style="color: #839496">        </span><span style="color: #586e75">*</span><span style="color: #839496">offset </span><span style="color: #586e75">+=</span><span style="color: #839496"> len;</span>
 
-<span style="color: #839496">    printk(KERN_ALERT </span><span style="color: #2aa198">"Device read\n"</span><span style="color: #839496">);</span>
-<span style="color: #839496">    </span><span style="color: #859900">return</span><span style="color: #839496"> len;</span>
+<span style="color: #839496">        printk(KERN_ALERT </span><span style="color: #2aa198">"Device read\n"</span><span style="color: #839496">);</span>
+<span style="color: #839496">        </span><span style="color: #859900">return</span><span style="color: #839496"> len;</span>
 <span style="color: #839496">}</span>
 
 <span style="color: #859900">static</span><span style="color: #839496"> </span><span style="color: #b58900">ssize_t</span><span style="color: #839496"> </span><span style="color: #268bd2">s_write</span><span style="color: #839496">(</span><span style="color: #859900">struct</span> <span style="color: #268bd2">file</span><span style="color: #839496"> </span><span style="color: #586e75">*</span><span style="color: #839496">file, </span><span style="color: #859900">const</span><span style="color: #839496"> </span><span style="color: #b58900">char</span><span style="color: #839496"> __user </span><span style="color: #586e75">*</span><span style="color: #839496">ubuf, </span><span style="color: #b58900">size_t</span><span style="color: #839496"> size, loff_t </span><span style="color: #586e75">*</span><span style="color: #839496">offset)</span>
 <span style="color: #839496">{</span>
-<span style="color: #839496">    </span><span style="color: #859900">struct</span> <span style="color: #268bd2">s_driver_dev_data</span><span style="color: #839496"> </span><span style="color: #586e75">*</span><span style="color: #839496">data </span><span style="color: #586e75">=</span><span style="color: #839496"> (</span><span style="color: #859900">struct</span> <span style="color: #268bd2">s_driver_dev_data</span><span style="color: #839496"> </span><span style="color: #586e75">*</span><span style="color: #839496">) file</span><span style="color: #586e75">-&gt;</span><span style="color: #839496">private_data;</span>
-<span style="color: #839496">    </span><span style="color: #b58900">size_t</span><span style="color: #839496"> len </span><span style="color: #586e75">=</span><span style="color: #839496"> min((</span><span style="color: #b58900">size_t</span><span style="color: #839496">)(data</span><span style="color: #586e75">-&gt;</span><span style="color: #839496">size </span><span style="color: #586e75">-</span><span style="color: #839496"> </span><span style="color: #586e75">*</span><span style="color: #839496">offset), size);</span>
+<span style="color: #839496">        </span><span style="color: #859900">struct</span> <span style="color: #268bd2">s_driver_dev_data</span><span style="color: #839496"> </span><span style="color: #586e75">*</span><span style="color: #839496">data </span><span style="color: #586e75">=</span><span style="color: #839496"> (</span><span style="color: #859900">struct</span> <span style="color: #268bd2">s_driver_dev_data</span><span style="color: #839496"> </span><span style="color: #586e75">*</span><span style="color: #839496">) file</span><span style="color: #586e75">-&gt;</span><span style="color: #839496">private_data;</span>
+<span style="color: #839496">        </span><span style="color: #b58900">size_t</span><span style="color: #839496"> len </span><span style="color: #586e75">=</span><span style="color: #839496"> min((</span><span style="color: #b58900">size_t</span><span style="color: #839496">)(data</span><span style="color: #586e75">-&gt;</span><span style="color: #839496">size </span><span style="color: #586e75">-</span><span style="color: #839496"> </span><span style="color: #586e75">*</span><span style="color: #839496">offset), size);</span>
 
-<span style="color: #839496">    </span><span style="color: #859900">if</span><span style="color: #839496"> (len </span><span style="color: #586e75">&lt;=</span><span style="color: #839496"> </span><span style="color: #2aa198">0</span><span style="color: #839496">)</span>
-<span style="color: #839496">             </span><span style="color: #859900">return</span><span style="color: #839496"> </span><span style="color: #2aa198">0</span><span style="color: #839496">;</span>
+<span style="color: #839496">        </span><span style="color: #859900">if</span><span style="color: #839496"> (len </span><span style="color: #586e75">&lt;=</span><span style="color: #839496"> </span><span style="color: #2aa198">0</span><span style="color: #839496">)</span>
+<span style="color: #839496">                </span><span style="color: #859900">return</span><span style="color: #839496"> </span><span style="color: #2aa198">0</span><span style="color: #839496">;</span>
 
-<span style="color: #839496">    </span><span style="color: #859900">if</span><span style="color: #839496"> (copy_from_user(data</span><span style="color: #586e75">-&gt;</span><span style="color: #839496">buffer </span><span style="color: #586e75">+</span><span style="color: #839496"> </span><span style="color: #586e75">*</span><span style="color: #839496">offset, ubuf, len))</span>
-<span style="color: #839496">        </span><span style="color: #859900">return</span><span style="color: #839496"> </span><span style="color: #586e75">-</span><span style="color: #839496">EFAULT;</span>
-<span style="color: #839496">    </span><span style="color: #586e75">*</span><span style="color: #839496">offset </span><span style="color: #586e75">+=</span><span style="color: #839496"> len;</span>
+<span style="color: #839496">        </span><span style="color: #859900">if</span><span style="color: #839496"> (copy_from_user(data</span><span style="color: #586e75">-&gt;</span><span style="color: #839496">buffer </span><span style="color: #586e75">+</span><span style="color: #839496"> </span><span style="color: #586e75">*</span><span style="color: #839496">offset, ubuf, len))</span>
+<span style="color: #839496">                </span><span style="color: #859900">return</span><span style="color: #839496"> </span><span style="color: #586e75">-</span><span style="color: #839496">EFAULT;</span>
+<span style="color: #839496">        </span><span style="color: #586e75">*</span><span style="color: #839496">offset </span><span style="color: #586e75">+=</span><span style="color: #839496"> len;</span>
 <span style="color: #839496">        </span>
-<span style="color: #839496">    printk(KERN_ALERT </span><span style="color: #2aa198">"Device written\n"</span><span style="color: #839496">);</span>
-<span style="color: #839496">    </span><span style="color: #859900">return</span><span style="color: #839496"> len;</span>
+<span style="color: #839496">        printk(KERN_ALERT </span><span style="color: #2aa198">"Device written\n"</span><span style="color: #839496">);</span>
+<span style="color: #839496">        </span><span style="color: #859900">return</span><span style="color: #839496"> len;</span>
 <span style="color: #839496">}</span>
 </pre></div>
 <div class="paragraph">
@@ -277,9 +277,8 @@
 
 <span style="color: #839496">        file</span><span style="color: #586e75">-&gt;</span><span style="color: #839496">private_data </span><span style="color: #586e75">=</span><span style="color: #839496"> data;</span>
 
-<span style="color: #839496">       printk(KERN_ALERT </span><span style="color: #2aa198">"Device opened\n"</span><span style="color: #839496">);</span>
-
-<span style="color: #839496">       </span><span style="color: #859900">return</span><span style="color: #839496"> </span><span style="color: #2aa198">0</span><span style="color: #839496">;</span>
+<span style="color: #839496">        printk(KERN_ALERT </span><span style="color: #2aa198">"Device opened\n"</span><span style="color: #839496">);</span>
+<span style="color: #839496">        </span><span style="color: #859900">return</span><span style="color: #839496"> </span><span style="color: #2aa198">0</span><span style="color: #839496">;</span>
 <span style="color: #839496">}</span>
 
 <span style="color: #586e75; font-style: italic">/*</span>
@@ -289,8 +288,8 @@
 <span style="color: #586e75; font-style: italic"> */</span><span style="color: #839496"></span>
 <span style="color: #859900">static</span><span style="color: #839496"> </span><span style="color: #b58900">int</span><span style="color: #839496"> </span><span style="color: #268bd2">s_release</span><span style="color: #839496">(</span><span style="color: #859900">struct</span> <span style="color: #268bd2">inode</span><span style="color: #839496"> </span><span style="color: #586e75">*</span><span style="color: #839496">inode, </span><span style="color: #859900">struct</span> <span style="color: #268bd2">file</span><span style="color: #839496"> </span><span style="color: #586e75">*</span><span style="color: #839496">file)</span>
 <span style="color: #839496">{</span>
-<span style="color: #839496">       printk(KERN_ALERT </span><span style="color: #2aa198">"All device's closed\n"</span><span style="color: #839496">);</span>
-<span style="color: #839496">       </span><span style="color: #859900">return</span><span style="color: #839496"> </span><span style="color: #2aa198">0</span><span style="color: #839496">;</span>
+<span style="color: #839496">        printk(KERN_ALERT </span><span style="color: #2aa198">"All device's closed\n"</span><span style="color: #839496">);</span>
+<span style="color: #839496">        </span><span style="color: #859900">return</span><span style="color: #839496"> </span><span style="color: #2aa198">0</span><span style="color: #839496">;</span>
 <span style="color: #839496">}</span>
 
 <span style="color: #586e75; font-style: italic">/*</span>
@@ -310,8 +309,8 @@
 <span style="color: #839496">                </span><span style="color: #859900">return</span><span style="color: #839496"> </span><span style="color: #586e75">-</span><span style="color: #839496">EFAULT;</span>
 <span style="color: #839496">        </span><span style="color: #586e75">*</span><span style="color: #839496">offset </span><span style="color: #586e75">+=</span><span style="color: #839496"> len;</span>
 
-<span style="color: #839496">       printk(KERN_ALERT </span><span style="color: #2aa198">"Device read\n"</span><span style="color: #839496">);</span>
-<span style="color: #839496">       </span><span style="color: #859900">return</span><span style="color: #839496"> len;</span>
+<span style="color: #839496">        printk(KERN_ALERT </span><span style="color: #2aa198">"Device read\n"</span><span style="color: #839496">);</span>
+<span style="color: #839496">        </span><span style="color: #859900">return</span><span style="color: #839496"> len;</span>
 <span style="color: #839496">}</span>
 
 <span style="color: #586e75; font-style: italic">/*</span>
@@ -332,15 +331,15 @@
 <span style="color: #839496">        </span><span style="color: #586e75">*</span><span style="color: #839496">offset </span><span style="color: #586e75">+=</span><span style="color: #839496"> len;</span>
 <span style="color: #839496">        </span>
 <span style="color: #839496">        printk(KERN_ALERT </span><span style="color: #2aa198">"Device written\n"</span><span style="color: #839496">);</span>
-<span style="color: #839496">       </span><span style="color: #859900">return</span><span style="color: #839496"> len;</span>
+<span style="color: #839496">        </span><span style="color: #859900">return</span><span style="color: #839496"> len;</span>
 <span style="color: #839496">}</span>
 
 <span style="color: #859900">static</span><span style="color: #839496"> </span><span style="color: #859900">const</span><span style="color: #839496"> </span><span style="color: #859900">struct</span> <span style="color: #268bd2">file_operations</span><span style="color: #839496"> fops </span><span style="color: #586e75">=</span><span style="color: #839496"> {</span>
-<span style="color: #839496">   .owner </span><span style="color: #586e75">=</span><span style="color: #839496"> THIS_MODULE,</span>
-<span style="color: #839496">   .open    </span><span style="color: #586e75">=</span><span style="color: #839496"> s_open,</span>
-<span style="color: #839496">       .read    </span><span style="color: #586e75">=</span><span style="color: #839496"> s_read,</span>
-<span style="color: #839496">       .write   </span><span style="color: #586e75">=</span><span style="color: #839496"> s_write,</span>
-<span style="color: #839496">       .release </span><span style="color: #586e75">=</span><span style="color: #839496"> s_release</span>
+<span style="color: #839496">        .owner </span><span style="color: #586e75">=</span><span style="color: #839496"> THIS_MODULE,</span>
+<span style="color: #839496">        .open    </span><span style="color: #586e75">=</span><span style="color: #839496"> s_open,</span>
+<span style="color: #839496">        .read    </span><span style="color: #586e75">=</span><span style="color: #839496"> s_read,</span>
+<span style="color: #839496">        .write   </span><span style="color: #586e75">=</span><span style="color: #839496"> s_write,</span>
+<span style="color: #839496">        .release </span><span style="color: #586e75">=</span><span style="color: #839496"> s_release</span>
 <span style="color: #839496">};</span>
 
 <span style="color: #586e75; font-style: italic">/*</span>
@@ -354,14 +353,14 @@
 <span style="color: #586e75; font-style: italic"> */</span><span style="color: #839496"></span>
 <span style="color: #859900">static</span><span style="color: #839496"> </span><span style="color: #b58900">int</span><span style="color: #839496"> __init init_func(</span><span style="color: #b58900">void</span><span style="color: #839496">)</span>
 <span style="color: #839496">{</span>
-<span style="color: #839496">   </span><span style="color: #b58900">dev_t</span><span style="color: #839496"> dev </span><span style="color: #586e75">=</span><span style="color: #839496"> </span><span style="color: #2aa198">0</span><span style="color: #839496">;</span>
-<span style="color: #839496">       </span><span style="color: #b58900">int</span><span style="color: #839496"> i;</span>
+<span style="color: #839496">        </span><span style="color: #b58900">dev_t</span><span style="color: #839496"> dev </span><span style="color: #586e75">=</span><span style="color: #839496"> </span><span style="color: #2aa198">0</span><span style="color: #839496">;</span>
+<span style="color: #839496">        </span><span style="color: #b58900">int</span><span style="color: #839496"> i;</span>
 
-<span style="color: #839496">   </span><span style="color: #859900">if</span><span style="color: #839496"> (alloc_chrdev_region(</span><span style="color: #586e75">&amp;</span><span style="color: #839496">dev, FIRST_MINOR, NUM_MINORS, NAME) </span><span style="color: #586e75">&lt;</span><span style="color: #839496"> </span><span style="color: #2aa198">0</span><span style="color: #839496">) { </span>
-<span style="color: #839496">       printk(KERN_WARNING </span><span style="color: #2aa198">"Registration failed\n"</span><span style="color: #839496">);</span>
-<span style="color: #839496">       </span><span style="color: #859900">return</span><span style="color: #839496"> </span><span style="color: #2aa198">1</span><span style="color: #839496">;</span>
-<span style="color: #839496">   }</span>
-<span style="color: #839496">   major </span><span style="color: #586e75">=</span><span style="color: #839496"> MAJOR(dev);</span>
+<span style="color: #839496">        </span><span style="color: #859900">if</span><span style="color: #839496"> (alloc_chrdev_region(</span><span style="color: #586e75">&amp;</span><span style="color: #839496">dev, FIRST_MINOR, NUM_MINORS, NAME) </span><span style="color: #586e75">&lt;</span><span style="color: #839496"> </span><span style="color: #2aa198">0</span><span style="color: #839496">) { </span>
+<span style="color: #839496">                printk(KERN_WARNING </span><span style="color: #2aa198">"Registration failed\n"</span><span style="color: #839496">);</span>
+<span style="color: #839496">                </span><span style="color: #859900">return</span><span style="color: #839496"> </span><span style="color: #2aa198">1</span><span style="color: #839496">;</span>
+<span style="color: #839496">        }</span>
+<span style="color: #839496">        major </span><span style="color: #586e75">=</span><span style="color: #839496"> MAJOR(dev);</span>
 
 <span style="color: #839496">        </span><span style="color: #859900">for</span><span style="color: #839496"> (i </span><span style="color: #586e75">=</span><span style="color: #839496"> </span><span style="color: #2aa198">0</span><span style="color: #839496">; i </span><span style="color: #586e75">&lt;</span><span style="color: #839496"> NUM_MINORS; i</span><span style="color: #586e75">++</span><span style="color: #839496">) {</span>
 <span style="color: #839496">                printk(KERN_ALERT </span><span style="color: #2aa198">"Create device using mknod /dev/%s%d c %d %d\n"</span><span style="color: #839496">, NAME, i, major, i);</span>
@@ -390,9 +389,8 @@
 <span style="color: #839496">                cdev_del(</span><span style="color: #586e75">&amp;</span><span style="color: #839496">devs[i].cdev);</span>
 <span style="color: #839496">        }</span>
 <span style="color: #839496">   </span>
-<span style="color: #839496">   unregister_chrdev_region(MKDEV(major, FIRST_MINOR), NUM_MINORS);</span>
-
-<span style="color: #839496">       printk(KERN_ALERT </span><span style="color: #2aa198">"Module successfuly unloaded\n"</span><span style="color: #839496">);</span>
+<span style="color: #839496">        unregister_chrdev_region(MKDEV(major, FIRST_MINOR), NUM_MINORS);</span>
+<span style="color: #839496">        printk(KERN_ALERT </span><span style="color: #2aa198">"Module successfuly unloaded\n"</span><span style="color: #839496">);</span>
 <span style="color: #839496">}</span>
 
 <span style="color: #586e75; font-style: italic">/*</span>
@@ -405,6 +403,7 @@
 <span style="color: #839496">module_init(init_func);</span>
 <span style="color: #839496">module_exit(exit_func);</span>
 </pre></div>
+
 <script>
     try {
         pageOpenedDirectly;
