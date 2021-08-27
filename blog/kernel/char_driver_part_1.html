@@ -9,22 +9,22 @@
 <H4>Introduction</H4>
 <div class="paragraph">
     <p>
-        After getting comfortable with linux stack and heap exploitation I decided that it would be time to start getting into kernel exploitation. Since you can't hope to break something without first understanding how it works, I am starting this journey by writing a character device driver for the linux kernel. This driver will include multiple operations to properly interact with devices while taking care of errohandling, concurrency and potential race conditions.
+        After getting comfortable with linux stack and heap exploitation I decided that it would be time to start getting into kernel exploitation. Since you can't hope to break something without first understanding how it works, I am starting this project by writing a character device driver for the linux kernel. This driver will include multiple operations to properly interact with devices while taking care of error-handling, concurrency, and potential race conditions.
         <br><br>
         Since these are a lot of topics to cover in a single blogpost I will split this project up into multiple parts and release individual posts for each addition. The full code for this first part can be found both at the bottom of this post and on my <a href=https://github.com/seal9055/linux_kernel/tree/main/drivers/s_driver>github</a>. 
-        <br><br>
+        <br>
     </p>
 </div>
 <H4>Linux Kernel Modules</H4>
 <div class="paragraph">
     <p>
-        The linux operating system makes use of 2 different rings representing different privilege levels. The kernel operates in ring 0 which grants it full permissions over the system. In contrast, usermode applications run in ring 3. These usermode applications however need the kernel to perform various operations such as reading/writing to files which ring 3 does not support on its own. This is where syscalls come in. In x64 syscalls are used as a bridge to the kernel. They can be called by setting the rax register to the syscall number and executing the 'syscall' instruction. At this point the registers and stackstate are saved, and execution is transferred to the kernel. The kernel then executes functions that take care of the requested operation (given that the process that requested this operation has adequate permissions), and restores the registers/stackstate before returning back the the usermode process in ring 3.
+        The linux operating system makes use of 2 different rings representing different privilege levels. The kernel operates in ring 0 which grants it full privileges over the system. In contrast, usermode applications run in ring 3. These usermode applications however need the kernel to perform various operations such as reading/writing to files which ring 3 does not support on its own. This is where syscalls come in. Syscalls are used as a bridge to the kernel. In x64 they can be called by setting the rax register to the syscall number and executing the 'syscall' instruction. At this point the registers and stackstate are saved, and execution is transferred to the kernel. The kernel then executes functions that take care of the requested operation (given that the process that requested this operation has adequate permissions), and restores the registers/stackstate before returning back the the usermode process in ring 3.
         <br><br>
         Eventhough x64 linux provides us with 300+ syscalls, sometimes this isn't enough. This is especially true when dealing with hardware that requires specific operations. This is where kernel modules come in. Kernel modules are run at ring 0 and interact directly with the kernel at a privileged level. These modules can be loaded and unloaded into the kernel upon demand and are used to extend the kernels functionality without requiring a full system reboot. One type of kernel module (the one we will be covering in this series) is a device driver. Device drivers allow the kernel to access and interact with hardware connected to the system. To accomplish this a device driver sets up custom syscall functions that are tailored specifically to the connected device. These syscall functions are then invoked whenever you try to interact with this device through syscalls. Since working with hardware is not always so simple and a lot harder to replicate, this series will be using software devices created using the mknod shell command.
         <br><br>
-        There are multiple types of devices. Some examples include character, block, and network devices. The simplest one of these, and the one we will be interacting with in this series is a character device. Character drivers transfer data 1 byte at a time and interact directly through syscalls which makes them perfect to start with. Block devices in comparison, communicate with drivers through file management subsystems and the block device subsystem. This is done to increase performance when dealing with large amounts of data. Character drivers transfer data 1 byte at a time, and are therefore much simpler than e.g. block drivers. 
+        There are multiple types of devices. Some examples include character, block, and network devices. The simplest one of these, and the one we will be interacting with in this series is a character device. Character drivers transfer data 1 byte at a time and interact directly through syscalls which makes them perfect to start with. Block devices in comparison communicate with drivers through file management subsystems and the block device subsystem. This is done to increase performance when dealing with large amounts of data. Character drivers transfer data 1 byte at a time, and are therefore much simpler than e.g. block drivers. 
         <br><br>
-        The below picture showcases how invoking the fwrite() libc function internally makes use of syscalls to transfer the execution mode to kernel level to execute the write syscall. 
+        The below picture showcases how invoking the fwrite libc function internally makes use of syscalls to transfer the execution mode to kernel level where the write syscall is then executed. 
         <br><br>
     </p>
 </div>
@@ -36,25 +36,26 @@
     <p>
         Since code in the linux kernel runs completely unchecked, a single bug can lead to a systemcrash. Due to this I would recommend to make use of virtualization software to run and debug your kernel modules. This way a crash is easier to handle, and by using qemu, you can even debug the kernel modules using gdb without much setup. I decided to make use of pwn.college's <a href=https://github.com/pwncollege/pwnkernel>pwnkernel</a>. It is very minimal, and is therefore both quick and easy to setup. 
         <br><br>
-        Every kernel module requires both an init and an exit function. The init function is called once when the module is loaded into the kernel and then discarded. It is generally used to setup any required initialization and register the module into the kernel. The exit function serves the oppositve purpose. It is called when the module is unloaded from the kernel, and is used to remove all traces that the module may have left in the kernel. These functions are designated using the module_init() and module_exit() macros made available to us by the kernel.
+        Every kernel module requires both an init and an exit function. The init function is called once when the module is loaded into the kernel and then discarded. It is generally used to setup any required initialization and to register the module into the kernel. The exit function serves the opposite purpose. It is called when the module is unloaded from the kernel, and is used to remove all traces that the module may have left in the kernel. These functions are designated using the module_init and module_exit macros made available to us by the kernel.
         <br><br>
-        As mentioned earlier, one of the responsibilities of the init function is to register the driver into the kernel. To accomplish this devices have unique identifiers attached to them called majors and minors. The major number identifies the device type (usb, serial port, etc.) and the minor number identifies the specific device (first attached usb, third serial port, etc.). Like this a driver can be assigned a major number during its init function which will then determine which devices it is in charge of.
+        As mentioned earlier, one of the responsibilities of the init function is to register the driver into the kernel. To accomplish this, devices have unique identifiers attached to them called majors and minors. The major number identifies the device type (usb, serial port, etc.) and the minor number identifies the specific device (first attached usb, third serial port, etc.). Using this system, a driver can be assigned a major number during its init function which will then determine which devices it is in charge of.
         <br><br>
-        We can manually create devices using: 'mknod /dev/a_device c 55 1'. This command creates a character device (specified by the 'c'), called "a_device", with major number 55 and minor number 1. This means that if a driver wants to interact with this device, it would have to register using the major number 55. To verify that the device was successfuly created, we can list out the /dev directory. This is where linux stores its devices. The first character on each line represents what type of file it is (c - character, b - block, d - directory, l - link). The 2 numbers after the group/owner columns represent the major/minor number. In the case of our just created device, these are "55, 1". Finally in the last column the device's name is displayed.
+        We can manually create devices using: 'mknod /dev/a_device c 55 1'. This command creates a character device (specified by the 'c'), called "a_device", with major number 55 and minor number 1. This means that if a driver wants to interact with this device, it would have to register itself using the major number 55. To verify that the device was successfuly created, we can list out the /dev directory. This is where linux stores its devices. The first character on each line represents what type of file it is (c - character, b - block, d - directory, l - link). The 2 numbers after the group/owner columns represent the major/minor number. In the case of our just created device, these are "55, 1". Finally in the last column the device's name is displayed.
         <br><br>
     </p>
 </div>
 <div>
     <img src="../imgs/kernel/s_driver/devices.png" alt="">
 </div>
+<br>
 <H4>Character Device Data Structures</H4>
 <div class="paragraph">
     <p>
         Before we start actually writing the module, there is one last thing we need to cover. Character device drivers require a couple of different structures to properly function. The first being the cdev struct. This structure is used to register devices in the system. It holds crucial information about devices such as e.g. their major and minor numbers. In our case this structure will also hold a buffer which will simulate the devices memory. Apart from that there are 3 more important structures that our driver operations will need: struct file_operations, struct file and struct inode.
         <br><br>
-        <H6>Struct file_operations</H6>
+        <H5>Struct file_operations</H5><br>
         Since character device drivers receive syscalls made by the user by interacting with its devices, these syscalls need to be implemented in the driver. These operations are described using the fields of the file_operations struct. This structure maps syscalls to the drivers custom functions.
-        <H6>Inode and File Structures</H6>
+        <H5>Inode and File Structures</H5><br>
         The inode structure represents files as they are stored on the file system. This holds data such as the files name, size and other static information. The file structure in comparison holds the information of an opened file. This can include e.g. the cursor position or flags used when the file was opened.
         <br><br>
     </p>
@@ -139,12 +140,11 @@ module_exit(exit_func);
 </div>
 <div class="paragraph">
     <p>
+        As you can see at the bottom of the code, the module_init and module_exit macros are used to designate our init & exit functions. The file_operations and cdev structs are declared to hold information about the device and the syscalls we plan to implement. 
         <br><br>
-        As you can see at the bottom of the code, the module_init() and module_exit() macros are used to designate our init & exit functions. The file_operations and cdev structs are declared to hold information about the device and the syscalls we plan to implement. 
+        The major number can be assigned both statically and dynamically to our driver. Dynamically is generally preferred since it lets the kernel give us an available major number which prevents potential collisions by chosing a static major number that may already be in use by a different driver. The alloc_chrdev_region function takes care of chosing a dynamic major number by initializing the dev structure using it. We can then use the MAJOR macro to retrieve the major number from it. Next we loop through the devices we wish to create and initialize them. First we print out a message using our major and minor number indicating to the user that he should create the appropriate devices using the mknod command. Next we initialize the buffer of each of these devices with a "Hello World" string. This will be useful if we attempt to read data from the device later. Now that the devices are ready, we initialize them using cdev_init and our file operations struct before adding them to the system using cdev_add. Finally we print out a success message to indicate that our driver has been successfuly initialized.
         <br><br>
-        The major number can be assigned both statically and dynamically to our driver. Dynamically is generally preferred since it lets the kernel give us an available major number which prevents potential collisions by chosing a static major number that may already be in use by a different driver. The alloc_chrdev_region() function takes care of chosing a dynamic major number by initializing the dev structure using it. We can then use the MAJOR() macro to retrieve the major number from it. Next we loop the devices we wish to create and initialize each of them. First we print out a message using our major and minor number indicating to the user to create the appropriate devices using the mknod commands. Next we initialize the buffer of each of these devices with a "Hello World" string. This will be useful if we attempt to read data from the device later. Now that the devices are ready, we initialize them using cdev_init() and our file operations struct before adding them to the system using cdev_add(). Finally we print out a success message to indicate that our driver has been successfuly initialized.
-        <br><br>
-        The exit function is actually very similar to the init function. It starts off by looping through all of our created devices and removing each one using cdev_del(). Now it just has to unregister the driver from the kernel using the aquired major number before printing out another success message. This handles all the cleanup required for our simple kernel module. 
+        The exit function is actually very similar to the init function. It starts off by looping through all of our created devices and removing each one using cdev_del. Now it just has to unregister the driver from the kernel using the aquired major number before printing out another success message. This handles all the cleanup required for our simple kernel module. 
         <br><br>
     </p>
 </div>
@@ -184,10 +184,9 @@ static int s_release(struct inode *inode, struct file *file)
 </div>
 <div class="paragraph">
     <p>
+        Now that we have the initialization and cleanup handled we can start implementing the first functions. The open function is used to handle the open syscall as specified by our file_operations structure. It starts off by retrieving the cdev member using the container_of macro to initialize the file's private data with the previously initialized cdev structure. This is done to store information in the file structure which can later be used in our read/write functions.
         <br><br>
-        Now that we have the initialization and cleanup handled we can start implementing the first functions. The open function is used to handle the open syscall as specified by our file_operations structure. It starts off by retrieving the cdev member using the container_of() macro to initialize the file's private data with the previously initialized cdev structure. This is done to store information in the file structure which can later be used in our read/write functions.
-        <br><br>
-        The release function is a bit interesting since it isn't a direct syscall. The function is called when the close() syscall is called onto the last instance of the device. This is done so the close() function does not need to be called everytime a file is closed. Apart from that this function is very simple and just prints out a success message before returning. 
+        The release function is a bit interesting since it isn't a direct syscall. The function is called when the close syscall is called onto the last instance of the device. This is done so the close function does not need to be called everytime a file is closed. Apart from that this function is very simple and just prints out a success message before returning. 
         <br><br>
     </p>
 </div>
@@ -241,8 +240,7 @@ static ssize_t s_write(struct file *file, const char __user *ubuf, size_t size, 
 </div>
 <div class="paragraph">
     <p>
-        <br><br>
-        The read and write functions are called as a result of a userspace program using the read/write syscalls on a device registered with out driver. They are used to transfer data between userspace and kernelspace in a secure manner. Since the received buffer is an unchecked userspace pointer we need to be very careful when using it. Only valid pointers pointing to a memory address in userspace should be used. There are also many considerations in terms of race conditions and access checks, but we won't be covering these in this first part. In terms of validating the pointers, the kernel luckily provides us with some very useful functions: copy_to_user and copy_from_user. These functions make sure that the provided pointer is valid and that the process has sufficient permissions to perform the operation before performing the data transfer. They do not however perform length checks to prevent buffer overflows or make sure that no race conditions occur, so incorrect usage of these functions is still very dangerous. 
+        The read and write functions are called as a result of a userspace program using the read/write syscalls on a device registered with our driver. They are used to transfer data between userspace and kernelspace in a secure manner. Since the received buffer is an unchecked userspace pointer we need to be very careful when using it. Only valid pointers pointing to a memory address in userspace should be used. There are also many considerations in terms of race conditions and access checks, but we won't be covering these in this first part. In terms of validating the pointers, the kernel luckily provides us with some very useful functions: copy_to_user and copy_from_user. These functions make sure that the provided pointer is valid and that the process has sufficient permissions to perform the operation before performing the data transfer. They do not however perform length checks to prevent buffer overflows or make sure that no race conditions occur, so incorrect usage of these functions is still very dangerous. 
         <br><br>
         The read function starts off by determining if the device has enough remaining space to service the request by using the min macro. If it does not, then the len variable is set to the amount of remaining bytes in the device. Next it attempts to copy data of size len from the device to the user buffer. If this fails an error code is returned. Otherwise the offset is incremented to increase the file cursor before printing out a success message and returning the amount of bytes written. The write function is very similar with the main exception being that it uses copy_from_user to write data from userspace to the device. 
         <br><br>
@@ -273,7 +271,6 @@ all:
 </div>
 <div class="paragraph">
     <p>
-        <br><br>
         Now that we have our functions implemented we can put everything together and verify that our kernel module works as expected. We will start by compiling our kernel module (s_driver.c) using the simple Makefile displayed above. This makefile uses the kernel's provided build binary to compile our module for our kernel version. We can then load this module into the kernel using the insmod shell command. This should print out the instruction telling us to create a device using the dynamically created major & minor numbers. After doing this with the mknod command, we can start interacting with the device. We could write a script that uses the syscalls directly, however since everything uses syscalls under the hood we can also just go the easy route and use the cat & echo commands to test our driver.
         <br><br>
         As you can see in the below screenshot the cat and echo commands successfuly read & write our device while printing out our debug messages. After being satisfied with the results we can use the rmmod shell command to unload the module using our exit function and then manually remove the previously created device.
@@ -286,7 +283,7 @@ all:
 <H4>Conclusion</H4>
 <div class="paragraph">
     <p>
-        This concludes the first part. We successfuly implemented 4 syscalls in our driver that we can use to interact with character devices. There are however still a lot of improvements to be made to this module that I plan to address in the next part(s). As it stands, error handling is still very lackluster, the read/write functions are riddled with bugs related to concurrency if 2 devices attempted to interact with the driver at the same time, and the module only supports a very limited amount of syscalls. 
+        This concludes the first part. We successfuly implemented 4 syscalls in our driver that we can use to interact with character devices. There are however still a lot of improvements to be made to this module that I plan to address in the next part(s). As it stands, error handling is still very lackluster, the read/write functions are riddled with bugs related to concurrency, and the module only supports a very limited amount of syscalls. The immediate priority for the next part will be to introduce semaphores and atomic operations into the module to handle concurrency and add the ioctl syscall. 
         <br><br>
         The full code for this module can be found below and on my <a href=https://github.com/seal9055/linux_kernel/tree/main/drivers/s_driver>github</a>. If you have any questions/comments, feel free to contact me. 
         <br><br>
@@ -317,7 +314,7 @@ all:
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/kernel.h>       /* printk() */
+#include <linux/kernel.h>       /* printk */
 #include <linux/fs.h>           /* everything... */
 #include <linux/errno.h>        /* error codes */
 #include <linux/types.h>        /* size_t */
@@ -357,7 +354,7 @@ static int s_open(struct inode *inode, struct file *file)
 
 /*
  * Release function
- * This function is called when close() is called onto the last instance of the device.
+ * This function is called when close is called onto the last instance of the device.
  * Returns 0 on success.
  */
 static int s_release(struct inode *inode, struct file *file)
@@ -419,7 +416,7 @@ static const struct file_operations fops = {
 /*
  * Initialization function
  * This function is called once when the driver is initialized, and is then discarded.
- * It starts by registering the driver to a dynamically chosen major number using alloc_chrdev_region().
+ * It starts by registering the driver to a dynamically chosen major number using alloc_chrdev_region.
  * Next it initializes the devices memory to "Hello World\n".
  * Finally it initializes cdev using our fops struct and adds the device to the system using cdev_add,
  * making it live immediately. 
@@ -477,7 +474,6 @@ MODULE_LICENSE("GPL v2");
 MODULE_VERSION("1.0");
 module_init(init_func);
 module_exit(exit_func);
-
         </code>
     </pre>
 </div>
