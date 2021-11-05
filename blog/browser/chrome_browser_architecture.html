@@ -6,7 +6,7 @@
         </div>
     </div>
 </div>
-<H4>Introduction</H4>
+<H3>Introduction</H3>
 <div class="paragraph">
     <p>
         This is the first part of a series on the chrome browser and its javascript engine V8. In this part I will cover general information about chrome's browser architecture, how V8 fits in and its general compilation pipeline to execute javascript code, and finally how to set up a suiteable debugging environment.
@@ -15,7 +15,7 @@
         <br>
     </p>
 </div>
-<H4>Chrome Architecture</H4>
+<H3>Chrome Architecture</H3>
 <div class="paragraph">
     <p>
         Unlike many other programs that you may be used to, the chrome browser uses multiple processes to achieve its functions. These individual processes then communicate with each other via IPC.
@@ -38,7 +38,7 @@
 <div>
     <img src="../imgs/browser/chrome_arch/gen_arch.png" alt="">
 </div>
-<H4>Blink and V8</H4>
+<H3>Blink and V8</H3>
 <div class="paragraph">
     <p>
         As mentioned earlier, chrome uses Blink as its rendering engine. It takes care of most of the things mentioned above for the renderer process. Blink then uses V8 as its
@@ -53,7 +53,7 @@
     </p>
 </div>
 
-<H4>Compilation Pipeline</H4>
+<H3>Compilation Pipeline</H3>
 <div class="paragraph">
     <p>
         Lets start talking about what happens once the V8 engines gets access to the javascript code. It starts off by parsing the code and generating an Abstract Syntax Tree (AST) from it. This is basically a graph based representation of the source code that is easier to parse for a compiler than pure text. This AST is then passed on to  <strong>Ignition</strong>. Ignition is V8's bytecode generator and bytecode interpreter. It first transforms the AST into bytecode, and then passes this bytecode on to its interpreter section which then starts executing the bytecode. At this point there is one major step left in the compilation pipeline. When some piece of code is frequently executed, the section's bytecode may be passed onto <strong>Turbofan</strong>. Turbofan is a just in time compiler (JIT) that takes the bytecode and transforms it into highly optimized machine code. This is much faster than what the interpreter can do, and thus results in much higher execution speeds. Turbofan makes some speculations when generating this machine code, if these end up not holding, it needs to throw away the optimized code and transfer execution back to the interpreter. The image below showcases this compilation pipeline. Do not worry too much about specifics yet. We will be covering each of these sections in much greater depth in future parts of the series. 
@@ -64,7 +64,7 @@
     <img src="../imgs/browser/chrome_arch/v8_pipeline.png" alt="">
 </div>
 <br><br>
-<H4>V8 Timeline</H4>
+<H3>V8 Timeline</H3>
 <div class="paragraph">
     <p>
         <strong>2008:</strong><br>
@@ -84,7 +84,7 @@
     </p>
 </div>
 
-<H4>Debugging Setup</H4>
+<H3>Debugging Setup</H3>
 <div class="paragraph">
     <p>
         I will be setting up my debugging environment on Linux. Feel free to use something else, however your setup process may differ.<br><br>
