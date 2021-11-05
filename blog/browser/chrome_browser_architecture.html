@@ -1,0 +1,197 @@
+<div class="page-header">
+    <div class="page-header-inner">
+        <div class="page-header-inner2">
+            <h1>Chrome Browser Architecture</h1>
+            <h2>November 2021</h2>
+        </div>
+    </div>
+</div>
+<H4>Introduction</H4>
+<div class="paragraph">
+    <p>
+        This is the first part of a series on the chrome browser and its javascript engine v8. In this part I will cover general information about chrome's browser architecture, 
+        how v8 fits in and its general compilation pipeline to execute javascript code, and finally how to set up a suiteable debugging environment.
+        <br><br>
+        When I started getting into browser exploitation I ran into the issue that there weren't many well condensed resources out there, and I had to go through many
+        individual blogposts until I eventually finally started getting a decent understanding of the browser. My goal with this series is to condense much of this information
+        into these posts and provide a strong baseline for anyone interested in this topic. 
+        <br>
+    </p>
+</div>
+<H4>Chrome Architecture</H4>
+<div class="paragraph">
+    <p>
+        Unlike many other programs that you may be used to, the chrome browser uses multiple processes to achieve its functions. These individual processes then communicate with each other via IPC.
+
+        <br>The first process is the <strong>browser</strong> process. It is the main process that is executed when you first start the browser and stays alive throughout the browser's entire lifetime. It is the central coordinator of all the processes, and operates at the highest privilege level available to the browser. It
+        controls the 'chrome' part of the application. This includes features such as the address bar, bookmarks and the back/forward/reload buttons. Since this is the most 
+        privileged process it does not trust the data given to it by any of the other processes, it does however handle privileged operations such as UI, networking or filesystem
+        storage for the other processes when necessary.
+        
+        <br>The next process is the <strong>renderer</strong> process. This process controls anything inside the actual website tab. To be more exact, there are many individual renderer processes. One entirely separate process for each tab the browser currently has opened, and since 2018 it can even have a separate tab for each individual iframe
+        used by a given website. I am going to talk a little more about this topic later in the section on Site Isolation. These renderer processes take care of parsing the site,
+        drawing it on the users screen, and executing any relevant javascript. Chrome currently uses a renderer engine called blink to take care of this. Since the renderer
+        process is in charge of executing javascript it exposes a very large attack surface to potential attackers. Due to this it is heavily sandboxed. It has no filesystem access, can't execute OS calls, etc. Since the renderer is especially relevant for browser security we will be talking a lot more about this later.
+
+        <br>Moving on we get to the <strong>plugin</strong> and <strong>extension</strong> processes. The plugin process controls any plugins that a website may be using (such as 
+        flash) while the extension process is in charge of managing browser extensions. This process allows users to customize their browser using custom plugins and was a pretty
+        impactful browser improvement when it was first introduced.
+
+        <br>Finally there's the <strong>GPU</strong> process. This process attempts to offload certain operations to the GPU to release pressure from the CPU and increase the quality at which data is displayed to the user. This oftentimes handles tasks such as scrolling through websites.
+
+        <br>At this point you may be wondering why on earth would a browser need this many processes. While it is true that this can lead to a very high memory overhead (especially
+        when multiple tabs start coming into play), it is necessary for a browser to work as you would expect it to. The first reason for this is <strong>stability</strong>. If one of the websites
+        you are using suddenly dies, chrome/you can just shutdown that individual tab, and continue operating the browser without issues. If the browser only used a single process,
+        the entire browser would have to be shutdown in such a case. Another big reason is <strong>security</strong>. Since browsers are so widespread, and are used to execute
+        remote code, they provide a very interesting attack surface to malicious hackers. The current process layout allows the browser to sandbox security critical processes such
+        as the renderer so that even if the renderer process is exploited, the attacker still does not have access to the underlying system.
+
+        <br>This is where <strong>site isolation</strong> becomes very relevant. This feature was added to chrome in 2018. With it, not only tabs, but also individual iframes get
+        their very own renderer process. A big security concern for browsers is that attackers might be able to abuse vulnerabilities to access other sites the user may have open at the same time. This was oftentimes a real possibility using iframes, however since the iframes now run in a new process entirely, iframes can no longer be used for attacks in this context.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/browser/chrome_arch/gen_arch.png" alt="">
+</div>
+<H4>Blink and V8</H4>
+<div class="paragraph">
+    <p>
+        As mentioned earlier, chrome uses Blink as its rendering engine. It takes care of most of the things mentioned above for the renderer process. Blink then uses v8 as its
+        javascript engine. Most major browsers have their own rendering and javascript engines.<br><br>
+        <strong>1. Chrome</strong>: Renderer: Blink  | Javascript: V8 <br>
+        <strong>2. Safari</strong>: Renderer: Webkit | Javascript: JavaScriptCore<br>
+        <strong>3. Firefox</strong>: Renderer: Gecko | Javascript: SpiderMonkey<br><br>
+
+        All of these engines have different implementations, however from a high level they essentially do the same. The Renderer parses the provided html and passes any javascript
+        code it finds on to the browsers respective javascript engine. In this series we will be focusing entirely on chrome's implementations.
+        <br><br>
+    </p>
+</div>
+
+<H4>Compilation Pipeline</H4>
+<div class="paragraph">
+    <p>
+        Lets start talking about what happens once the v8 engines gets access to the javascript code. It starts off by parsing the code and generating an Abstract Syntax Tree (AST) from it. This is basically a graph based representation of the source code that is easier to parse for a compiler than pure text. This AST is then passed on to  <strong>Ignition</strong>. Ignition is v8's bytecode generator and bytecode interpreter. It first transforms the AST into bytecode, and then passes this bytecode on to its interpreter section which then starts executing the bytecode. At this point there is one major step left in the compilation pipeline. When some piece of code is frequently executed, the section's bytecode may be passed onto <strong>Turbofan</strong>. Turbofan is a just in time compiler (JIT) that takes the bytecode and transforms it into highly optimized machine code. This is much faster than what the interpreter can do, and thus results in much higher execution speeds. Turbofan makes some speculations when generating this machine code, if these end up not holding, it needs to throw away the optimized code and transfer execution back to the interpreter. The image below showcases this compilation pipeline. Do not worry too much about specifics yet. We will be covering each of these sections in much greater depth in future parts of the series. 
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/browser/chrome_arch/v8_pipeline.jpg" alt="">
+</div>
+<H4>V8 Timeline</H4>
+<div class="paragraph">
+    <p>
+        <strong>2008:</strong><br>
+            V8 was initially created in 2008. At that point in time neither Ignition nor Turbofan existed. It started by generating an AST from the source code which it then passed on to its compiler, Codegen, which just output machine code.
+        <strong>2010:</strong><br>
+            At this point Crankshaft was added to the browser. Similar to today's Turbofan, Crankshaft was a just in time compiler. Its purpose was to generate highly optimized machine code. Unfortunately however, crankshaft had a lot of code generation issues. There were many popular code constructs it couldn't handle such as try/excepts, and thus programs oftentimes ran much slower than they potentially could. This led to good peak performances, however it also led to very unpredictable performance with certain code constructs.
+        <strong>2014:</strong><br>
+            4 years later, TurboFan was finally introduced into v8. Its goal was to improve on Crankshafts weak points and generate consistent fast code. At this point in time both Crankshaft and Turbofan existed within the browser and user's could just their preference.
+        <strong>2016:</strong><br>
+            Ignition is added to the browser. One of its main purpose's was to relieve some of the memory pressure from Turbofan. At this point however the browser architecture was way too complex, which leads us to the next set of major changes.
+        <strong>2017:</strong><br>
+            This is the current modern browser architecture that chrome uses. Crankshaft and Codegen are both fully removed and Ignition/Turbofan take care of executing the code.
+
+        <br><br>
+        We will be diving much deeper into Ignition and Turbofan in future parts, however for now this should suffice to give you a decent understanding of chrome's general architecture. Let's set up our debugging environment!
+        <br><br>
+    </p>
+</div>
+
+<H4>Debugging Setup</H4>
+<div class="paragraph">
+    <p>
+        In this tutorial I will be setting up my debugging environment on Linux. Feel free to use something else, however your setup may differ.<br><br>
+        Before we can start discussing any debugging we need to build the browser. Chrome however is extremely large and with its large amount of processes, debugging it effectively would prove to be very challenging. Since we only really care about chrome's javascript interpreter, we will just build v8 separately and work with that. <br><br> To setup v8, you can just copy paste the below commands into your terminal. Make sure to edit the path to reflect the path you are installing depot_tools on. This process may take a while.
+        <br><br>
+    </p>
+</div>
+<div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #839496">git clone https</span><span style="color: #268bd2">://chromium.googlesource.com/chromium/tools/depot_tools.git</span>
+<span style="color: #268bd2">echo "export PATH</span><span style="color: #839496">=/opt/depot_tools:$PATH" &gt;&gt; ~/.bashrc</span>
+<span style="color: #839496">fetch v8</span>
+<span style="color: #839496">cd v8</span>
+<span style="color: #839496">./build/install-build-deps.sh</span>
+<span style="color: #839496">//git checkout &lt;preferred_patch&gt;</span>
+<span style="color: #839496">gclient sync</span>
+
+<span style="color: #839496">./tools/dev/v8gen.py x64.release</span>
+<span style="color: #839496">ninja -C ./out.gn/x64.release # Release version</span>
+
+<span style="color: #839496">./tools/dev/v8gen.py x64.debug</span>
+<span style="color: #839496">ninja -C ./out.gn/x64.debug # Debug version</span>
+</pre></div>
+<div class="paragraph">
+    <p>
+        At this point you should have both a v8 release and debug binary. You do not necessarily need both if space is a concern, however the debug binary enables some extra debug flags that will be useful later. These binaries will be called d8, and should spawn an interactive javascript shell when executed.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/browser/chrome_arch/v8_repl.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        Lets go over some useful flags and debug functions that we will use throughout the next parts. Below you can find a list of 7 commandline flags that you can pass to the d8 binary when running it to retrieve extra information. We will be using all of them in various sections in future parts. 
+
+        <strong>--allow-natives-syntax</strong><br>
+            Enabled various debug-functions in javascript. Going to cover 3 of them below<br><br>
+        <strong>--print-bytecode --print-bytecode-filter=func</strong><br>
+            This flag is passed along to print out the bytecode generated for input<br><br>
+        <strong>--print-ast</strong><br>
+            This flag prints out the initial abstract syntax tree. It requires the debug version of d8 to work<br><br>
+        <strong>--print-opt-code/--print-opt-code-filter</strong><br>
+            This flag prints out the optimized code<br><br>
+        <strong>--trace-turbo</strong><br>
+            This flag prints out the Sea of Nodes graph. We will make extensive use of this in part 4<br><br>
+        <strong>--shell</strong><br>
+            You can also pass a .js script to the d8 shell instead of using the interactive shell. Using the --shell command gives you an interactive shell after completion of the script<br><br>
+        <strong>--log-function-events</strong><br>
+            This flag just logs everything d8 does.<br><br>
+
+        There are many more possible flags that can be passed to d8, however the above should suffice for now. Lets quickly cover some of the native functions before finally debugging our first program.<br><br>
+        <strong>%DebugPrint(obj)</strong><br>
+        <strong>%SystemBreak()</strong><br>
+        <strong>%OptimizeFunctionOnNextCall(func)</strong><br><br>
+
+        These functions get added to v8 as builtins when running d8 with the "--allow-natives-syntax" flag. %DebugPrint(obj) can be used to retrieve the address in memory of an object in addition to information about its type, values, properties etc. It will be crucial when actually debugging javascript code. %SystemBreak() can be used to set a breakpoint in the js script. Finally %OptimizeFunctionOnNextCall(func) passes the given function on to Turbofan to produce optimized machine code. This is a very useful function when we are trying to debug various features of the JIT.<br><br> Finally lets actually debug a small program. We can simply open up d8 in gdb and debug it similarly to any other binary. I will be using pwndbg, but feel free to use any gdb extension you prefer, or even base gdb.<br><br> We will be debugging the following binary. As you can see we perform some simple arithmetic operations and make use of 2 of the aforementioned debug functions to print out information about the array and set a breakpoint.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/browser/chrome_arch/test.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        After opening up the binary in gdb, we will run it with: "run --allow-natives-syntax ../code/test.js". This will first print out the requested debug information for the array before breaking on the %SystemBreak(). There is a lot of information to unpack here so we will just ignore most of it for now. One field is particularly interesting to us right now: elements: 0x009d082934e1. This indicates that the arrays elements are stored at address 0x009d082934e1 - 1. We will talk more about why we need to subtract a 1 in part 3 of this series when we talk more about v8's memory management. For now just believe me that this is the correct address. <br> In gdb we can execute "x/3xw 0x009d082934e1-1" to print out the processes memory at this address. You should see two values, 0x2 and 0x4. These represent our 2 array values (1 and 2). <br> I am not quite sure why they are doubled in memory, but I will update this if I find out. <br><br>If you are using the debug version you should also have access to source code debugging, so you can also just set an earlier breakpoint and watch your script get executed by the interpreter in real time.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/browser/chrome_arch/debugprint.png" alt="">
+</div>
+<div>
+    <img src="../imgs/browser/chrome_arch/memory.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        At this point you should know enough to start debugging simple js scripts in d8. Objects in v8 are quite complex, so don't worry if most of the information you see does not make sense yet. In the next part we will talk more about Ignition and observe how it generates and executes the bytecode.
+        <br><br>
+    </p>
+</div>
+<script>
+    try {
+        pageOpenedDirectly;
+    } catch (e) {
+        var loc = window.location.pathname;
+        var dir = loc.substring(0, loc.lastIndexOf('/'));
+        dir = dir.split("/")[dir.split("/").length - 1];
+        let currentLoc = location.href;
+        let currentFile = location.href.split("/").slice(-1);
+        currentLoc = currentLoc.replace(currentFile, "");
+        currentLoc = currentLoc.replace(dir+"/", "");
+        currentLoc = currentLoc.slice(0, -1);
+        if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);
+        window.location = currentLoc + "?p=" + currentFile + "&d=" + dir;
+    }
+    </script>
