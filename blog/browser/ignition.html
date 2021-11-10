@@ -16,21 +16,21 @@
 <H3>Parser</H3>
 <div class="paragraph">
     <p>
-        As mentioned earlier, we will be starting with Chrome's parser. Before the actual javascript code can get passed to V8, it needs to be extracted from the html document, after which it is passed to V8 at the appropriate time.
+        As mentioned earlier, we will be starting with Chrome's parser. Before the actual javascript code can get passed to V8, it needs to be extracted from the html document, after which it is passed to V8 at the appropriate time. 
         <br><br>
-        The parser starts by scanning the html source code and then builds a Document Object Model (DOM). This DOM object represents Chrome's internal representation of the page, and is a lot easier for the parser to continue working with than standard source code. After this object is built, a separate thread is spawned in which the preload scanner starts to resolve any img or link tags. This is done separately because if oftentimes requires quite a bit of time. Concurrently to this, the main parser thread starts parsing any given css files, and applies the given style guidelines to the respective nodes in the DOM.<br><br>
+        The parser starts by scanning the html source code and then builds a Document Object Model (DOM). This DOM object represents Chrome's internal representation of the page and is a lot easier for the parser to continue working with than standard source code. After this object is built, a separate thread is spawned in which the preload scanner starts to resolve any img or link tags. This is done separately because if oftentimes requires quite a bit of time. Concurrently to this, the main parser thread starts parsing any given css files and applies the given style guidelines to the respective nodes in the DOM.<br><br>
 
-        Once all of this is completed, the DOM is finally ready for further use. Chrome's rendering engine, Blink, uses this graph to determine the page layout, and starts rendering the actual page. This is done by separating the page into separate layers, and rasterizing each individually in separate threads before creating a composite of all layers in the main renderer thread. You are free to dive deeper into what this actually means, but the exact details of rendering are far out of scope for this series so I will leave it at that.<br><br><br>
+        Once all of this is completed, the DOM is finally ready for further use. Chrome's rendering engine, Blink, uses this graph to determine the page layout and starts rendering the actual page. This is done by separating the page into separate layers and rasterizing each individually in separate threads before creating a composite of all layers in the main renderer thread. You are free to dive deeper into what this actually means, but the exact details of rendering are far out of scope for this series so I will leave it at that.<br><br>
 
         At this point we have a decent understanding of how the renderer actually constructs and displays a page, however as you may have noticed, we completely neglected javascript thus far. During parsing, if a script tag is found, the rest of the parsing generally has to be stopped (this can be bypassed using async/defer). This is because javascript code has the potential to dynamically change the page content, so proceeding to interpret the remaining html code before dealing with the javascript code could lead to issues. Since we do not want to halt the page display process for too long in the case of js code that takes a while to fully parse, chrome has both a preparser and a standard parser.<br><br>
 
         The purpose of the preparser is to only parse/compile sections of the code that are needed at site startup while parsing/compilation for sections that aren't immediately needed is deferred until a later time. This has the potential to greatly speed up the initial startup time for a lot of pages.<br><br>
 
-        The preparser is fast, but also lazy. It skips over all functions that do not need to be immediately compiled, and does not actually attempt to build any AST, but instead just builds scopes. It is about twice as fast as the actual parser due to its limited functionality. It verifies that functions are syntactically correct, but since it does not attempt to actually compile functions it misses many errors. <br><br>
+        The preparser is fast, but also lazy. It skips over all functions that do not need to be immediately compiled and does not actually attempt to build any AST, but instead just builds scopes. It is about twice as fast as the actual parser due to its limited functionality. It verifies that functions are syntactically correct, but since it does not attempt to actually compile functions it misses many errors. <br><br>
 
-        The actual parser is a lot more feature rich than the preparser. It builds an AST, scopes, and generally finds all syntax errors in the code. This parser is initially invoked on all functions that are immediately used, and is later used again to properly parse functions that were previously skipped by the preparser once they are actually used. <br><br>
+        The actual parser is a lot more feature-rich than the preparser. It builds an AST, scopes, and generally finds all syntax errors in the code. This parser is initially invoked on all functions that are immediately used and is later used again to properly parse functions that were previously skipped by the preparser once they are actually used. <br><br>
 
-        Since this is a little confusing, lets look at the example below.
+        Since this is a little confusing, let's look at the example below.
         <br><br>
     </p>
 </div>
@@ -48,9 +48,9 @@
 <div class="paragraph">
     <p>
         <br>
-        There are three functions in this code: add, sub, and hello. The hello function immediately executes upon declaration, the add function is executed later in the code, and the sub function is never used. Given what we just learned, we would expect both the add and sub functions to initially be preparsed since they are not immediately needed. The hello function however should never be preparsed and instead be immediately fully parsed since it executes instantly. While the preparser is a lot faster than the actual parser, it still has considerate overhead, so it is important to not accidentally preparse too many functions, otherwise we need to both preparse and parse all of the code very quickly. Finally the add function is called. This should result in the add function being lazily parsed before finally being executed. <br><br>
+        There are three functions in this code: add, sub, and hello. The hello function immediately executes upon declaration, the add function is executed later in the code, and the sub function is never used. Given what we just learned, we would expect both the add and sub functions to initially be preparsed since they are not immediately needed. The hello function however should never be preparsed and instead be immediately fully parsed since it executes instantly. While the preparser is a lot faster than the actual parser, it still has considerate overhead, so it is important to not accidentally preparse too many functions, otherwise, we need to both preparse and parse all of the code very quickly. Finally, the add function is called. This should result in the add function being lazily parsed before finally being executed. <br><br>
 
-        Lets verify that our assumptions are correct. Using the flag '--log-function-events' we can track how exactly V8 goes about parsing our little js script. Below you can see this output alongside some of my comments to clarify the output. As you can see, hello is eagerly parsed, add is lazily parsed upon execution, and sub is never actually fully parsed. This is a very important optimization that the renderer uses to make page rendering smoother.
+        Let's verify that our assumptions are correct. Using the flag '--log-function-events' we can track how exactly V8 goes about parsing our little js script. Below you can see this output alongside some of my comments to clarify the output. As you can see, hello is eagerly parsed, add is lazily parsed upon execution, and sub is never actually fully parsed. This is a very important optimization that the renderer uses to make page rendering smoother.
         <br><br>
     </p>
 </div>
@@ -60,9 +60,8 @@
 <H3>Abstract Syntax Tree (AST)</H3>
 <div class="paragraph">
     <p>
-        <br>
-        I do not want to spend too much time on this since it honestly just is not that important for us in terms of browser exploitation, but I think that it is useful to introduce you to graphs a compiler uses for its operations. In the fourth part of this series focusing on Turbofan, we will make extensive use of the Sea of Nodes graph which is a much more complex compiler graph than an AST, and will thus be easier to understand if you understand the AST. <br><br>
-        Since the computer has a lot of trouble making sense of pure source code, a more structured format is important. The AST is exactly that, an intermediate graph based representation that organizes the source code by blocks, control flow, precedence, etc. Below you can see a small example of how an AST might look like for the following expression: '3 + 4 > 5'
+        I do not want to spend too much time on this since it honestly just is not that important for us in terms of browser exploitation, but I think that it is useful to introduce you to the graphs a compiler uses for its operations. In the fourth part of this series focusing on Turbofan, we will make extensive use of the Sea of Nodes graph which is a much more complex compiler graph than an AST, and will thus be easier to understand if you understand the AST. <br><br>
+        Since the computer has a lot of trouble making sense of pure source code, a more structured format is important. The AST is exactly that, an intermediate graph-based representation that organizes the source code by blocks, control flow, precedence, etc. Below you can see a small example of how an AST might look like for the following expression: '3 + 4 > 5'
         <br><br>
     </p>
 </div>
@@ -71,13 +70,11 @@
 </div>
 <div class="paragraph">
     <p>
-        <br>
-        Each of the graph's nodes contains a single token from the source code. This node stores information such as the token's type, it's value and line number (The line numbers are important if we want to produce well constructed errors for the user). Due to the tree-like structure, the compiler can reason about precedence, scopes, and various other information that it needs to properly execute code. <br><br> Chrome's parser uses a recursive descent algorithm to generate this graph. This is a top-down parser approach that builds the tree starting from the top, and recursively parses individual expressions until it has the entire graph completed. For the purposes of this series this is enough on the parser, however if you are interested in learning more about compilers I can strongly recommend this free book: https://craftinginterpreters.com/.<br><br>
+        Each of the graph's nodes contains a single token from the source code. This node stores information such as the token's type, its value and line number (The line numbers are important if we want to produce well-constructed errors for the user). Due to the tree-like structure, the compiler can reason about precedence, scopes, and various other information that it needs to properly execute code. <br><br> Chrome's parser uses a recursive descent algorithm to generate this graph. This is a top-down parser approach that builds the tree starting from the top and recursively parses individual expressions until it has the entire graph completed. For the purposes of this series, this is enough on the parser, however, if you are interested in learning more about compilers I can strongly recommend this free book: https://craftinginterpreters.com/.<br><br>
 
-        Using a debug build of d8 and the '--print-ast' flag, we can have d8 print out the AST for the small compare function listed below. As you can see, the actual compare function is at the outermost/global scope. The parameters x & y alongside the return statement are 1 node further into the graph. Then under the return statement you can see the 'greater than' operator listed as 'GT'. Finally we have the 'add' operator which has 2 leaves, parameter x and parameter y.
+        Using a debug build of d8 and the '--print-ast' flag, we can have d8 print out the AST for the small compare function listed below. As you can see, the actual compare function is at the outermost/global scope. The parameters x & y alongside the return statement are 1 node further into the graph. Then under the return statement, you can see the 'greater than' operator listed as 'GT'. Finally, we have the 'add' operator which has 2 leaves, parameter x, and parameter y.
         <br><br>
-        Once generated, this AST is passed on to Ignition, which then uses this graph to actually start executing code. Lets finally move on to that.
-        <br><br>
+        Once generated, this AST is passed on to Ignition, which then uses this graph to actually start executing code. Let's finally move on to that.
     </p>
 </div>
 <div>
@@ -86,11 +83,11 @@
 <H3>Ignition</H3>
 <div class="paragraph">
     <p>
-        The name Ignition refers is a bit ambiguous. It refers to both the bytecode generator and the bytecode interpreter. Oftentimes these are also just mentioned as one big black box called the interpreter. The bytecode generator takes the AST from the parser, and then uses it to generate bytecode. The bytecode interpreter then takes this bytecode and executes it using bytecode handlers. <br><br>
+        The name Ignition refers is a bit ambiguous. It refers to both the bytecode generator and the bytecode interpreter. Oftentimes these are also just mentioned as one big black box called the interpreter. The bytecode generator takes the AST from the parser and then uses it to generate bytecode. The bytecode interpreter then takes this bytecode and executes it using bytecode handlers. <br><br>
 
-        Ignition is a register based multithreaded machine. This means that most operations act directly on registers provided as arguments to the opcode. It also uses an accumulator register that is used in a similar fashion as x86's rax register. A stack machine in comparison would act directly on memory and set up its operands using push/pop instructions. V8 has a total of over hundred different bytecodes that you can view here: https://chromium.googlesource.com/v8/v8/+/1769f892cef0822e6a8b5334e2ad909a0c33e906/src/interpreter/bytecodes.h. This collection of bytecodes is able to represent any valid javascript code.
+        Ignition is a register-based multithreaded machine. This means that most operations act directly on registers provided as arguments to the opcode. It also uses an accumulator register that is used in a similar fashion as x86's rax register. A stack machine in comparison would act directly on memory and set up its operands using push/pop instructions. V8 has a total of over a hundred different bytecodes that you can view here: https://chromium.googlesource.com/v8/v8/+/1769f892cef0822e6a8b5334e2ad909a0c33e906/src/interpreter/bytecodes.h. This collection of bytecodes is able to represent any valid javascript code.
 
-        In addition to being executed directly by ignitions interpreter, this bytecode is also passed on to Turbofan to generated its highly optimized machine code. In the past Chrome's optimizing compiler just worked off of the entire AST. Maintaining this graph however was extremely memory taxing due to its pure size. Nowadays Turbofan instead just uses Ignition's compact bytecode to perform its optimizations and codegen.
+        In addition to being executed directly by ignitions interpreter, this bytecode is also passed on to Turbofan to generate its highly optimized machine code. In the past Chrome's optimizing compiler just worked off of the entire AST. Maintaining this graph however, was extremely memory taxing due to its pure size. Nowadays Turbofan instead just uses Ignition's compact bytecode to perform its optimizations and codegen.
         <br><br>
     </p>
 </div>
@@ -99,7 +96,7 @@
     <p>
         V8's bytecode generator takes in the AST from the parser and proceeds to walk through it, generating bytecode for each individual AST node as appropriate along with important metadata to enable the bytecode interpreter to properly execute this bytecode. This stream of bytecode is stored in a BytecodeArray object. <br><br>
 
-        Lets look at an example of how bytecode might be generated for the simple expression: 'arr[0]'. This statement just accesses the first field of the given array object. This might generate a tree similar to the following:    
+        Let's look at an example of how bytecode might be generated for the simple expression: 'arr[0]'. This statement just accesses the first field of the given array object. This might generate a tree similar to the following:    
         <br><br>
     </p>
 </div>
@@ -108,7 +105,7 @@
 </div>
 <div class="paragraph">
     <p>
-        The <strong>BytecodeGenerator</strong> will walk this tree starting with the KeyedPropertyLoad node at the top. It will then move towards the JSArray object and store it in a register. Next it will move towards the right leave representing a key for the array access, and load 0 into a register. Finally it goes back to the top of the graph and emit a LdaKeyedProperty bytecode to perform the actual property load and retrieve the value. This procedure might emight the following bytecode: <br><br>
+        The <strong>BytecodeGenerator</strong> will walk this tree starting with the KeyedPropertyLoad node at the top. It will then move towards the JSArray object and store it in a register. Next, it will move towards the right leave representing a key for the array access, and load 0 into a register. Finally, it goes back to the top of the graph and emits a LdaKeyedProperty bytecode to perform the actual property load and retrieve the value. This procedure might emit the following bytecode: <br><br>
 
         0xc708293452 @    4 : 16 02             LdaCurrentContextSlot [2]   ; Load array into acc register<br>
         0xc708293454 @    6 : c3                Star0                       ; Store acc register in r0 register<br>
@@ -118,7 +115,7 @@
 
         In V8 the ByteCodeGenerator uses a BytecodeArrayBuilder to generate the BytecodeArray. This BytecodeArrayBuilder takes in a request from the ByteCodeGenerator and returns appropriate bytecode.  <br><br>
 
-        The registers used by this bytecode are stored in each stackframe's register file. This enables the bytecode to access these registers for its operations using simple offsets, however it also means that the bytecode does not support standard push/pop operations. Each functions stackframe has a static size that needs to be calculated during bytecode generation. The advantage of this is that the stackframe has to be allocated exactly once during the function prologue, and remains consistent with the specific architectures alignment requirements. The functions arguments and the 'this' parameter are also located on this stack alongside the register file and various other information. The figure below represents how a functions stack frame might look like. 
+        The registers used by this bytecode are stored in each stackframe's register file. This enables the bytecode to access these registers for its operations using simple offsets, however, it also means that the bytecode does not support standard push/pop operations. Each functions stackframe has a static size that needs to be calculated during bytecode generation. The advantage of this is that the stackframe has to be allocated exactly once during the function prologue, and remains consistent with the specific architecture's alignment requirements. The functions arguments and the 'this' parameter are also located on this stack alongside the register file and various other information. The figure below represents how a functions stack frame might look like. 
         <br><br>
     </p>
 </div>
@@ -127,13 +124,13 @@
 </div>
 <div class="paragraph">
     <p>
-        During bytecode generation, local variables are alloted slots in the register file in addition to some temporary registers needed for expression evaluation. Since everything is stored in this stackframe in the same format as the register-file, other information such as the context can be accessed in the same manner as standard registers, by accessing different offsets. The context being stored in a register means that the interpreter can access the current context (e.g. higher order functions), without having to take an extra operand specifying the content register. This is very useful for javascript execution since it enables the interpreter to pass the context to JS function calls or builtins that require it without using an extra argument. Additionally ContextScope objects are used to track nested context chains. These can be efficiently unrolled to enable to interpreter to directly access a context extension without having to walk the entire context chain. <br><br>
+        During bytecode generation, local variables are allotted slots in the register file in addition to some temporary registers needed for expression evaluation. Since everything is stored in this stackframe in the same format as the register-file, other information such as the context can be accessed in the same manner as standard registers, by accessing different offsets. The context being stored in a register means that the interpreter can access the current context (e.g. higher order functions), without having to take an extra operand specifying the content register. This is very useful for javascript execution since it enables the interpreter to pass the context to JS function calls or builtins that require it without using an extra argument. Additionally, ContextScope objects are used to track nested context chains. These can be efficiently unrolled to enable the interpreter to directly access a context extension without having to walk the entire context chain. <br><br>
 
-        Constant smi’s get loaded directly by specific bytecodes while strings and other numbers are stored in a constant pool on the heap. This pool can be accessed via index similarly to the registers allowing for quick access. This pool however is stored on the heap, so it can be grown dynamically if needed unlike the stackframe.<br><br>
+        Constant smi’s get loaded directly by specific bytecodes while strings and other numbers are stored in a constant pool on the heap. This pool can be accessed via index, similarly to the registers, allowing for quick access. This pool however is stored on the heap, so it can be grown dynamically if needed, unlike the stackframe.<br><br>
 
-        Once the BytecodeArray is fully generated it is stored in a field of the SharedFunctionInfo. Finally once the bytecode is fully generated, but before the interpreter fires up, a process called AST internalization is started. This procedure immediately allocates objects found in the AST on the heap. This enables the bytecode interpreter to directly access these objects and thus saves runtime allocations. <br><br>
+        Once the BytecodeArray is fully generated it is stored in a field of the SharedFunctionInfo. Finally, once the bytecode is fully generated, but before the interpreter fires up, a process called AST internalization is started. This procedure immediately allocates objects found in the AST on the heap. This enables the bytecode interpreter to directly access these objects and thus saves runtime allocations. <br><br>
 
-        This should be enough information on how the bytecode is generated for now. Lets start talking about how this bytecode is actually executed before doing a short bytecode analysis at the end.
+        This should be enough information on how the bytecode is generated for now. Let's start talking about how this bytecode is actually executed before doing a short bytecode analysis at the end.
         <br><br>
     </p>
 </div>
@@ -148,10 +145,10 @@
 
         This index is based off of the start of the register file and can be either positive or negative. A positive index indicates that the accessed data lies above the register file on the stack (e.g. function arguments). A negative index indicates that the data will be retrieved from the register file (e.g. local variables).<br><br>
 
-        <strong>Wide Operand Sizes:</strong><br>
+        <strong>Wide Operand Sizes:</strong><br><br>
         Making the bytecode as small as possible is a major goal of Ignition. This means that the bytecode is differently sized depending on the size of its operands is important to save valuable space. Ignition uses an 8-bit sized value in its bytecode to specify the operand size. This can be used to support differently sized operands as seen below.<br><br>
 
-        To sum up function execution, we start by calling InterpreterPushArgsAndCall to setup the new functions stackframe. Next a builtin is called that takes care of calling the actual function. Once a function is completed, InterpreterExitTrampoline is called to tear down the stackframe and restore control to the callee function while returning the value stored in the accumulator register.
+        To sum up function execution, we start by calling InterpreterPushArgsAndCall to set up the new functions stackframe. Next, a builtin is called that takes care of calling the actual function. Once a function is completed, InterpreterExitTrampoline is called to tear down the stackframe and restore control to the callee function while returning the value stored in the accumulator register.
         <br><br>
     </p>
 </div>
@@ -161,14 +158,14 @@
 <H3>Inline Caching</H3>
 <div class="paragraph">
     <p>
-        Due to javascripts dynamic nature, adding and removing properties needs to be fast. V8 makes use of a system called inline caching for this. This optimization greatly speeds up property accesses of objects.<br><br>
+        Due to javascript's dynamic nature, adding and removing properties needs to be fast. V8 makes use of a system called inline caching for this. This optimization greatly speeds up property accesses of objects.<br><br>
 
-        This will be covered in much more detail in the next part focused on V8's memory usage, however it is relevant for the paragraphs below, so I will quickly introduce it here. All objects stored on the V8 heap have something called a map. This map stores information about the object such as how its supposed to be accessed (named property in the case of objects or indexes in terms of arrays) and some other relevant information. <br><br>
+        This will be covered in much more detail in the next part focused on V8's memory usage, however, it is relevant for the paragraphs below, so I will quickly introduce it here. All objects stored on the V8 heap have something called a map. This map stores information about the object such as how it's supposed to be accessed (named property in the case of objects or indexes in terms of arrays) and some other relevant information. <br><br>
 
         When a function is called, Ignition maintains inline caches that track argument types/maps and other surrounding information in the case of objects. This allows Ignition to more easily determine how this argument should be looked up in the future without having to redo the entire property lookup procedure every time. Additionally if a function is called frequently, these inline caches are passed on to turbofan for its optimizations. How Turbofan uses this information will be covered more in depth in the 4th part focused on Turbofan, but suffice to say that this information is extremely important for Turbofan's optimizations. <br><br>
 
-        <strong>Monomorphism & Polymorphism:</strong><br>
-        If a function is always called with arguments of the same type/map, this function is regarded as monomorphic and it can be heavily optimized for this one type/map. If a function is called with { x: 1 } as its argument every time, the function is monomorphic, however if it is eventually called with { x: 1, y: 2}, it has now been called with an object that has a different map, therefore the function is no longer monomorphic. It is now polymorphic with a degree of 2. If a function is then continously called with objects using different maps, it eventually becomes megamorphic (generally the threshhold from poly to mega is 4). The megamorphic state exists to prevent the polymorphic cache from growing too large. At this state it basically gives up attempting to maintain inline caches for the function. Instead it stores them in a fixed size global hashtable in which entries are just overwritten on collisions.<br><br>
+        <strong>Monomorphism & Polymorphism:</strong><br><br>
+        If a function is always called with arguments of the same type/map, this function is regarded as monomorphic and it can be heavily optimized for this one type/map. If a function is called with { x: 1 } as its argument every time, the function is monomorphic, however, if it is eventually called with { x: 1, y: 2}, it has now been called with an object that has a different map, therefore the function is no longer monomorphic. It is now polymorphic with a degree of 2. If a function is then continuously called with objects using different maps, it eventually becomes megamorphic (generally the threshold from poly to mega is 4). The megamorphic state exists to prevent the polymorphic cache from growing too large. At this state, it basically gives up attempting to maintain inline caches for the function. Instead, it stores them in a fixed size global hashtable in which entries are just overwritten on collisions.<br><br>
 
         Inline caches are an important optimization since they allow the interpreter to access objects much faster since it already has a good idea of what to expect. 
         <br><br>
@@ -177,8 +174,7 @@
 <H3>Bytecode Analysis</H3>
 <div class="paragraph">
     <p>
-        <br><br>
-        Lets look at some actual bytecode generated by Ignition and try to make some sense of it. The below function takes an argument and immediately initializes a local variable. It then takes a branch based on the provided argument, changes the argument and prints out a different statement based on the taken branch. Finally it retuns the argument incremented by 3. At the end of the file we call this function twice using different arguments.
+        Let's look at some actual bytecode generated by Ignition and try to make some sense of it. The below function takes an argument and immediately initializes a local variable. It then takes a branch based on the provided argument, changes the argument, and prints out a different statement based on the taken branch. Finally, it returns the argument incremented by 3. At the end of the file, we call this function twice using different arguments.
         <br><br>
     </p>
 </div>
@@ -200,9 +196,9 @@
     <p>
         Using the '--print-bytecode' and '--print-bytecode-filter=func' flags we can print out the bytecode generated by Ignition and filter it specifically for the bytecode generated for the function 'func'. Below you can see this generated bytecode alongside comments on each line explaining what the individual bytecode does. Overall these operations are very similar to assembly instructions you may be used to from various computer architectures such as x86. The fact that this is bytecode however allows Ignition to embed extra information in the bytecode which actually makes the bytecode quite readable.<br><br>
 
-        At the bottom of the function you can see the constant pool containing references to strings and builtins used in the bytecode. These are references in the bytecode via their indexes in this pool.<br><br>
+        At the bottom of the function, you can see the constant pool containing references to strings and builtins used in the bytecode. These are references in the bytecode via their indexes in this pool.<br><br>
 
-        I divided the below bytecode into 4 different execution blocks. The first block is the function prologue in addition to the local variable declaration and the actual branch comparison. The next 2 blocks execute the different branches of the control-flow statement. Finally the last block sets up the accumulator and returns from the function.
+        I divided the below bytecode into 4 different execution blocks. The first block is the function prologue in addition to the local variable declaration and the actual branch comparison. The next 2 blocks execute the different branches of the control-flow statement. Finally, the last block sets up the accumulator and returns from the function.
         <br><br>
     </p>
 </div>
@@ -211,8 +207,8 @@
 </div>
 <div class="paragraph">
     <p>
-        At this point you should have a strong understanding of Ignition's job in V8's compilation pipeline. We covered some confusing compiler theory, don't worry if not all of it made sense, it won't be extremely necessary when you initially get started with Chrome exploitation, however I still believe that it's good to know how everything works together.<br><br>
-        In the next part we will start talking about how V8 actually manages memory. We will talk about how objects are laid out on the V8 heap, pointer tagging, garbage collection and many other extremely important concepts.
+        At this point, you should have a strong understanding of Ignition's job in V8's compilation pipeline. We covered some confusing compiler theory, don't worry if not all of it made sense, it won't be extremely necessary when you initially get started with Chrome exploitation, however, I still believe that it's good to know how everything works together.<br><br>
+        In the next part, we will start talking about how V8 actually manages memory. We will talk about how objects are laid out on the V8 heap, pointer tagging, garbage collection, and many other extremely important concepts.
         <br><br><br><br><br><br>
     </p>
 </div>
