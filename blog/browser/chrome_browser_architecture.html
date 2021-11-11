@@ -139,7 +139,17 @@
         <strong>%SystemBreak()</strong><br>
         <strong>%OptimizeFunctionOnNextCall(func)</strong><br><br>
 
-        These functions get added to V8 as builtins when running d8 with the "--allow-natives-syntax" flag. %DebugPrint(obj) can be used to retrieve the address in memory of an object in addition to information about its type, values, properties, etc. It will be crucial when actually debugging javascript code. %SystemBreak() can be used to set a breakpoint in the js script. Finally %OptimizeFunctionOnNextCall(func) passes the given function on to Turbofan to produce optimized machine code. This is a very useful function when we are trying to debug various features of the JIT.<br><br> Finally lets actually debug a small program. We can simply open up d8 in gdb and debug it similarly to any other binary. I will be using pwndbg, but feel free to use any gdb extension you prefer, or even base gdb.<br><br> We will be debugging the following binary. As you can see we perform some simple arithmetic operations and make use of 2 of the aforementioned debug functions to print out information about the array and set a breakpoint.
+        These functions get added to V8 as builtins when running d8 with the "--allow-natives-syntax" flag. %DebugPrint(obj) can be used to retrieve the address in memory of an object in addition to information about its type, values, properties, etc. It will be crucial when actually debugging javascript code. %SystemBreak() can be used to set a breakpoint in the js script. Finally %OptimizeFunctionOnNextCall(func) passes the given function on to Turbofan to produce optimized machine code. This is a very useful function when we are trying to debug various features of the JIT.
+        <br><br> 
+        Finally lets quickly look at 2 more tools/scripts to make our lives a little easier: <br><br>
+
+        <strong>1. https://github.com/v8/v8/blob/master/tools/gdbinit / https://github.com/v8/v8/blob/master/tools/gdb-v8-support.py</strong><br>
+        <strong>2. https://github.com/v8/v8/tree/lkgr/tools/turbolizer</strong><br><br>
+
+        The 2 scripts linked under the first point are gdb helper scripts that make debugging v8 code a little easier and the turbolizer tool is a very useful tool that lets us visualize graphs used by V8's turbofan compiler. We will make use of this tool in the Turbofan part of this series.
+        <br><br>
+
+        Now that we have covered some useful debugging features, let's actually debug a small program. We can simply open up d8 in gdb and debug it similarly to any other binary. I will be using pwndbg, but feel free to use any gdb extension you prefer, or even base gdb.<br><br> We will be debugging the following binary. As you can see we perform some simple arithmetic operations and make use of 2 of the aforementioned debug functions to print out information about the array and set a breakpoint.
         <br><br>
     </p>
 </div>
