@@ -9,16 +9,16 @@
 <H3>Introduction</H3>
 <div class="paragraph">
     <p>
-        This is the third part of a series on the Chrome browser and its javascript engine V8. This part's main focus will be on how V8 manages its memory. We will start with some basic such as some commonly used objects and how the memory space is divided. Next we'll move on to pointer tagging, a concept I already mentioned the previous parts. We will cover how exactly objects are stored in memory including object maps and how V8 handles type transitions due to javascript's weak typing. Next we'll look at some specific objects in a debugger and analyze how exactly they are stored in memory. Finally we will close off this part by looking at V8's garbage collector.
+        This is the third part of a series on the Chrome browser and its javascript engine V8. This part's main focus will be on how V8 manages its memory. We will start with some basics such as some commonly used objects and how the memory space is divided. Next, we'll move on to pointer tagging, a concept I already mentioned in the previous parts. We will cover how exactly objects are stored in memory including object maps and how V8 handles type transitions due to javascript's weak typing. Next, we'll look at some specific objects in a debugger and analyze how exactly they are stored in memory. Finally, we will close off this part by looking at V8's garbage collector.
         <br>
     </p>
 </div>
 <H3>Common Objects</H3>
 <div class="paragraph">
     <p>
-        Javascript engine's make heavy use of objects. Almost every data structure you use in js is an object, this includes strings, arrays, doubles and even large integers. This is unfortunately necessary since javascript allows objects to drastically change. Arrays for example can be accessed out of bounds without causing a bug since the js engine's are expected to automatically extend the array's size to support the access. <br><br>
+        Javascript engines make heavy use of objects. Almost every data structure you use in js is an object, including strings, arrays, doubles, and even large integers. This is unfortunately necessary since javascript allows objects to drastically change during runtime. Arrays for example can be accessed out of bounds without causing a bug since js engines are expected to automatically extend the array's size to support the access. <br><br>
 
-        Below you can see an example. If a number is less than 2^30 it is stored on the stack as a smi (small 32 bit integer), however as soon as it reaches 2^30 in size it is instead stored on the heap as a HEAP_NUMBER_TYPE. At this point a considerable amount of memory has to be allocated to store all the required meta-data for the object.
+        Below you can see an example. If a number is less than 2^30 it is stored on the stack as a smi (small 32-bit integer), however, as soon as it reaches 2^30 in size it is instead stored on the heap as a HEAP_NUMBER_TYPE. At this point, a considerable amount of memory has to be allocated to store all the required meta-data for the object.
         <br><br>
 
         You can find a full list of V8's objects at: <a href=https://github.com/v8/v8/blob/main/src/objects/objects.h>src/objects/objects.h</a>.
@@ -31,16 +31,16 @@
 <H3>Pointer Tagging and Compression</H3>
 <div class="paragraph">
     <p>
-        Let's quickly talk about pointer tagging. V8 uses this mechanism to distinguish between smi's (small 32-bit integers), pointers and doubles. Smi's are displayed in memory shifted left by 32 bits so the first 4 bytes are zeroed out, doubles are saved in memory by their standard 64-bit representation and pointers have their least significant bit set. <br><br>
+        Pointer tagging is a very important and unique feature V8 employs. This mechanism is used to distinguish between smi's (small 32-bit integers), pointers, and doubles. Smi's are displayed in memory shifted left by 32 bits so the first 4 bytes are zeroed out, doubles are saved in memory by their standard 64-bit representation, and pointers have their least significant bit set. <br><br>
         smi:     0x41414141 -> smi in memory:     0x4141414100000000 <br>
         pointer: 0x12345678 -> pointer in memory: 0x12345679<br>
         double:  stored in memory as is<br><br>
 
-        This is why we had to subtract 1 from the objects when attempting to dereference pointers to them using gdb in the first part, and why all array values were doubled when inspecting the actual values in memory (x << 1 === x * 2). <br><br>
+        This is why we had to subtract 1 from the objects when attempting to dereference pointers to them using gdb in the first part. <br><br>
 
         Now, why does V8 do this? The main reason is memory space. V8 combines the above with a system they call pointer compression to greatly reduce the required memory. The idea behind pointer compression is to store 64-bit pointers within 32 bits on the heap. This is done by only saving the lower 4 bytes of addresses on the V8 heap. Since the upper 4 bytes are always the same throughout a specific V8 process, these are instead stored in the r13 register. Whenever an address is now accessed, the full address is calculated using the upper 4 bytes stored in r13 and the lower 4 bytes stored in memory. This is only possible because the V8 heap is only 4GB large which lets the upper 4 bytes of addresses stay consistent throughout the entire V8 heap. <br><br>
 
-        Earlier on I said that smi's were shifted left by 32 bits, due to pointer compression however, this is not entirely true. Instead they are shifted to the left by 1 bit which lets the lowest bit be used to distinguish between pointers and smi's. This is why in the above example the maximum size of a smi was (2^30)-1. This allows smi's, similar to pointers, to be stored within 4 bytes of memory. Due to the combination of pointer tagging and pointer compression the needed heap size was almost halved which was a huge advantage especially for mobile devices with small amounts of memory available to them.
+        Earlier on I said that smi's were shifted left by 32 bits, due to pointer compression however, this is not entirely true. Instead, they are shifted to the left by 1 bit which lets the lowest bit be used to distinguish between pointers and smis. This is why in the above example the maximum size of a smi was (2^30)-1 instead of (2^31)-1. While this slightly reduces the possible size of smi's, it allows smi's, similar to pointers, to be stored within 4 bytes of memory. Due to the combination of pointer tagging and pointer compression the required heap size was almost halved, which was a huge advantage especially for mobile devices with small amounts of memory available to them.
         <br><br>
     </p>
 </div>
@@ -49,9 +49,9 @@
     <p>
         V8 memory is divided into 2 main parts similar to what you are probably used to from most of your applications. The stack and the heap. <br><br>
 
-        The <strong>stack</strong> is not very exciting, it stores some static data such as method/function frames (if you remember the post on ignition, these stack frames are completely static for each function), primitive types such as numbers to a certain extent, and pointers to objects stored on the heap. 
+        The <strong>stack</strong> is not very exciting, it stores some static data such as method/function frames (if you remember the post on Ignition, these stack frames are completely static for each function), primitive types such as numbers to a certain extent, and pointers to objects stored on the heap. 
         <br><br>
-        The <strong>heap</strong> is a little more exciting. It has a couple of different sections listed below. <br><br>
+        The <strong>heap</strong> is a little more exciting. It has a couple of different sections as listed below. <br><br>
 
         <strong>New Space</strong><br>
         > Newly allocated objects stored here<br>
@@ -66,7 +66,7 @@
         > Managed by the major garbage collector<br><br>
         <strong>Large Object Space</strong><br>
         > Objects that are larger than the size limit are stored here using mmap<br>
-        > These are never impracted by the garbage collector<br><br>
+        > These are never impacted by the garbage collector<br><br>
         <strong>Code Space</strong><br>
         > This is where the JIT stores its compiled code blocks.<br>
         > Only space with executeable memory<br><br>
@@ -82,16 +82,11 @@
 
         V8 internally uses around 20 different element kinds all of which you can find here: <a href=https://github.com/v8/v8/blob/main/src/objects/elements-kind.h>src/objects/elements-kind.h</a>. Objects oftentimes have multiple of these element kinds. These allow V8 to access objects and perform various optimizations on them. <br><br>
 
-        As mentioned previously in the ignition post, all objects also have a map. This map holds most of the information V8 requires to access a given object. It holds the size of the given object, its type, where the object's properties/elements are stored including their types, and how V8 can find the individual elements/properties of the object. <br><br>
+        Throughout this post, I will be talking about properties and elements of objects. When talking about properties I am referring to named properties of objects, an example would be: <i>{ x: 0, y: 1 }</i>. In this example, both x and y are properties of the object. When mentioning elements I am referring to elements of an object that can be accessed via index. An example of such an object would be: <i>[1, 2, 3]</i>. <br><br>
 
-        Throughout this post I will be talking about properties and elements of objects. When talking about properties I am referring to named properties of objects, an example would be: <i>{ x: 0, y: 1 }</i>. In this example both x and y are properties of the object. When mentioning elements I am referring to elements of an object that can be accessed via index. An example could be: <i>[1, 2, 3]</i>. <br><br>
+        As mentioned previously in the Ignition post, all objects also have a map. This map holds most of the information V8 requires to access a given object. It holds the size of the given object, its type, where the object's properties/elements are stored including their types, and how V8 can find the individual elements/properties of the object. One of the main purposes of these maps is to act as a dictionary to reduce the overhead of accessing objects. 
 
-        Now, back to object maps. One of the main purposes of these maps is to act as a dictionary to reduce the overhead of accessing objects. Additionally, if multiple objects have the same layout, they can actually use the same map to lower the required memory overhead. This map is very relevant once we get to actual exploitation topics. In many cases your goal is to overwrite the map of an object with a different map to change the way it is accessed (eg. object map to float map so that accesses immediately return the value instead of dereferencing the object pointer, thus providing us an address leak).<br><br>
-
-        Generally Object values are stored in 3 different locations:<br>
-        > Inline  properties (inside the object itself)<br>
-        > Outline properties (separate dynamically sized heap buffer)<br>
-        > Elements field     (dynamically sized heap array allowing for array accesses)<br><br>
+        Additionally, if multiple objects have the same layout, they can actually use the same map. This means that when working with a lot of similar objects, only one map is needed that all similar objects point to which reduces the memory overhead. This map is very relevant once we get to actual exploitation topics. In many cases, your goal is to overwrite the map of an object with a different map to change the way it is accessed (eg. object map to float map so that accesses immediately return the value instead of dereferencing the object pointer, thus providing us an address leak).<br><br>
 
         While indexed elements can be accessed using their index, the same is not possible for named properties. This is where the map comes in, providing a dictionary to access these named properties by mapping the names to their values. <br><br>
 
@@ -100,15 +95,13 @@
         <i>let arr = [1, 3];</i>  // Small array allocated<br>
         <i>arr[9000] = 2;</i>     // Dictionary element created for this entry<br><br>
 
-        In the above example, the full array would require over 36,000 bytes in memory which would be a very wasteful usage of memory. Instead for large arrays that are only sparsely populated/holey, individual element entries will instead be accessed by a dictionary similar to slow properties. This means that while access is slower, only 4 bytes are required for a pointer to the 9000th array element. <br><br>
+        In the above example, the full array would require over 36,000 bytes in memory which would be a very wasteful usage of memory. Instead, for large arrays that are only sparsely populated/holey, individual element entries will instead be accessed by a dictionary similar to slow properties. This means that while access is slower, only 4 bytes are required for a pointer to the 9000th array element. Additionally, v8 uses dictionary-based access for an element whenever it is declared with non-standard details (eg setting it to non-writeable). Working with arrays is considerably slower when dictionary properties are used, however, they can lead to great saves in memory, so in certain situations, they are worth using. <br><br>
 
-        Additionally, v8 uses dictionary based access for an element whenever it is declared with non-standard details (eg setting it to non-writeable). Working with array's is considerable slower when dictionary properties are used, however they can lead to great saves im memory, so oftentimes they are worth using. <br><br>
+        Let's talk a little more about slow properties. Oftentimes objects using slow properties have a self-contained dictionary that they use as a property store. This dictionary stores information in the following form: <i>dictionary = {key, value, details: { enumerable | configurable | writeable } }</i>. This is done so small changes to an object's properties do not have to change the object's main map which is a quite expensive operation in itself. Inline cache optimizations unfortunately do not work well with these dictionary properties, which is another reason why slow properties are so much slower than fast properties.<br><br>
 
-        Let's talk a little more about slow properties. Oftentimes objects using slow properties have a self contained dictionary that they use as a property store. This dictionary stores information in the following form: <i>dictionary = {key, value, details: { enumerable | configurable | writeable } }</i>. This is done so small changes to an object's properties do not have to change the object's main map which is a quite expensive operation in itself. Inline cache optimizations unfortunately do not work well with these dictionary properties, which is another reason why slow properties are so much slower than fast properties.<br><br>
+        Two interesting types of element kinds are packed vs holey objects. Packed objects are oftentimes arrays in which every field is occupied by a value (eg. <i>[1, 2, 3]</i>). Holey arrays have empty fields in the middle (eg. <i>[1, , 3]</i>). This distinction is important because V8 can optimize much more aggressively on packed arrays. In comparison, holey arrays require additional checks and expensive lookups on the prototype chain.<br><br>
 
-        An interesting element kind is packed vs holey for arrays. Packed arrays are arrays in which every field is occupied by a value (eg. <i>[1, 2, 3]</i>). Holey arrays have empty fields in the middle (eg. <i>[1, , 3]</i>). This distinction is important because V8 can optimize much more aggresively on packed arrays. In comparison holey arrays require additional checks and expensive lookups on the prototype chain.<br><br>
-
-        Another optimization that V8 employs is that 2 objects that have the same map, actually share a map in memory. This means that when working with a lot of same objects, only one map is needed that all similar objects point to. An example is shown below.
+        An example is shown below of some simple map type transitions is shown below. 
         <br><br>
     </p>
 </div>
@@ -117,10 +110,9 @@
 </div>
 <div class="paragraph">
     <p>
-        <br><br>
-        Whenever a new property is added to an object, the map is changed. A new map is created containing only the new property and V8 links the old and new maps into a transition tree using the maps' backpointers. This means that during an object access, these map backpointers are backtraced until the constructor is found indicating that the entire transition tree has been traversed. This means that consistently making changes to objects that result in transition tree changes strongly reduce performance. If this transition tree grows too large however, v8 eventually gives up on it, and instead just stores it as a dictionary. All transitions we have talked about in this post only go into one dirction. From more specific to less specific. This means that when an object's type is changed from eg. a SMI_ELEMENT to a NUMBER_ELEMENT it can never go back to the SMI_ELEMENT type.<br><br> 
+        Whenever a new property is added to an object, the map is changed. A new map is created containing only the new property and V8 links the old and new maps into a transition tree using the maps' back pointers. This means that during object access, these map back pointers are backtraced until the constructor is found indicating that the entire transition tree has been traversed. This means that consistently making changes to objects that result in transition tree changes strongly reduces performance. If this transition tree grows too large, however, v8 eventually gives up on it, and instead just stores it as a dictionary. All such transitions only go in one direction. From more specific to less specific. This means that when an object's type is changed from eg. a SMI_ELEMENT to a NUMBER_ELEMENT it can never go back to the SMI_ELEMENT type.<br><br> 
 
-        For programmers this means that introducing various elements of different types into an object can greatly reduce performance. 
+        For programmers this means that introducing various elements of different types into an object can greatly reduce performance. An example of such a map chain for 2 objects is shown below.
         <br><br>
     </p>
 </div>
@@ -130,7 +122,7 @@
 <H3>Memory Layout of Common JS Objects</H3>
 <div class="paragraph">
     <p>
-        Alright, we have talked a lot about different objects and how maps work to facilitate object access, lets actually look at how some objects look in memory to get a better understanding of it. <br><br>
+        Alright, we have talked a lot about different objects and how maps work to facilitate object access, let's actually look at how some objects look in memory to get a better understanding of it. <br><br>
 
         Let's start with JSArray's. V8 stores quite a bit of meta-data about them that it requires for its operations. As you see below, the individual fields have only 4 byte offsets due to pointer compression discussed earlier. The out-of-line properties will generally not be necessary for standard arrays.
         <br><br>
@@ -141,7 +133,7 @@
 </div>
 <div class="paragraph">
     <p>
-        Next let's look at javascript objects (JS_OBJECT_TYPE). In many regards they are similar to JSArray's, however there are some key differences. When the object is first allocated, initial properties are stored in the in-line properties field. If more named properties are added (eg. <i>obj.z = 0x43</i>), these are stored in the out-of-line properties field. If indexed properties are added, these are stored at the elements section (eg. <i>obj[0] = 0x43</i>).
+        Next, let's look at javascript objects (JS_OBJECT_TYPE). In many regards they are similar to JSArray's, however, there are some key differences. When the object is first allocated, initial properties are stored in the in-line properties field. If more named properties are added (eg. <i>obj.z = 0x43</i>), these are stored in the out-of-line properties field. If indexed properties are added, these are stored at the elements section (eg. <i>obj[0] = 0x43</i>).
         <br><br>
     </p>
 </div>
@@ -161,9 +153,9 @@
 </div>
 <div class="paragraph">
     <p>
-        Let's now look at the fields in actual memory. Starting with the actual object, we can print out 4 fields. The first field contains the lower 4 bytes of the map (as confirmed by the DebugPrint output), the next field contains a pointer to properties field, the third field a pointer to the elements, and finally as the fourth field we have the length (doubled due to the pointer tagging smi-bitshift) <br><br>
+        Let's now look at the fields in actual memory. Starting with the actual object, we can print out 4 fields. The first field contains the lower 4 bytes of the map (as confirmed by the DebugPrint output), the next field contains a pointer to properties field, the third field a pointer to the elements, and finally, as the fourth field we have the length (doubled due to the pointer tagging smi-bitshift).<br><br>
 
-        Taking a closer look at the elements field, and displaying them as float numbers reveal that these are in fact the elements of our array. Looks like we successfuly confirmed our previous assumptions.
+        Taking a closer look at the elements field, and displaying them as float numbers reveals that these are in fact the elements of our array (with some inaccuracy due to how computers work). Looks like we successfuly confirmed our previous assumptions.
         <br><br>
     </p>
 </div>
@@ -175,19 +167,19 @@
     <p>
         Looks like we finally arrived at the last section of this part. <br><br>
         
-        Javascript is a garbage collected language, therefore V8 needs garbage collection as part of its memory management implementation. V8 stores all of its dynamic data on its heap. Not all of this heap is actually garbage collected (eg. large object space & code space), however 2 large sections of it called the new & old space are. Garbage collection allows for simpler languages since memory does not need to directly managed by the programmer. It also reduces the impact of several bug classes including memory leaks. The fundamental goal of garbage collection is to identify dead regions of memory and free them automatically so they become available for re-use. <br><br>
+        Javascript is a garbage collected language, therefore V8 needs garbage collection as part of its memory management implementation. V8 stores all of its dynamic data on its heap. Not all of this heap is garbage collected (eg. large object space & code space), however, 2 important sections of it called the new & old space are. Garbage collection allows for simpler languages since memory does not need to be directly managed by the programmer. It also reduces the impact of several bug classes including memory leaks. The fundamental goal of garbage collection is to identify dead regions of memory and free them automatically so they become available for re-use. <br><br>
 
-        A core theory that most garbage collectors nowadays use is generational gc. This theory states that most objects die young, and that the objects that survive for a bit longer generally live very long. The main concept of this type of gc is that objects are grouped by their age and cleared at different stages.<br><br>
+        A core theory that most garbage collectors nowadays use is generational gc. This theory states that most objects die young and that the objects that survive for a bit longer generally live very long. The main concept of this type of gc is that objects are grouped by their age and cleared at different stages.<br><br>
 
-        Distinguishing pointers and data on the heap can be a fairly major problem. V8 makes use of its tagged pointer system to facilitate this. Since a bit at the end of each word indicates whether the memory is data or a pointer, V8 can quickly identify pointers. V8 has 2 garbage collectors, a minor garbage collector and a major garbage collector.
+        Distinguishing pointers and data on the heap can be a fairly major problem. V8 makes use of its tagged pointer system to facilitate this. Since a bit at the end of each word indicates whether the memory is data or a pointer, V8 can quickly identify pointers. V8 has 2 garbage collectors, a minor garbage collector and a major garbage collector.<br><br>
 
         <strong>Minor GC</strong><br>
-        This gc manages young objects allocated in new space. An allocation pointer is incremented on each allocation, and when this pointer reaches the end of the available space, the minor gc routine is triggered. It uses Cheney's algorithm. The new space is divided into <i>to-space</i> and <i>from-space</i>. New allocations are made in the to-space. When this space fills up, the to and from spaces are swapped before copying surviving objects from the from space to the old space. Objects that do not survive are dicarded, and remaining objects are compacted to increase cache locality and reduce fragmentation. This minor gc just traverses all pointers in the new space looking for objects it can free. This would not scale well to larger memory spaces, but since the new space is so small it is a simple and efficient solution. Some objects could also be held alive by pointers from the old space, traversing this memory however would be unreasonable for the minor gc. Instead it maintains a buffer of pointers that contains all elements from the old space that point to the new space that it references for this information. This buffer is maintained using write barriers that take care of detecting and recording these pointers.<br><br>
+        This gc manages young objects allocated in new space. An allocation pointer is incremented on each allocation, and when this pointer reaches the end of the available space, the minor gc routine is triggered. It uses <a href=https://en.wikipedia.org/wiki/Cheney%27s_algorithm>Cheney's algorithm</a>. The new space is divided into <i>to-space</i> and <i>from-space</i>. New allocations are made in the from-space. When this space fills up, the to and from spaces are swapped before copying objects that survived 2 rounds of minor gc the from space to the old space. Objects that do not survive are discarded, and remaining objects are compacted to increase cache locality and reduce fragmentation. This minor gc just traverses all pointers in the new space looking for objects it can free. This would not scale well to larger memory spaces, but since the new space is so small it is a simple and efficient solution. Some objects could also be held alive by pointers from the old space, traversing this memory however would be unreasonable for the minor gc. Instead it maintains a buffer of pointers that contains all elements from the old space that point to the new space that it references for this information. This buffer is maintained using write barriers that take care of detecting and recording these pointers.<br><br>
 
         <strong>Major GC</strong><br>
-        This gc cycle is mcuh more rarely. More specifically, it becomes active whenever V8 decides that there is not enough old space as it gets filled up from minor gc cycles. The major gc uses a more efficient mark-sweep-compact algorithm. The first mark phase recursively traverses the object graph starting from stack pointers and marks all objects that are still in use as alive. The second sweeping phase traverses the heap and adds all non-marked objects to a free list. Finally the compacting phase moves all surviving objects together to decrease fragmentation.<br><br>
+        This gc cycle is much rarer. It becomes active whenever V8 decides that there is not enough old space as it gets filled up from minor gc cycles. The major gc uses a more efficient mark-sweep-compact algorithm. The initial marking phase recursively traverses the object graph starting from stack pointers and marks all objects that are still in use as alive. The second sweeping phase traverses the heap and adds all non-marked objects to a free list. Finally, the compacting phase moves all surviving objects together to decrease fragmentation.<br><br>
 
-        There are some extra optimizations to this that V8 employs to make site display smoother such as spawning new parralel threads for gc, or even splitting up the different phases. These however are not that relevant for our purposes at this point. Below you can see a simple diagram displaying the first part of the minor gc. Surviving objects are copied from to the to-space, the from-space is cleared, and the 2 pages are swapped. Once the minor gc is triggered again at this point, any object that survived another round of gc is moved to the old space and becomes subject to the major gc.
+        There are some extra optimizations to this that V8 employs to make sites display smoother such as spawning new parallel threads for gc or even splitting up the different phases. These however are not that relevant for our purposes at this point. Below you can see a simple diagram displaying the first part of the minor gc. Surviving objects are copied from the from-space to the to-space, the from-space is cleared, and the 2 pages are swapped. Once the minor gc is triggered again at this point, any object that survived another round of gc is moved to the old space and becomes subject to the major gc.
         <br><br>
     </p>
 </div>
@@ -196,7 +188,7 @@
 </div>
 <div class="paragraph">
     <p>
-        There's was a lot to cover here, but most browser exploits are based on memory corruption vulnerabilities (or JIT vulnerabilities), so a strong understanding of V8's memory management is very important in my opinion.<br><br>
+        There was a lot to cover here, but most browser exploits are based on memory corruption vulnerabilities (or JIT vulnerabilities), so a strong understanding of V8's memory management is very important in my opinion.<br><br>
         In the next part, we will finally start talking about Turbofan, V8's just-in-time compiler. We will talk about the sea of nodes graph it uses, and various optimizations it performs on it such as inlining, type/range analysis, speculative optimization's and much more.
         <br><br><br><br><br><br>
     </p>
