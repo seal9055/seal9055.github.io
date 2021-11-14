@@ -146,7 +146,7 @@
     </p>
 </div>
 <div>
-    <img src="../imgs/browser/ignition/jsobject.png" alt="">
+    <img src="../imgs/browser/memory_management/jsobject.png" alt="">
 </div>
 <div class="paragraph">
     <p>
@@ -157,7 +157,7 @@
     </p>
 </div>
 <div>
-    <img src="../imgs/browser/ignition/debug1.png" alt="">
+    <img src="../imgs/browser/memory_management/debug1.png" alt="">
 </div>
 <div class="paragraph">
     <p>
@@ -168,7 +168,7 @@
     </p>
 </div>
 <div>
-    <img src="../imgs/browser/ignition/debug2.png" alt="">
+    <img src="../imgs/browser/memory_management/debug2.png" alt="">
 </div>
 <H3>Garbage Collection</H3>
 <div class="paragraph">
@@ -190,6 +190,9 @@
         There are some extra optimizations to this that V8 employs to make site display smoother such as spawning new parralel threads for gc, or even splitting up the different phases. These however are not that relevant for our purposes at this point. Below you can see a simple diagram displaying the first part of the minor gc. Surviving objects are copied from to the to-space, the from-space is cleared, and the 2 pages are swapped. Once the minor gc is triggered again at this point, any object that survived another round of gc is moved to the old space and becomes subject to the major gc.
         <br><br>
     </p>
+</div>
+<div>
+    <img src="../imgs/browser/memory_management/gc.png" alt="">
 </div>
 <div class="paragraph">
     <p>
