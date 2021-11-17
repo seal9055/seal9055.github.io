@@ -137,9 +137,10 @@
         There are many more possible flags that can be passed to d8, however the above should suffice for now. Lets quickly cover some of the native functions before finally debugging our first program.<br><br>
         <strong>%DebugPrint(obj)</strong><br>
         <strong>%SystemBreak()</strong><br>
+        <strong>%PrepareFunctionForOptimization(func)</strong><br>
         <strong>%OptimizeFunctionOnNextCall(func)</strong><br><br>
 
-        These functions get added to V8 as builtins when running d8 with the "--allow-natives-syntax" flag. %DebugPrint(obj) can be used to retrieve the address in memory of an object in addition to information about its type, values, properties, etc. It will be crucial when actually debugging javascript code. %SystemBreak() can be used to set a breakpoint in the js script. Finally %OptimizeFunctionOnNextCall(func) passes the given function on to Turbofan to produce optimized machine code. This is a very useful function when we are trying to debug various features of the JIT.
+        These functions get added to V8 as builtins when running d8 with the <i>"--allow-natives-syntax"</i> flag. <i>%DebugPrint(obj)</i> can be used to retrieve the address in memory of an object in addition to information about its type, values, properties, etc. It will be crucial when actually debugging javascript code. <i>%SystemBreak()</i> can be used to set a breakpoint in the js script. Finally <i>%OptimizeFunctionOnNextCall(func)</i> passes the given function on to Turbofan to produce optimized machine code. This is a very useful function when we are trying to debug various features of the JIT. Similarly <i>%OptimizeFunctionOnNextCall(func)</i> is used to prepare a function for optimization. This propagates inline caches used by turbofan for its optimizations.
         <br><br> 
         Finally lets quickly look at 2 more tools/scripts to make our lives a little easier: <br><br>
 

@@ -58,11 +58,11 @@
         > Managed by the minor garbage collector<br>
         > Generally 1-8MB size depending on runtime heuristics<br><br>
         <strong>Old Pointer Space</strong><br>
-        > Objects that survive the new space are moved here<br>
-        > These objects don't include pointers (eg. number arrays)<br>
+        > Objects that include pointers and survive the new space are moved here<br>
         > Managed by the major garbage collector<br><br>
         <strong>Old Data Space</strong><br>
-        > Objects that include pointers and survive the new space are moved here<br>
+        > Objects that survive the new space are moved here<br>
+        > These objects don't include pointers (eg. number arrays)<br>
         > Managed by the major garbage collector<br><br>
         <strong>Large Object Space</strong><br>
         > Objects that are larger than the size limit are stored here using mmap<br>
