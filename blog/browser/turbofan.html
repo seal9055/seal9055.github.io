@@ -115,7 +115,7 @@
 <span style="color: #839496">}</span>
 </pre></div>
 <div>
-    <img src="../imgs/browser/turbofan/inlining.png" alt="">
+    <img src="../imgs/browser/turbofan/inlining2.png" alt="">
 </div>
 <H3>OptimizeGraph</H3>
 <div class="paragraph">
@@ -292,9 +292,14 @@
 <H3>Scheduling</H3>
 <div class="paragraph">
     <p>
-        While the SON graph does keep track of control flow, it also leaves a lot of legal orderings for code, both in terms of ordering code blocks and ordering the individual operations inside of code blocks. The scheduling phase is one of the final phases before code generation that attempts to determine the most efficient order and placement and generates a more traditional CFG graph. 
+        While the SON graph does keep track of control flow, it also leaves a lot of legal orderings for code, both in terms of ordering code blocks and ordering the individual operations inside of code blocks. The scheduling phase is one of the final phases before code generation that attempts to determine the most efficient order and placement and generates a more traditional CFG graph.<br><br>
+
+        Below you can see the machine code produced by Turbofan for the above example (x84-64). As you can see at :53, the map comparison still exists to make sure that the map remains as expected. Afterwards it either calls the deoptimize function if the comparison failed, or continues on until it eventually performs the addition at :85. 
         <br><br>
     </p>
+</div>
+<div>
+    <img src="../imgs/browser/turbofan/code.png" alt="">
 </div>
 <div class="paragraph">
     <p>
