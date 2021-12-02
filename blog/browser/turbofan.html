@@ -283,7 +283,7 @@
         This optimization focuses on removing safety checks from the emitted machine code if these safety checks are deemed unnecessary. This can obviously be very dangerous. Removing the wrong check-in this optimization pass can very easily result in type confusions or out-of-bounds memory access.<br><br>
 
         In the below example the second call to CheckHeapObject and CheckMap was optimized out since there is no way for the map to change between the map-check for <i>o.a</i> and <i>o.b</i>. The map is instead just checked once before the add operation is performed. The compiler recognizes this by tracking potential side effects of operations and determining if any of these could change an object. If not it might eliminate certain checks. Since JS is a pretty complicated language, correctly recognizing all side effects is a very difficult task, and thus this has led to many bugs in the past.<br><br>
-        <br><br>
+        <br>
     </p>
 </div>
 <div class="highlight" style="background: #002b36"><pre style="line-height: 125%;"><span></span><span style="color: #2aa198">function</span> <span style="color: #839496">redundancy_elim(o)</span> <span style="color: #839496">{</span>
