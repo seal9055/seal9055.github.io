@@ -86,12 +86,14 @@
 
         The SON graph also uses the SSA representation. Edges in this representation are direct unlabeled pointers. Data and control are both represented in this graph, and whenever possible, data is strongly typed (this is where the typer optimization phase comes in). Below you can see an example of the SON representation of the previous code example. This graph was generated using <a href=https://github.com/v8/v8/tree/lkgr/tools/turbolizer/>turbolizer/</a>. This tool was created by the V8-dev team to visualize the SON graph. If you want to replicate these examples, make sure to use either the helper functions mentioned in part 1 or a large for-loop (10k+ iterations) to call the function repeatedly to actually trigger the optimization. Otherwise, the SON representation is never generated. You will also need the <i>--trace-turbo</i> option to generate the JSON file that Turbolizer will use as its input.<br><br>
 
-        As you can see this graph is incredibly complex, even for such a simple function. For our purposes we will be ignoring most of this graph, however, as you will soon see, the graph is incredibly useful when attempting to understand various optimization stages performed by Turbofan. A few of the nodes such as 'NumberConstant', 'Branch', or 'SpeculativeSafeIntegerAdd' should be understandable to you. This should be a sufficient introduction to the SON representation. In the rest of this article, we will be continuously working much more with these graphs using the Turbolizer tool. This tool lets us interactively select various optimization stages in Turbofan's pipeline and see how the graph changes at each step.
+        As you can see this graph is incredibly complex, even for such a simple function. For our purposes we will be ignoring most of this graph, however, as you will soon see, the graph is very useful when attempting to understand various optimization stages performed by Turbofan. A few of the nodes such as 'NumberConstant', 'Branch', or 'SpeculativeSafeIntegerAdd' should be understandable to you. Future graph screenshots will be manually edited to only include relevant information.<br><br>
+
+        This is a sufficient introduction to the SON representation. In the rest of this article, we will be continuously working much more with these graphs using the Turbolizer tool. This tool lets us interactively select various optimization stages in Turbofan's pipeline and see how the graph changes at each step.
         <br><br>
     </p>
 </div>
 <div>
-    <img src="../imgs/browser/turbofan/son1.png" alt="">
+    <img src="../imgs/browser/turbofan/son.png" alt="">
 </div>
 <H3>Inlining</H3>
 <div class="paragraph">
@@ -114,9 +116,11 @@
     <span style="color: #859900">return</span> <span style="color: #839496">add(</span><span style="color: #2aa198">1</span><span style="color: #839496">,</span> <span style="color: #2aa198">2</span><span style="color: #839496">);</span>
 <span style="color: #839496">}</span>
 </pre></div>
+<br>
 <div>
-    <img src="../imgs/browser/turbofan/inlining2.png" alt="">
+    <img src="../imgs/browser/turbofan/inlining.png" alt="">
 </div>
+<br>
 <H3>OptimizeGraph</H3>
 <div class="paragraph">
     <p>
