@@ -702,8 +702,159 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 
         Next, we'll add a callback function for each button. The input button takes in a number that the user provides and writes it to the location of the health value in memory using the pointer chain we previously found using cheat engine. We make sure to overwrite both the health value and the maximum health cap. The toggleable infinite health button instead just edits the frame to display the string "On" or "Off" to the user, sets a variable that indicates that infinite health is enabled, and toggles the actual button.<br><br>
 
-        Finally, we add 2 idle buttons. In fltk, these are run whenever nothing else is being done, so basically multiple times a second. The first one is in charge of displaying the current health value to the console at all times by reading the memory at the health pointer. The second one checks if the infinite health variable is set and if so writes the value 9999 to the health location in memory, thus making it impossible to die by taking damage.<br><br>
+        Finally, we add 2 idle buttons. In fltk, these are run whenever nothing else is being done, so basically multiple times a second. The first one is in charge of displaying the current health value to the console at all times by reading the memory at the health pointer. The second one checks if the infinite health variable is set and if so writes the value 9999 to the health location in memory, thus making it impossible to die by taking damage.
+        <br><br>
+    </p>
+</div>
+<div class="demo-highlight"><pre><span></span><span class="k">const</span><span class="w"> </span><span class="n">HEALTHOFFSET</span><span class="w"> </span>: <span class="kt">usize</span> <span class="o">=</span><span class="w"> </span><span class="mh">0x04768E78</span><span class="p">;</span><span class="w"></span>
 
+<span class="k">unsafe</span><span class="w"> </span><span class="k">fn</span> <span class="nf">entry_point</span><span class="p">(</span><span class="n">base</span>: <span class="nc">winapi</span>::<span class="n">shared</span>::<span class="n">minwindef</span>::<span class="n">LPVOID</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="kt">u32</span> <span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">HASINFHP</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Rc</span>::<span class="n">new</span><span class="p">(</span><span class="n">AtomicBool</span>::<span class="n">new</span><span class="p">(</span><span class="kc">false</span><span class="p">));</span><span class="w"></span>
+
+<span class="w">    </span><span class="c1">// Get program base address</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">modname</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">CString</span>::<span class="n">new</span><span class="p">(</span><span class="s">"DarkSoulsIII.exe"</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">m_info</span>: <span class="nc">MODULEINFO</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MODULEINFO</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">EntryPoint</span>: <span class="nc">std</span>::<span class="n">ptr</span>::<span class="n">null_mut</span><span class="p">(),</span><span class="w"></span>
+<span class="w">        </span><span class="n">SizeOfImage</span>: <span class="mi">0</span><span class="p">,</span><span class="w"></span>
+<span class="w">        </span><span class="n">lpBaseOfDll</span>: <span class="nc">std</span>::<span class="n">ptr</span>::<span class="n">null_mut</span><span class="p">(),</span><span class="w"></span>
+<span class="w">    </span><span class="p">};</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mem</span>::<span class="n">size_of</span>::<span class="o">&lt;</span><span class="n">MODULEINFO</span><span class="o">&gt;</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u32</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="n">GetModuleInformation</span><span class="p">(</span><span class="n">GetCurrentProcess</span><span class="p">(),</span><span class="w"> </span><span class="n">GetModuleHandleA</span><span class="p">(</span><span class="w"></span>
+<span class="w">            </span><span class="n">modname</span><span class="p">.</span><span class="n">as_c_str</span><span class="p">().</span><span class="n">as_ptr</span><span class="p">()),</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">m_info</span><span class="p">,</span><span class="w"> </span><span class="n">size</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">base_addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">m_info</span><span class="p">.</span><span class="n">lpBaseOfDll</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w"></span>
+
+<span class="w">    </span><span class="c1">// Define a toggleable button that lets us maintain 9999 health</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">inf_hp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ToggleButton</span>::<span class="n">new</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="s">"Off"</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">Frame</span>::<span class="n">new</span><span class="p">(</span><span class="mi">55</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="s">"INFINITE HEALTH"</span><span class="p">).</span><span class="n">with_align</span><span class="p">(</span><span class="n">Align</span>::<span class="n">Right</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">    </span><span class="c1">// Define a button that takes an input and sets the health to that value</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">health</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="n">IntInput</span>::<span class="n">new</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span><span class="w"> </span><span class="mi">180</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="s">""</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">health_frame</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Frame</span>::<span class="n">new</span><span class="p">(</span><span class="mi">55</span><span class="p">,</span><span class="w"> </span><span class="mi">180</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="s">""</span><span class="p">).</span><span class="n">with_align</span><span class="p">(</span><span class="n">Align</span>::<span class="n">Right</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">    </span><span class="n">health</span><span class="p">.</span><span class="n">set_callback</span><span class="p">(</span><span class="k">move</span><span class="w"> </span><span class="o">|</span><span class="n">e</span><span class="o">|</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">val</span>: <span class="kt">u32</span> <span class="o">=</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">value</span><span class="p">().</span><span class="n">parse</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="w">        </span><span class="n">write_mem</span><span class="p">(</span><span class="n">base_addr</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">HEALTHOFFSET</span><span class="p">,</span><span class="w"> </span><span class="n">val</span><span class="p">,</span><span class="w"> </span><span class="fm">vec!</span><span class="p">[</span><span class="mh">0x40</span><span class="p">,</span><span class="w"> </span><span class="mh">0x28</span><span class="p">,</span><span class="w"> </span><span class="mh">0x3A0</span><span class="p">,</span><span class="w"> </span><span class="mh">0x70</span><span class="p">,</span><span class="w"> </span><span class="mh">0x98</span><span class="p">]);</span><span class="w"></span>
+<span class="w">        </span><span class="n">write_mem</span><span class="p">(</span><span class="n">base_addr</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">HEALTHOFFSET</span><span class="p">,</span><span class="w"> </span><span class="n">val</span><span class="p">,</span><span class="w"> </span><span class="fm">vec!</span><span class="p">[</span><span class="mh">0x40</span><span class="p">,</span><span class="w"> </span><span class="mh">0x28</span><span class="p">,</span><span class="w"> </span><span class="mh">0x3A0</span><span class="p">,</span><span class="w"> </span><span class="mh">0x70</span><span class="p">,</span><span class="w"> </span><span class="mh">0x90</span><span class="p">]);</span><span class="w"></span>
+<span class="w">    </span><span class="p">});</span><span class="w"></span>
+<span class="w"> </span>
+<span class="w">    </span><span class="n">inf_hp</span><span class="p">.</span><span class="n">set_callback</span><span class="p">({</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">HASINFHP</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">HASINFHP</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span><span class="w"></span>
+<span class="w">        </span><span class="k">move</span><span class="w"> </span><span class="o">|</span><span class="n">e</span><span class="o">|</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">is_toggled</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">                </span><span class="n">HASINFHP</span><span class="p">.</span><span class="n">store</span><span class="p">(</span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="n">Ordering</span>::<span class="n">Relaxed</span><span class="p">);</span><span class="w"></span>
+<span class="w">                </span><span class="n">e</span><span class="p">.</span><span class="n">toggle</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span><span class="w"></span>
+<span class="w">                </span><span class="n">e</span><span class="p">.</span><span class="n">set_label</span><span class="p">(</span><span class="s">"On"</span><span class="p">);</span><span class="w"></span>
+<span class="w">            </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"> </span>
+<span class="w">                </span><span class="n">HASINFHP</span><span class="p">.</span><span class="n">store</span><span class="p">(</span><span class="kc">false</span><span class="p">,</span><span class="w"> </span><span class="n">Ordering</span>::<span class="n">Relaxed</span><span class="p">);</span><span class="w"></span>
+<span class="w">                </span><span class="n">e</span><span class="p">.</span><span class="n">toggle</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span><span class="w"></span>
+<span class="w">                </span><span class="n">e</span><span class="p">.</span><span class="n">set_label</span><span class="p">(</span><span class="s">"Off"</span><span class="p">);</span><span class="w"></span>
+<span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">});</span><span class="w"></span>
+
+<span class="w">    </span><span class="c1">// Add functions that consistently get executed during event loop. This one is used</span>
+<span class="w">    </span><span class="c1">// to read out the health value and provide users with realtime feedback about their health</span>
+<span class="w">    </span><span class="n">app</span>::<span class="n">add_idle</span><span class="p">(</span><span class="k">move</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">val</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">read_mem</span><span class="p">(</span><span class="n">base_addr</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">HEALTHOFFSET</span><span class="p">,</span><span class="w"> </span><span class="fm">vec!</span><span class="p">[</span><span class="mh">0x40</span><span class="p">,</span><span class="w"> </span><span class="mh">0x28</span><span class="p">,</span><span class="w"> </span><span class="mh">0x3A0</span><span class="p">,</span><span class="w"> </span><span class="mh">0x70</span><span class="p">,</span><span class="w"> </span><span class="mh">0x90</span><span class="p">]);</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="fm">format!</span><span class="p">(</span><span class="s">"Set HEALTH (Current: {})"</span><span class="p">,</span><span class="w"> </span><span class="n">val</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="n">health_frame</span><span class="p">.</span><span class="n">set_label</span><span class="p">(</span><span class="o">&amp;</span><span class="n">new</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="p">});</span><span class="w"></span>
+
+<span class="w">    </span><span class="n">app</span>::<span class="n">add_idle</span><span class="p">(</span><span class="k">move</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">HASINFHP</span><span class="p">.</span><span class="n">load</span><span class="p">(</span><span class="n">Ordering</span>::<span class="n">Relaxed</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">write_mem</span><span class="p">(</span><span class="n">base_addr</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">HEALTHOFFSET</span><span class="p">,</span><span class="w"> </span><span class="mi">9999</span><span class="p">,</span><span class="w"> </span><span class="fm">vec!</span><span class="p">[</span><span class="mh">0x40</span><span class="p">,</span><span class="w"> </span><span class="mh">0x28</span><span class="p">,</span><span class="w"> </span><span class="mh">0x3A0</span><span class="p">,</span><span class="w"> </span><span class="mh">0x70</span><span class="p">,</span><span class="w"> </span><span class="mh">0x98</span><span class="p">]);</span><span class="w"></span>
+<span class="w">            </span><span class="n">write_mem</span><span class="p">(</span><span class="n">base_addr</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">HEALTHOFFSET</span><span class="p">,</span><span class="w"> </span><span class="mi">9999</span><span class="p">,</span><span class="w"> </span><span class="fm">vec!</span><span class="p">[</span><span class="mh">0x40</span><span class="p">,</span><span class="w"> </span><span class="mh">0x28</span><span class="p">,</span><span class="w"> </span><span class="mh">0x3A0</span><span class="p">,</span><span class="w"> </span><span class="mh">0x70</span><span class="p">,</span><span class="w"> </span><span class="mh">0x90</span><span class="p">]);</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">    </span><span class="p">});</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<style id="css-style">pre { line-height: 125%; }
+td.linenos .normal { color: #586e75; background-color: #073642; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #586e75; background-color: #073642; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+.demo-highlight .hll { background-color: #073642 }
+.demo-highlight { background: #002b36; color: #839496 }
+.demo-highlight .c { color: #586e75; font-style: italic } /* Comment */
+.demo-highlight .err { color: #839496; background-color: #dc322f } /* Error */
+.demo-highlight .esc { color: #839496 } /* Escape */
+.demo-highlight .g { color: #839496 } /* Generic */
+.demo-highlight .k { color: #859900 } /* Keyword */
+.demo-highlight .l { color: #839496 } /* Literal */
+.demo-highlight .n { color: #839496 } /* Name */
+.demo-highlight .o { color: #586e75 } /* Operator */
+.demo-highlight .x { color: #839496 } /* Other */
+.demo-highlight .p { color: #839496 } /* Punctuation */
+.demo-highlight .ch { color: #586e75; font-style: italic } /* Comment.Hashbang */
+.demo-highlight .cm { color: #586e75; font-style: italic } /* Comment.Multiline */
+.demo-highlight .cp { color: #d33682 } /* Comment.Preproc */
+.demo-highlight .cpf { color: #586e75 } /* Comment.PreprocFile */
+.demo-highlight .c1 { color: #586e75; font-style: italic } /* Comment.Single */
+.demo-highlight .cs { color: #586e75; font-style: italic } /* Comment.Special */
+.demo-highlight .gd { color: #dc322f } /* Generic.Deleted */
+.demo-highlight .ge { color: #839496; font-style: italic } /* Generic.Emph */
+.demo-highlight .gr { color: #dc322f } /* Generic.Error */
+.demo-highlight .gh { color: #839496; font-weight: bold } /* Generic.Heading */
+.demo-highlight .gi { color: #859900 } /* Generic.Inserted */
+.demo-highlight .go { color: #839496 } /* Generic.Output */
+.demo-highlight .gp { color: #268bd2; font-weight: bold } /* Generic.Prompt */
+.demo-highlight .gs { color: #839496; font-weight: bold } /* Generic.Strong */
+.demo-highlight .gu { color: #839496; text-decoration: underline } /* Generic.Subheading */
+.demo-highlight .gt { color: #268bd2 } /* Generic.Traceback */
+.demo-highlight .kc { color: #2aa198 } /* Keyword.Constant */
+.demo-highlight .kd { color: #2aa198 } /* Keyword.Declaration */
+.demo-highlight .kn { color: #cb4b16 } /* Keyword.Namespace */
+.demo-highlight .kp { color: #859900 } /* Keyword.Pseudo */
+.demo-highlight .kr { color: #859900 } /* Keyword.Reserved */
+.demo-highlight .kt { color: #b58900 } /* Keyword.Type */
+.demo-highlight .ld { color: #839496 } /* Literal.Date */
+.demo-highlight .m { color: #2aa198 } /* Literal.Number */
+.demo-highlight .s { color: #2aa198 } /* Literal.String */
+.demo-highlight .na { color: #839496 } /* Name.Attribute */
+.demo-highlight .nb { color: #268bd2 } /* Name.Builtin */
+.demo-highlight .nc { color: #268bd2 } /* Name.Class */
+.demo-highlight .no { color: #268bd2 } /* Name.Constant */
+.demo-highlight .nd { color: #268bd2 } /* Name.Decorator */
+.demo-highlight .ni { color: #268bd2 } /* Name.Entity */
+.demo-highlight .ne { color: #268bd2 } /* Name.Exception */
+.demo-highlight .nf { color: #268bd2 } /* Name.Function */
+.demo-highlight .nl { color: #268bd2 } /* Name.Label */
+.demo-highlight .nn { color: #268bd2 } /* Name.Namespace */
+.demo-highlight .nx { color: #839496 } /* Name.Other */
+.demo-highlight .py { color: #839496 } /* Name.Property */
+.demo-highlight .nt { color: #268bd2 } /* Name.Tag */
+.demo-highlight .nv { color: #268bd2 } /* Name.Variable */
+.demo-highlight .ow { color: #859900 } /* Operator.Word */
+.demo-highlight .w { color: #839496 } /* Text.Whitespace */
+.demo-highlight .mb { color: #2aa198 } /* Literal.Number.Bin */
+.demo-highlight .mf { color: #2aa198 } /* Literal.Number.Float */
+.demo-highlight .mh { color: #2aa198 } /* Literal.Number.Hex */
+.demo-highlight .mi { color: #2aa198 } /* Literal.Number.Integer */
+.demo-highlight .mo { color: #2aa198 } /* Literal.Number.Oct */
+.demo-highlight .sa { color: #2aa198 } /* Literal.String.Affix */
+.demo-highlight .sb { color: #2aa198 } /* Literal.String.Backtick */
+.demo-highlight .sc { color: #2aa198 } /* Literal.String.Char */
+.demo-highlight .dl { color: #2aa198 } /* Literal.String.Delimiter */
+.demo-highlight .sd { color: #586e75 } /* Literal.String.Doc */
+.demo-highlight .s2 { color: #2aa198 } /* Literal.String.Double */
+.demo-highlight .se { color: #2aa198 } /* Literal.String.Escape */
+.demo-highlight .sh { color: #2aa198 } /* Literal.String.Heredoc */
+.demo-highlight .si { color: #2aa198 } /* Literal.String.Interpol */
+.demo-highlight .sx { color: #2aa198 } /* Literal.String.Other */
+.demo-highlight .sr { color: #cb4b16 } /* Literal.String.Regex */
+.demo-highlight .s1 { color: #2aa198 } /* Literal.String.Single */
+.demo-highlight .ss { color: #2aa198 } /* Literal.String.Symbol */
+.demo-highlight .bp { color: #268bd2 } /* Name.Builtin.Pseudo */
+.demo-highlight .fm { color: #268bd2 } /* Name.Function.Magic */
+.demo-highlight .vc { color: #268bd2 } /* Name.Variable.Class */
+.demo-highlight .vg { color: #268bd2 } /* Name.Variable.Global */
+.demo-highlight .vi { color: #268bd2 } /* Name.Variable.Instance */
+.demo-highlight .vm { color: #268bd2 } /* Name.Variable.Magic */
+.demo-highlight .il { color: #2aa198 } /* Literal.Number.Integer.Long */</style>
+<div class="paragraph">
+    <p>
         We can repeat the above process for the remaining values in the cheat table and thus generate the below application.
         <br><br>
 
