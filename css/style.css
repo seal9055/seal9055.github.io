@@ -108,14 +108,14 @@ header ul li:hover::before {
 /* Sidebar */
 .sidebar {
     flex: 0 0 auto;
-    width: calc((100% - 1448px) / 2 + 298px);
+    width: calc((100% - 1448px) / 2 + 200px);
     display: none;
     z-index: 15;
-    min-width: 298px;
+    min-width: 200px;
     background: #F5F7F9;
     align-items: stretch;
     border-right: 1px solid #E6ECF1;
-    padding-left: calc((100% - 1448px) / 2);
+    padding-left: calc((100% - 1448px) / 4);
 }
 .sidebar-inner {
     display: flex;
