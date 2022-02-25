@@ -112,6 +112,7 @@ header ul li:hover::before {
     display: none;
     z-index: 15;
     min-width: 200px;
+    max-width: 300px;
     background: #F5F7F9;
     align-items: stretch;
     border-right: 1px solid #E6ECF1;
