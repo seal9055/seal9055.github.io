@@ -21,23 +21,24 @@
 <H4>Problem</H4>
 <div class="paragraph">
     <p>
-        Our coworker just bought an iot coffee machine that lets him start the brewing process from his computer. Hacking it and messing with his coffee seems like a fun prank. We were able to extract the compressed firmware and the encoder/compressor. Can you retrieve the original firmware and write an exploit for it? I'm sure its vulnerable. It probably doesn't even have stack protectors or pie.
+        Our coworker just bought an IOT coffee machine that lets him start the brewing process from his computer. Hacking it and messing with his coffee seems like a fun prank. We were able to extract the compressed firmware and the encoder/compressor. Can you retrieve the original firmware and write an exploit for it? I'm sure it's vulnerable. It probably doesn't even have stack protectors or pie.
 
         According to the manufacturers website the md5sum of the original firmware is: 4f3b072e43086f1253f90f7fc366cfb2
 
-        <a href=../../docs/rop_emporium/ret2win>TODO</a>
-    	<br>
+        <br><br>
+        <a href=https://github.com/seal9055/PWN_Zero2Hero/tree/main/umass_22>challenge_files</a>
+        <br>
     </p>
 </div>
 <H4>Solution</H4>
 <div class="paragraph">
     <p>
-    	This is one of the challenges I authored for UMassCTF 2022. I recently worked on some security research pertaining to embedded devices so I figured it'd be fun to attempt to replicate some of these aspects in a ctf challenge.<br><br>
+        This is one of the challenges I authored for UMassCTF 2022. I recently worked on some security research pertaining to embedded devices so I figured it'd be fun to attempt to replicate some of these aspects in a ctf challenge.<br><br>
 
-        We are given 2 files, an unrecognizeable binary blog named 'chal_compressed', that according to the challenge description most likely represents the compressed firmware, and an elf binary called compressor. This was most likely used to compress the firmware. <br><br>
+        We are given 2 files, an unrecognizable binary blob named 'chal_compressed', that according to the challenge description most likely represents the compressed firmware, and an elf binary called compressor. This was most likely used to compress the firmware. <br><br>
 
-        Binwalk unfortunately does not help us recognize anything within the binary blob, we can however use it to display the entropy-graph shown below. The even low entropy distribution confirms that we are dealing with compression. We could try analyzing the compressed data a bit more and eg. attempt to find some strings in it that were skipped during compression, but at this point it is probably more valuable to instead focus on the given compression binary.
-    	<br><br>
+        Binwalk unfortunately does not help us recognize anything within this binary blob, we can however use it to display the entropy graph shown below. The even low entropy distribution confirms that we are dealing with compression. We could try analyzing the compressed data a bit more and eg. attempt to find some strings in it that were skipped during compression, but at this point, it is probably more valuable to instead focus on the given compression binary.
+        <br><br>
     </p>
 </div>
 <div>
@@ -46,42 +47,124 @@
 <div class="paragraph">
     <p>
         <br><br>
-        The first "challenge" here is that the compressing algorithm is implemented in rust, which can often be a lot more challenging to reverse engineer than c. With some light initial reverse engineering we can figure out that the binary has 2 custom functions alongside all of the extra things added by the compiler. We only care about these 2 functions, main & compress. <br><br>
+        The first "challenge" here is that the compressing algorithm is implemented in rust, which can often be a lot more challenging to reverse engineer than c. With some light initial reverse engineering we can figure out that the binary has 2 custom functions alongside all of the extra procedures added by the compiler. We only care about these 2 functions, main & compress. <br><br>
 
-        The main function is fairly straightforward, it calls std::fs::read('./chal') to read in the binary before passing the buffer to the compress() function. This function returns the compressed data. This data is then passed to slice::raw::from_raw_parts() which in this case just transforms the Vec<u32> returned from compression() to a Vec<u8> before it is written out to the './chal_compressed' file, which is the data the challenge gave us.<br><br>
+        The main function is fairly straightforward, it calls <i>std::fs::read('./chal')</i> to read in the binary before passing the buffer to the <i>compress()</i> function. This function returns the compressed data. This data is then passed to <i>slice::raw::from_raw_parts()</i> which in this case just transforms the 32-bit array returned from <i>compression()</i> to an 8-bit array before it is written out to the <i>'./chal_compressed'</i> file.<br><br>
 
-        Based off of this initial analysis, it seems like the main() function is just a small wrapper in charge of reading/writing the data to disk while the compress() function handles the actual compression logic.<br><br>
+        Based off of this initial analysis, it seems like the <i>main()</i> function is just a small wrapper in charge of reading/writing the data to disk while the <i>compress()</i> function handles the actual compression logic.<br><br>
 
         The actual rust code for the main function from the challenge is posted below.
         <br><br>
     </p>
 </div>
-```rs
-fn main() {
-    let target = std::fs::read("./chal").unwrap();
+<div class="demo-highlight"><pre><span></span><span class="k">fn</span> <span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">target</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span>::<span class="n">fs</span>::<span class="n">read</span><span class="p">(</span><span class="s">"./chal"</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
 
-    let compressed = compress(&target);
-    // We can only write Vec<u8> to files using std::fs::write, so we need to convert
-    // the Vec<u32> to an 8-bit array first. This handles it in a safe manner.
-    let compressed_u8: &[u8] = unsafe {
-        slice::from_raw_parts(
-            compressed.as_ptr() as *const u8,
-            compressed.len() * mem::size_of::<u32>(),
-        )
-    };
-    std::fs::write("./chal_compressed", compressed_u8).unwrap();
-}
-```
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">compressed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">compress</span><span class="p">(</span><span class="o">&amp;</span><span class="n">target</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="c1">// We can only write Vec&lt;u8&gt; to files using std::fs::write, so we need to convert</span>
+<span class="w">    </span><span class="c1">// the Vec&lt;u32&gt; to an 8-bit array first. This handles it in a safe manner.</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">compressed_u8</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">unsafe</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">slice</span>::<span class="n">from_raw_parts</span><span class="p">(</span><span class="w"></span>
+<span class="w">            </span><span class="n">compressed</span><span class="p">.</span><span class="n">as_ptr</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="o">*</span><span class="k">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="n">compressed</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">mem</span>::<span class="n">size_of</span>::<span class="o">&lt;</span><span class="kt">u32</span><span class="o">&gt;</span><span class="p">(),</span><span class="w"></span>
+<span class="w">        </span><span class="p">)</span><span class="w"></span>
+<span class="w">    </span><span class="p">};</span><span class="w"></span>
+<span class="w">    </span><span class="n">std</span>::<span class="n">fs</span>::<span class="n">write</span><span class="p">(</span><span class="s">"./chal_compressed"</span><span class="p">,</span><span class="w"> </span><span class="n">compressed_u8</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<style id="css-style">pre { line-height: 125%; }
+td.linenos .normal { color: #586e75; background-color: #073642; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #586e75; background-color: #073642; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+.demo-highlight .hll { background-color: #073642 }
+.demo-highlight { background: #002b36; color: #839496 }
+.demo-highlight .c { color: #586e75; font-style: italic } /* Comment */
+.demo-highlight .err { color: #839496; background-color: #dc322f } /* Error */
+.demo-highlight .esc { color: #839496 } /* Escape */
+.demo-highlight .g { color: #839496 } /* Generic */
+.demo-highlight .k { color: #859900 } /* Keyword */
+.demo-highlight .l { color: #839496 } /* Literal */
+.demo-highlight .n { color: #839496 } /* Name */
+.demo-highlight .o { color: #586e75 } /* Operator */
+.demo-highlight .x { color: #839496 } /* Other */
+.demo-highlight .p { color: #839496 } /* Punctuation */
+.demo-highlight .ch { color: #586e75; font-style: italic } /* Comment.Hashbang */
+.demo-highlight .cm { color: #586e75; font-style: italic } /* Comment.Multiline */
+.demo-highlight .cp { color: #d33682 } /* Comment.Preproc */
+.demo-highlight .cpf { color: #586e75 } /* Comment.PreprocFile */
+.demo-highlight .c1 { color: #586e75; font-style: italic } /* Comment.Single */
+.demo-highlight .cs { color: #586e75; font-style: italic } /* Comment.Special */
+.demo-highlight .gd { color: #dc322f } /* Generic.Deleted */
+.demo-highlight .ge { color: #839496; font-style: italic } /* Generic.Emph */
+.demo-highlight .gr { color: #dc322f } /* Generic.Error */
+.demo-highlight .gh { color: #839496; font-weight: bold } /* Generic.Heading */
+.demo-highlight .gi { color: #859900 } /* Generic.Inserted */
+.demo-highlight .go { color: #839496 } /* Generic.Output */
+.demo-highlight .gp { color: #268bd2; font-weight: bold } /* Generic.Prompt */
+.demo-highlight .gs { color: #839496; font-weight: bold } /* Generic.Strong */
+.demo-highlight .gu { color: #839496; text-decoration: underline } /* Generic.Subheading */
+.demo-highlight .gt { color: #268bd2 } /* Generic.Traceback */
+.demo-highlight .kc { color: #2aa198 } /* Keyword.Constant */
+.demo-highlight .kd { color: #2aa198 } /* Keyword.Declaration */
+.demo-highlight .kn { color: #cb4b16 } /* Keyword.Namespace */
+.demo-highlight .kp { color: #859900 } /* Keyword.Pseudo */
+.demo-highlight .kr { color: #859900 } /* Keyword.Reserved */
+.demo-highlight .kt { color: #b58900 } /* Keyword.Type */
+.demo-highlight .ld { color: #839496 } /* Literal.Date */
+.demo-highlight .m { color: #2aa198 } /* Literal.Number */
+.demo-highlight .s { color: #2aa198 } /* Literal.String */
+.demo-highlight .na { color: #839496 } /* Name.Attribute */
+.demo-highlight .nb { color: #268bd2 } /* Name.Builtin */
+.demo-highlight .nc { color: #268bd2 } /* Name.Class */
+.demo-highlight .no { color: #268bd2 } /* Name.Constant */
+.demo-highlight .nd { color: #268bd2 } /* Name.Decorator */
+.demo-highlight .ni { color: #268bd2 } /* Name.Entity */
+.demo-highlight .ne { color: #268bd2 } /* Name.Exception */
+.demo-highlight .nf { color: #268bd2 } /* Name.Function */
+.demo-highlight .nl { color: #268bd2 } /* Name.Label */
+.demo-highlight .nn { color: #268bd2 } /* Name.Namespace */
+.demo-highlight .nx { color: #839496 } /* Name.Other */
+.demo-highlight .py { color: #839496 } /* Name.Property */
+.demo-highlight .nt { color: #268bd2 } /* Name.Tag */
+.demo-highlight .nv { color: #268bd2 } /* Name.Variable */
+.demo-highlight .ow { color: #859900 } /* Operator.Word */
+.demo-highlight .w { color: #839496 } /* Text.Whitespace */
+.demo-highlight .mb { color: #2aa198 } /* Literal.Number.Bin */
+.demo-highlight .mf { color: #2aa198 } /* Literal.Number.Float */
+.demo-highlight .mh { color: #2aa198 } /* Literal.Number.Hex */
+.demo-highlight .mi { color: #2aa198 } /* Literal.Number.Integer */
+.demo-highlight .mo { color: #2aa198 } /* Literal.Number.Oct */
+.demo-highlight .sa { color: #2aa198 } /* Literal.String.Affix */
+.demo-highlight .sb { color: #2aa198 } /* Literal.String.Backtick */
+.demo-highlight .sc { color: #2aa198 } /* Literal.String.Char */
+.demo-highlight .dl { color: #2aa198 } /* Literal.String.Delimiter */
+.demo-highlight .sd { color: #586e75 } /* Literal.String.Doc */
+.demo-highlight .s2 { color: #2aa198 } /* Literal.String.Double */
+.demo-highlight .se { color: #2aa198 } /* Literal.String.Escape */
+.demo-highlight .sh { color: #2aa198 } /* Literal.String.Heredoc */
+.demo-highlight .si { color: #2aa198 } /* Literal.String.Interpol */
+.demo-highlight .sx { color: #2aa198 } /* Literal.String.Other */
+.demo-highlight .sr { color: #cb4b16 } /* Literal.String.Regex */
+.demo-highlight .s1 { color: #2aa198 } /* Literal.String.Single */
+.demo-highlight .ss { color: #2aa198 } /* Literal.String.Symbol */
+.demo-highlight .bp { color: #268bd2 } /* Name.Builtin.Pseudo */
+.demo-highlight .fm { color: #268bd2 } /* Name.Function.Magic */
+.demo-highlight .vc { color: #268bd2 } /* Name.Variable.Class */
+.demo-highlight .vg { color: #268bd2 } /* Name.Variable.Global */
+.demo-highlight .vi { color: #268bd2 } /* Name.Variable.Instance */
+.demo-highlight .vm { color: #268bd2 } /* Name.Variable.Magic */
+.demo-highlight .il { color: #2aa198 } /* Literal.Number.Integer.Long */</style>
 <div class="paragraph">
     <p>
         <br><br>
-        Before diving into the code for the compress() function, lets talk a little about compression algorithms in general. The purpose of compression algorithms is to reduce the size data. In some cases such as many image formats, this compression algoritm can be lossy, in which case some data is lost upon decompression. In the case of executable data however, every single opcode has to be correct upon decompression so we need a lossless algorithm.<br><br>
+        Before diving into the code for the compress() function, let's talk a little about compression algorithms in general. The purpose of compression algorithms is to reduce the size of data. In some cases (eg. images/videos), this compression algorithm can be lossy, in which case some data is lost upon decompression. In the case of executable data however, every single opcode has to be correct upon decompression so we need a lossless algorithm.<br><br>
 
-        In this case since the challenge hints that the underlying data is a firmware image, we can work under the assumption that we are dealing with a lossless compression algorithm. There are several different common ways of achieving this. Some more naive implementations such as RLE compression just iterate through data and replaces sequences of same characters with n*c in the compressed data where n represents the repeated count and c the character itself. This means that eg. 'ABBBBBBBBBCDEEEEF' would result in 'A*8BCD*4EF'. The advantages are that this compression algorithm is very simple to implement, but it only works well with files that contain a lot of repetitive data.<br><br>
+        Since the challenge hints that the underlying data is a firmware image, we can work under the assumption that we are dealing with a lossless compression algorithm. There are several different common lossless compression approaches. Some more naive implementations such as RLE compression just iterate through data and replace sequences of similar characters with n*c in the compressed data where n represents the repeated count and c the character itself. This means that <i>'ABBBBBBBBBCDEEEEF'</i> would result in <i>'A*8BCD*4EF'</i>. The advantages are that this compression algorithm is very simple to implement, but it only works well with files that contain a lot of repetitive data.<br><br>
 
-        Other compression algorithms attempt to first analyze the entire data in an initial pass to generate a tree that maps frequently found symbols to to shorter encoded counterparts. On a second pass it then replaces parts of the data with some of these symbols thus compressing the data. This technique is used in the huffman compression algorithm. It's downsides are that it requires 2 passes over the data which makes it slightly inefficient, and that this generated tree is required to decompress the data which makes the algorithm impractical for many use cases.<br><br>
+        Other compression algorithms attempt to first analyze the entire data in an initial pass to generate a tree that maps frequently found symbols to shorter encoded counterparts. On a second pass, they then replace parts of the data with some of these symbols thus compressing the data. This technique is used in the Huffman compression algorithm. Some of its pitfalls are that it requires 2 passes over the data which makes it slightly inefficient and that this generated tree is required to decompress the data again, which makes the algorithm impractical for many use cases.<br><br>
 
-        With these 2 relatively simple algorithms out of the way, we now get to LZ-compression algorithms which are most relevant to the compression algorithm found in this challenge. LZ compression algorithms started in 1977 with LZ77, and over the years many different iterations of them were developed. Many of them have since vanished from common use, but some variants such as DEFLATE which combines LZ77 & Huffman compression are still widely in use. Deflate in specific is used for zip/gzip archives,png images and many more common file-formats you have probably heard off. While LZ algorithms aren't known for their optimal compression, they still offer relatively good compression while offering extremely high performance both for compressions and decompressions which is very important for many applications.
+        With these 2 relatively simple algorithms out of the way, we now get to LZ-compression algorithms which are most relevant to the compression algorithm found in this challenge. LZ compression algorithms started in 1977 with LZ77, and over the years many different iterations of them were developed. Many of them have since vanished from common use, but some variants such as DEFLATE which combines LZ77 & Huffman compression are still widely in use. Deflate in specific is used for zip/gzip archives, png images, and many more common file formats you have probably heard of. While LZ algorithms aren't known for their optimal compression, they still offer relatively good compression while offering extremely high performance both for compressions and decompressions which is very important for many applications.
         <br><br>
     </p>
 </div>
@@ -92,13 +175,13 @@ Image Source: https://ethw.org/History_of_Lossless_Data_Compression_Algorithms
 <div class="paragraph">
     <p>
         <br><br>
-        For this challenge in specific we will focus on LZW-compression. LZW-compression is still commonly used in gif's, but has otherwise mostly been replaced by more modern algorithms. It is still a very interesting algorithm to explore because it was the base for many more modern
+        For this challenge specifically, we will focus on LZW-compression. LZW-compression is still commonly used in GIFs but has otherwise mostly been replaced by more modern algorithms. It is still a very interesting algorithm to explore because it was the base for many more modern algorithms that we frequently see today.
 
-        LZW is another dictionary based compression algorithm similar to huffman encoding, just that it iteratively generates its dictionary while iterating through the code while immediately making the replacements. This means that it only needs a single pass over the data. Another advantage is that the dictionary is built up in a way that the decompression algorithm only needs the data to decompress so the encoding map can be discarded after compression and does not need to be passed on to the decompression routine. <br><br>
+        LZW is another dictionary-based compression algorithm similar to Huffman encoding, just that it iteratively generates its dictionary while iterating through the code while immediately making the replacements. This means that it only needs a single pass over the data. Another advantage is that the dictionary is built up in a way that the decompression algorithm only needs the data to decompress so the encoding map can be discarded after compression and does not need to be passed on to the decompression routine. <br><br>
 
-        LZW replaces sequences of characters with single codes without doing any initial anlysis on the code. This means that it often starts out inefficient on the first few hundred bytes of data, but gets better and better as it expands the dictionary with longer repeated sequences. Typically every byte is stored using 8 bits allowing up to 256 unique symbols used to represent a single unit of data. LZW attempts to extend this mapping to more bits to allow more than 256 unique symbols to be stored at a time. Typically 9-12 are used depending on the size and structure of the data, but for the purposes of this challenge I used 32 bits, which while laughably bad slightly reduces the complexity of the code while still maintaining the same principals, which I believe is good for a ctf challenge.<br><br>
+        LZW replaces sequences of characters with single codes without doing any initial analysis on the code. This means that it often starts out inefficient on the first few hundred bytes of data, but gets better and better as it expands the dictionary with longer repeated sequences. Typically every byte is stored using 8 bits allowing up to 256 unique symbols used to represent a single unit of data. LZW attempts to extend this mapping to more bits to allow more than 256 unique symbols to be stored at a time. Typically 9-12 are used depending on the size and structure of the data, but for the purposes of this challenge, I used 32 bits, which while laughably bad slightly reduces the complexity of the code while still maintaining the same principles, which I believe is good for a ctf challenge.<br><br>
 
-        The first 256 codes are reserved for bytes 0x00-0xff so the table does not waste a lot of startup time populating it with single bytes. While iterating through the data, whenever a new sequence of bytes is encountered, an entry is added to the dictionary. Whenever this sequence of bytes is found again in the future it is just replaced with this entry instead, which while inefficient for single 1 byte characters (since they are now stored in more than 8 bits), greatly reduces the size while dealing with repeated longer data-sequences.<br><br>
+        The first 256 codes are reserved for bytes 0x00-0xff so the table does not waste a lot of startup time populating it with single bytes. While iterating through the data, whenever a new sequence of bytes is encountered, an entry is added to the dictionary. Whenever this sequence of bytes is found again in the future it is just replaced with this entry instead, which while inefficient for single 1-byte characters (since they are now stored in more than 8 bits), greatly reduces the size while dealing with repeated longer data-sequences.<br><br>
 
         The below example showcases how this might look given a small sample dictionary and input.
         <br><br>
@@ -110,7 +193,7 @@ Image Source: https://ethw.org/History_of_Lossless_Data_Compression_Algorithms
 <div class="paragraph">
     <p>
         <br><br>
-        Ok, now that we have covered the basics of various compression algorithms, let's take another look at the challenge. We start by allocating a hashmap that is used as a dictionary to keep track of the codes and initialize the first 256 entries with 0x00-0xff. Next we start looping through the given data. We add the byte to the symbol we are currently keeping track off and check if it already exists in our codebook. If so, we just keep track of the current progress and move on to the next character to attempt to find a longer matching symbol. Once the current byte deviates from our codebook entries we add the entry we have found so far to the compressed data and insert the new entry that we just created into the dictionary we are maintaining. Then we reset the current tracker and repeat this process for the next symbol of the data. This means that if we encounter this same symbol again in the future it will now exist in the codebook so we can compress it. Like this we gradually build up a dictionary that keeps track of symbols commonly present in the compressed data, thus improving the compression as we go along. <br><br>
+        Ok, now that we have covered the basics of various compression algorithms, let's take another look at the challenge. We start by allocating a hashmap that is used as a dictionary to keep track of the codes and initialize the first 256 entries with 0x00-0xff. Next, we start looping through the given data. We add the byte to the symbol we are currently keeping track of and check if it already exists in our codebook. If so, we just keep track of the current progress and move on to the next character to attempt to find a longer matching symbol. Once the current byte deviates from our codebook entries we add the entry we have found so far to the compressed data and insert the new entry that we just created into the dictionary we are maintaining. Then we reset the current tracker and repeat this process for the next symbol of the data. This means that if we encounter this same symbol again in the future it will now exist in the codebook so we can compress it. Like this we gradually build up a dictionary that keeps track of symbols commonly present in the compressed data, thus improving the compression as we go along. <br><br>
 
         While this method is certainly not as optimal as other compression methods that make use of heavy statistical analysis to achieve better compression results, it is extremely fast and can be implemented in very small amounts of code making it useful for low resource devices or applications that greatly benefit from a fast algorithm.<br><br>
 
@@ -118,97 +201,261 @@ Image Source: https://ethw.org/History_of_Lossless_Data_Compression_Algorithms
         <br><br>
     </p>
 </div>
-```rs
-fn compress(data: &[u8]) -> Vec<u32> {
-    // Initialize a codebook that maps a byte sequence to a short index that can be used to to 
-    // replace the bytesequence and thus compress the code. This is initialized with single 
-    // character strings at the beginning.
-    let mut code_book: FxHashMap<Vec<u8>, u32> = FxHashMap::default();
-    for i in 0..=255 {
-        code_book.insert(vec![i], i as u32);
-    }
+<div class="demo-highlight"><pre><span></span><span class="k">fn</span> <span class="nf">compress</span><span class="p">(</span><span class="n">data</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u32</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="c1">// Initialize a codebook that maps a byte sequence to a short index that can be used to to </span>
+<span class="w">    </span><span class="c1">// replace the bytesequence and thus compress the code. This is initialized with single </span>
+<span class="w">    </span><span class="c1">// character strings at the beginning.</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">code_book</span>: <span class="nc">FxHashMap</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="kt">u32</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">FxHashMap</span>::<span class="n">default</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..=</span><span class="mi">255</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">code_book</span><span class="p">.</span><span class="n">insert</span><span class="p">(</span><span class="fm">vec!</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u32</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
 
-    let mut tracker = vec![data[0]];
-    let mut compressed = Vec::new();
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">tracker</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="fm">vec!</span><span class="p">[</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]];</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">compressed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Vec</span>::<span class="n">new</span><span class="p">();</span><span class="w"></span>
 
-    for &b in &data[1..] {
-        let mut cur = tracker.clone();
-        cur.push(b);
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="o">&amp;</span><span class="n">b</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="o">&amp;</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">cur</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tracker</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span><span class="w"></span>
+<span class="w">        </span><span class="n">cur</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">b</span><span class="p">);</span><span class="w"></span>
 
-        // Check if the code book contains tracker + the current byte, if so, extend extend the 
-        // tracker with the current byte and keep increasing the combination
-        if code_book.contains_key(&cur) {
-            tracker.push(b);
-        } else {
-            // In this case we found a new entry that we can now add to the compressed data
-            compressed.push(code_book[&tracker]);
+<span class="w">        </span><span class="c1">// Check if the code book contains tracker + the current byte, if so, extend extend the </span>
+<span class="w">        </span><span class="c1">// tracker with the current byte and keep increasing the combination</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">code_book</span><span class="p">.</span><span class="n">contains_key</span><span class="p">(</span><span class="o">&amp;</span><span class="n">cur</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">tracker</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">b</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="c1">// In this case we found a new entry that we can now add to the compressed data</span>
+<span class="w">            </span><span class="n">compressed</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">code_book</span><span class="p">[</span><span class="o">&amp;</span><span class="n">tracker</span><span class="p">]);</span><span class="w"></span>
 
-            // Since this is a new entry, we insert this entry into the code book before resetting
-            // the tracker
-            code_book.insert(cur, code_book.len() as u32);
-            tracker.clear();
-            tracker.push(b);
-        }
-    }
+<span class="w">            </span><span class="c1">// Since this is a new entry, we insert this entry into the code book before resetting</span>
+<span class="w">            </span><span class="c1">// the tracker</span>
+<span class="w">            </span><span class="n">code_book</span><span class="p">.</span><span class="n">insert</span><span class="p">(</span><span class="n">cur</span><span class="p">,</span><span class="w"> </span><span class="n">code_book</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u32</span><span class="p">);</span><span class="w"></span>
+<span class="w">            </span><span class="n">tracker</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span><span class="w"></span>
+<span class="w">            </span><span class="n">tracker</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">b</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
 
-    // If the final entry in the file was in the dictionary, we still need to push it to the 
-    // compressed data at this point
-    if !tracker.is_empty() {
-        compressed.push(code_book[&tracker]);
-    }
+<span class="w">    </span><span class="c1">// If the final entry in the file was in the dictionary, we still need to push it to the </span>
+<span class="w">    </span><span class="c1">// compressed data at this point</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="n">tracker</span><span class="p">.</span><span class="n">is_empty</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">compressed</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">code_book</span><span class="p">[</span><span class="o">&amp;</span><span class="n">tracker</span><span class="p">]);</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
 
-    compressed
-}
-```
+<span class="w">    </span><span class="n">compressed</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<style id="css-style">pre { line-height: 125%; }
+td.linenos .normal { color: #586e75; background-color: #073642; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #586e75; background-color: #073642; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+.demo-highlight .hll { background-color: #073642 }
+.demo-highlight { background: #002b36; color: #839496 }
+.demo-highlight .c { color: #586e75; font-style: italic } /* Comment */
+.demo-highlight .err { color: #839496; background-color: #dc322f } /* Error */
+.demo-highlight .esc { color: #839496 } /* Escape */
+.demo-highlight .g { color: #839496 } /* Generic */
+.demo-highlight .k { color: #859900 } /* Keyword */
+.demo-highlight .l { color: #839496 } /* Literal */
+.demo-highlight .n { color: #839496 } /* Name */
+.demo-highlight .o { color: #586e75 } /* Operator */
+.demo-highlight .x { color: #839496 } /* Other */
+.demo-highlight .p { color: #839496 } /* Punctuation */
+.demo-highlight .ch { color: #586e75; font-style: italic } /* Comment.Hashbang */
+.demo-highlight .cm { color: #586e75; font-style: italic } /* Comment.Multiline */
+.demo-highlight .cp { color: #d33682 } /* Comment.Preproc */
+.demo-highlight .cpf { color: #586e75 } /* Comment.PreprocFile */
+.demo-highlight .c1 { color: #586e75; font-style: italic } /* Comment.Single */
+.demo-highlight .cs { color: #586e75; font-style: italic } /* Comment.Special */
+.demo-highlight .gd { color: #dc322f } /* Generic.Deleted */
+.demo-highlight .ge { color: #839496; font-style: italic } /* Generic.Emph */
+.demo-highlight .gr { color: #dc322f } /* Generic.Error */
+.demo-highlight .gh { color: #839496; font-weight: bold } /* Generic.Heading */
+.demo-highlight .gi { color: #859900 } /* Generic.Inserted */
+.demo-highlight .go { color: #839496 } /* Generic.Output */
+.demo-highlight .gp { color: #268bd2; font-weight: bold } /* Generic.Prompt */
+.demo-highlight .gs { color: #839496; font-weight: bold } /* Generic.Strong */
+.demo-highlight .gu { color: #839496; text-decoration: underline } /* Generic.Subheading */
+.demo-highlight .gt { color: #268bd2 } /* Generic.Traceback */
+.demo-highlight .kc { color: #2aa198 } /* Keyword.Constant */
+.demo-highlight .kd { color: #2aa198 } /* Keyword.Declaration */
+.demo-highlight .kn { color: #cb4b16 } /* Keyword.Namespace */
+.demo-highlight .kp { color: #859900 } /* Keyword.Pseudo */
+.demo-highlight .kr { color: #859900 } /* Keyword.Reserved */
+.demo-highlight .kt { color: #b58900 } /* Keyword.Type */
+.demo-highlight .ld { color: #839496 } /* Literal.Date */
+.demo-highlight .m { color: #2aa198 } /* Literal.Number */
+.demo-highlight .s { color: #2aa198 } /* Literal.String */
+.demo-highlight .na { color: #839496 } /* Name.Attribute */
+.demo-highlight .nb { color: #268bd2 } /* Name.Builtin */
+.demo-highlight .nc { color: #268bd2 } /* Name.Class */
+.demo-highlight .no { color: #268bd2 } /* Name.Constant */
+.demo-highlight .nd { color: #268bd2 } /* Name.Decorator */
+.demo-highlight .ni { color: #268bd2 } /* Name.Entity */
+.demo-highlight .ne { color: #268bd2 } /* Name.Exception */
+.demo-highlight .nf { color: #268bd2 } /* Name.Function */
+.demo-highlight .nl { color: #268bd2 } /* Name.Label */
+.demo-highlight .nn { color: #268bd2 } /* Name.Namespace */
+.demo-highlight .nx { color: #839496 } /* Name.Other */
+.demo-highlight .py { color: #839496 } /* Name.Property */
+.demo-highlight .nt { color: #268bd2 } /* Name.Tag */
+.demo-highlight .nv { color: #268bd2 } /* Name.Variable */
+.demo-highlight .ow { color: #859900 } /* Operator.Word */
+.demo-highlight .w { color: #839496 } /* Text.Whitespace */
+.demo-highlight .mb { color: #2aa198 } /* Literal.Number.Bin */
+.demo-highlight .mf { color: #2aa198 } /* Literal.Number.Float */
+.demo-highlight .mh { color: #2aa198 } /* Literal.Number.Hex */
+.demo-highlight .mi { color: #2aa198 } /* Literal.Number.Integer */
+.demo-highlight .mo { color: #2aa198 } /* Literal.Number.Oct */
+.demo-highlight .sa { color: #2aa198 } /* Literal.String.Affix */
+.demo-highlight .sb { color: #2aa198 } /* Literal.String.Backtick */
+.demo-highlight .sc { color: #2aa198 } /* Literal.String.Char */
+.demo-highlight .dl { color: #2aa198 } /* Literal.String.Delimiter */
+.demo-highlight .sd { color: #586e75 } /* Literal.String.Doc */
+.demo-highlight .s2 { color: #2aa198 } /* Literal.String.Double */
+.demo-highlight .se { color: #2aa198 } /* Literal.String.Escape */
+.demo-highlight .sh { color: #2aa198 } /* Literal.String.Heredoc */
+.demo-highlight .si { color: #2aa198 } /* Literal.String.Interpol */
+.demo-highlight .sx { color: #2aa198 } /* Literal.String.Other */
+.demo-highlight .sr { color: #cb4b16 } /* Literal.String.Regex */
+.demo-highlight .s1 { color: #2aa198 } /* Literal.String.Single */
+.demo-highlight .ss { color: #2aa198 } /* Literal.String.Symbol */
+.demo-highlight .bp { color: #268bd2 } /* Name.Builtin.Pseudo */
+.demo-highlight .fm { color: #268bd2 } /* Name.Function.Magic */
+.demo-highlight .vc { color: #268bd2 } /* Name.Variable.Class */
+.demo-highlight .vg { color: #268bd2 } /* Name.Variable.Global */
+.demo-highlight .vi { color: #268bd2 } /* Name.Variable.Instance */
+.demo-highlight .vm { color: #268bd2 } /* Name.Variable.Magic */
+.demo-highlight .il { color: #2aa198 } /* Literal.Number.Integer.Long */</style>
 <div class="paragraph">
     <p>
         <br><br>
-        With the compression out of the way, let's take a look at how the decompression works. Once again we start by allocating a hashmap and filling it up with the initial 0x00-0xff codes. This time the hashmap maps code->symbol unlike the compression function which mapped symbol->code. Then we start iterating through the compressed data which at this point due to the previous LZW-compression consists entirely of codes. If the code we are currently on exists in the dictionary we just add the dictionary entry to the decompressed data. Since the decompression is always one step behind the compression, there is also the case where the code we are looking for does not yet exist in the dictionary. This is not a big deal though since we are only one step behind, which means that the decompression can correctly determine what the encoding process will add next and keep advancing.<br><br>
+        With the compression out of the way, let's take a look at how the decompression works. Once again we start by allocating a hashmap and filling it up with the initial 0x00-0xff codes. This time the hashmap maps code->symbol, unlike the compression function which mapped symbol->code. Then we start iterating through the compressed data which at this point due to the previous LZW-compression consists entirely of codes. If the code we are currently on exists in the dictionary we just add the dictionary entry to the decompressed data. Since the decompression is always one step behind the compression, there is also the case where the code we are looking for does not yet exist in the dictionary. This is not a big deal though since we are only one step behind, which means that the decompression can correctly determine what the encoding process will add next and keep advancing.<br><br>
 
-        While a little more complicated than the compression itself, it is still a relatively simple algorithm overall that results in very fast decompression that even the smallest processors can handle for moderately sized data.<br><br>
+        While slightly more complicated than the compression itself, it is still a relatively simple algorithm overall that results in very fast decompression that even the smallest processors can handle for moderately sized data.<br><br>
 
         My sample solution for the decompression algorithm is listed below, although there are many different ways this could have been implemented.
         <br><br>
     </p>
 </div>
-```rs
-fn decompress(data: &[u32]) -> Option<Vec<u8>> {
-    // Initialize a codebook that maps an index to its corresponding byte sequence. This is used to
-    // gradually build up a decoder while parsing the message and obtaining additional information. 
-    // It is initialized with single character strings at the beginning.
-    let mut code_book: FxHashMap<u32, Vec<u8>> = FxHashMap::default();
-    for i in 0..=255 {
-        code_book.insert(i, vec![i as u8]);
-    }
+<div class="demo-highlight"><pre><span></span><span class="k">fn</span> <span class="nf">decompress</span><span class="p">(</span><span class="n">data</span>: <span class="kp">&amp;</span><span class="p">[</span><span class="kt">u32</span><span class="p">])</span><span class="w"> </span>-&gt; <span class="nb">Option</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="c1">// Initialize a codebook that maps an index to its corresponding byte sequence. This is used to</span>
+<span class="w">    </span><span class="c1">// gradually build up a decoder while parsing the message and obtaining additional information. </span>
+<span class="w">    </span><span class="c1">// It is initialized with single character strings at the beginning.</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">code_book</span>: <span class="nc">FxHashMap</span><span class="o">&lt;</span><span class="kt">u32</span><span class="p">,</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">FxHashMap</span>::<span class="n">default</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="o">..=</span><span class="mi">255</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">code_book</span><span class="p">.</span><span class="n">insert</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="fm">vec!</span><span class="p">[</span><span class="n">i</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u8</span><span class="p">]);</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
 
-    let mut tracker = code_book.get_mut(&data[0])?.to_vec();
-    let mut decompressed = tracker.clone();
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">tracker</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">code_book</span><span class="p">.</span><span class="n">get_mut</span><span class="p">(</span><span class="o">&amp;</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">?</span><span class="p">.</span><span class="n">to_vec</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">decompressed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tracker</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span><span class="w"></span>
 
-    for &b in &data[1..] {
-        let entry = if code_book.contains_key(&b) {
-            code_book[&b].clone()
-        } else if b == code_book.len() as u32 {
-            let mut e = tracker.clone();
-            e.push(tracker[0]);
-            e
-        } else {
-            return None;
-        };
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="o">&amp;</span><span class="n">b</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="o">&amp;</span><span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="o">..</span><span class="p">]</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">entry</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">code_book</span><span class="p">.</span><span class="n">contains_key</span><span class="p">(</span><span class="o">&amp;</span><span class="n">b</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="n">code_book</span><span class="p">[</span><span class="o">&amp;</span><span class="n">b</span><span class="p">].</span><span class="n">clone</span><span class="p">()</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">code_book</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u32</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tracker</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span><span class="w"></span>
+<span class="w">            </span><span class="n">e</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">tracker</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span><span class="w"></span>
+<span class="w">            </span><span class="n">e</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nb">None</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="p">};</span><span class="w"></span>
 
-        decompressed.extend_from_slice(&entry);
+<span class="w">        </span><span class="n">decompressed</span><span class="p">.</span><span class="n">extend_from_slice</span><span class="p">(</span><span class="o">&amp;</span><span class="n">entry</span><span class="p">);</span><span class="w"></span>
 
-        tracker.push(entry[0]);
-        code_book.insert(code_book.len() as u32, tracker);
+<span class="w">        </span><span class="n">tracker</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">entry</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span><span class="w"></span>
+<span class="w">        </span><span class="n">code_book</span><span class="p">.</span><span class="n">insert</span><span class="p">(</span><span class="n">code_book</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u32</span><span class="p">,</span><span class="w"> </span><span class="n">tracker</span><span class="p">);</span><span class="w"></span>
 
-        tracker = entry;
-    }
-    Some(decompressed)
-}
-```
+<span class="w">        </span><span class="n">tracker</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">entry</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="nb">Some</span><span class="p">(</span><span class="n">decompressed</span><span class="p">)</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<style id="css-style">pre { line-height: 125%; }
+td.linenos .normal { color: #586e75; background-color: #073642; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #586e75; background-color: #073642; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+.demo-highlight .hll { background-color: #073642 }
+.demo-highlight { background: #002b36; color: #839496 }
+.demo-highlight .c { color: #586e75; font-style: italic } /* Comment */
+.demo-highlight .err { color: #839496; background-color: #dc322f } /* Error */
+.demo-highlight .esc { color: #839496 } /* Escape */
+.demo-highlight .g { color: #839496 } /* Generic */
+.demo-highlight .k { color: #859900 } /* Keyword */
+.demo-highlight .l { color: #839496 } /* Literal */
+.demo-highlight .n { color: #839496 } /* Name */
+.demo-highlight .o { color: #586e75 } /* Operator */
+.demo-highlight .x { color: #839496 } /* Other */
+.demo-highlight .p { color: #839496 } /* Punctuation */
+.demo-highlight .ch { color: #586e75; font-style: italic } /* Comment.Hashbang */
+.demo-highlight .cm { color: #586e75; font-style: italic } /* Comment.Multiline */
+.demo-highlight .cp { color: #d33682 } /* Comment.Preproc */
+.demo-highlight .cpf { color: #586e75 } /* Comment.PreprocFile */
+.demo-highlight .c1 { color: #586e75; font-style: italic } /* Comment.Single */
+.demo-highlight .cs { color: #586e75; font-style: italic } /* Comment.Special */
+.demo-highlight .gd { color: #dc322f } /* Generic.Deleted */
+.demo-highlight .ge { color: #839496; font-style: italic } /* Generic.Emph */
+.demo-highlight .gr { color: #dc322f } /* Generic.Error */
+.demo-highlight .gh { color: #839496; font-weight: bold } /* Generic.Heading */
+.demo-highlight .gi { color: #859900 } /* Generic.Inserted */
+.demo-highlight .go { color: #839496 } /* Generic.Output */
+.demo-highlight .gp { color: #268bd2; font-weight: bold } /* Generic.Prompt */
+.demo-highlight .gs { color: #839496; font-weight: bold } /* Generic.Strong */
+.demo-highlight .gu { color: #839496; text-decoration: underline } /* Generic.Subheading */
+.demo-highlight .gt { color: #268bd2 } /* Generic.Traceback */
+.demo-highlight .kc { color: #2aa198 } /* Keyword.Constant */
+.demo-highlight .kd { color: #2aa198 } /* Keyword.Declaration */
+.demo-highlight .kn { color: #cb4b16 } /* Keyword.Namespace */
+.demo-highlight .kp { color: #859900 } /* Keyword.Pseudo */
+.demo-highlight .kr { color: #859900 } /* Keyword.Reserved */
+.demo-highlight .kt { color: #b58900 } /* Keyword.Type */
+.demo-highlight .ld { color: #839496 } /* Literal.Date */
+.demo-highlight .m { color: #2aa198 } /* Literal.Number */
+.demo-highlight .s { color: #2aa198 } /* Literal.String */
+.demo-highlight .na { color: #839496 } /* Name.Attribute */
+.demo-highlight .nb { color: #268bd2 } /* Name.Builtin */
+.demo-highlight .nc { color: #268bd2 } /* Name.Class */
+.demo-highlight .no { color: #268bd2 } /* Name.Constant */
+.demo-highlight .nd { color: #268bd2 } /* Name.Decorator */
+.demo-highlight .ni { color: #268bd2 } /* Name.Entity */
+.demo-highlight .ne { color: #268bd2 } /* Name.Exception */
+.demo-highlight .nf { color: #268bd2 } /* Name.Function */
+.demo-highlight .nl { color: #268bd2 } /* Name.Label */
+.demo-highlight .nn { color: #268bd2 } /* Name.Namespace */
+.demo-highlight .nx { color: #839496 } /* Name.Other */
+.demo-highlight .py { color: #839496 } /* Name.Property */
+.demo-highlight .nt { color: #268bd2 } /* Name.Tag */
+.demo-highlight .nv { color: #268bd2 } /* Name.Variable */
+.demo-highlight .ow { color: #859900 } /* Operator.Word */
+.demo-highlight .w { color: #839496 } /* Text.Whitespace */
+.demo-highlight .mb { color: #2aa198 } /* Literal.Number.Bin */
+.demo-highlight .mf { color: #2aa198 } /* Literal.Number.Float */
+.demo-highlight .mh { color: #2aa198 } /* Literal.Number.Hex */
+.demo-highlight .mi { color: #2aa198 } /* Literal.Number.Integer */
+.demo-highlight .mo { color: #2aa198 } /* Literal.Number.Oct */
+.demo-highlight .sa { color: #2aa198 } /* Literal.String.Affix */
+.demo-highlight .sb { color: #2aa198 } /* Literal.String.Backtick */
+.demo-highlight .sc { color: #2aa198 } /* Literal.String.Char */
+.demo-highlight .dl { color: #2aa198 } /* Literal.String.Delimiter */
+.demo-highlight .sd { color: #586e75 } /* Literal.String.Doc */
+.demo-highlight .s2 { color: #2aa198 } /* Literal.String.Double */
+.demo-highlight .se { color: #2aa198 } /* Literal.String.Escape */
+.demo-highlight .sh { color: #2aa198 } /* Literal.String.Heredoc */
+.demo-highlight .si { color: #2aa198 } /* Literal.String.Interpol */
+.demo-highlight .sx { color: #2aa198 } /* Literal.String.Other */
+.demo-highlight .sr { color: #cb4b16 } /* Literal.String.Regex */
+.demo-highlight .s1 { color: #2aa198 } /* Literal.String.Single */
+.demo-highlight .ss { color: #2aa198 } /* Literal.String.Symbol */
+.demo-highlight .bp { color: #268bd2 } /* Name.Builtin.Pseudo */
+.demo-highlight .fm { color: #268bd2 } /* Name.Function.Magic */
+.demo-highlight .vc { color: #268bd2 } /* Name.Variable.Class */
+.demo-highlight .vg { color: #268bd2 } /* Name.Variable.Global */
+.demo-highlight .vi { color: #268bd2 } /* Name.Variable.Instance */
+.demo-highlight .vm { color: #268bd2 } /* Name.Variable.Magic */
+.demo-highlight .il { color: #2aa198 } /* Literal.Number.Integer.Long */</style>
 <div class="paragraph">
     <p>
         <br><br>
-        At this point you should be able to extract the actual "firmware" and begin the actual exploitation process. Initially this challenge started by spinning up a small server to communicate over sockets to better adhere to the challenges idea. This unfortunately caused issues with hosting the challenge so I ended up instead just reading/writing to stdin.<br><br>
+        At this point, you should be able to extract the actual "firmware" and begin the actual exploitation process. Initially, this challenge started by spinning up a small server to communicate over sockets to better adhere to this challenges' idea. This unfortunately caused issues with hosting the challenge so I ended up instead just reading/writing to stdin.<br><br>
 
         Let's start by looking at the main function. The binary was not stripped so function names remain, making our reverse engineering process a little easier. The main function appears to read in 2 packets. It performs a check on both the first and second packet before performing some action based on the action variable that is most likely set by one of the packets.
         <br><br>
@@ -220,7 +467,7 @@ fn decompress(data: &[u32]) -> Option<Vec<u8>> {
 <div class="paragraph">
     <p>
         <br><br>
-        Next we can look at the verify_initial_packet() function that takes care of verifying the validity of the first packet. With some light reverse engineering we can determine the structure this packet expects and define it in binja.<br><br>
+        Next, we can look at the <i>verify_initial_packet()</i> function that takes care of verifying the validity of the first packet. With some light reverse engineering, we can determine the structure this packet expects and define it in binja.<br><br>
 
         At this point this part of the challenge becomes almost trivial. It verifies some magic bytes, sets the 'Action' variable based on the packet and then verifies that the base64 decoded version of the given key is equal to the hardcoded password "password".
         <br><br>
@@ -232,7 +479,7 @@ fn decompress(data: &[u32]) -> Option<Vec<u8>> {
 <div class="paragraph">
     <p>
         <br><br>
-        We can now do the exact same for the checksum verification on packet_2. We once again define a structure based on the packet layout (I have taken the liberty to fill out some fields that we do not know yet, but will become obvious with future reverse engineering). This function loops through the data part of the given packet according to the provided length and sums it up. This value is then checked against the provided checksum.<br><br>
+        We can now do the same for the checksum verification on packet_2. We once again define a structure based on the packet layout (I have taken the liberty to fill out some fields that we do not know yet, but will become obvious with future reverse engineering). This function loops through the data part of the given packet according to the provided length and sums it up. This value is then checked against the provided checksum.<br><br>
 
         There is an out of bounds bug here since the provided length is trusted without any checking, however it is not exploitable in this case and would just lead to a crash.
         <br><br>
@@ -244,9 +491,9 @@ fn decompress(data: &[u32]) -> Option<Vec<u8>> {
 <div class="paragraph">
     <p>
         <br><br>
-        Looking back at the main functions, all actions except '2' lead to exit paths, so let's focus on the path that is taken when action is set to 2, and look at the make_coffee() function.<br><br>
+        Looking back at the main functions, all actions except '2' lead to exit paths, so let's focus on the path that is taken when action is set to 2, and look at the <i>make_coffee()</i> function.<br><br>
 
-        The function itself is pretty long, however there are only a couple of interesting parts here. At the very beginning it checks that the temperature has a sensible value. If so it proceeds to set a string that appears to list your chosen cup-size. After a memcpy() using the provided data/length, another if statement is used to determine the type of coffee requested before printing out the completed message to the user.<br><br>
+        The function itself is pretty long, however there are only a couple of interesting parts here. At the very beginning, it checks that the temperature has a sensible value. If so it proceeds to set a string that appears to list your chosen cup-size. After a <i>memcpy()</i> using the provided data/length, another if statement is used to determine the type of coffee requested before printing out the completed message to the user.<br><br>
 
         At this point we have all the required information to start interactiong with the binary. We can send it some valid packets and start interacting with the coffee machine.
         <br><br>
@@ -258,11 +505,13 @@ fn decompress(data: &[u32]) -> Option<Vec<u8>> {
 <div class="paragraph">
     <p>
         <br><br>
-        Earlier I briefly mentioned the memcpy(). This function appears to be operating on our data and performing a memcpy() to a stack location based on the provided length. This looks like a buffer overflow. The challenge description hints that this challenge has neither pie nor stack protectors enabled, resulting in a relatively straightforward solution using return oriented programming.<br><br>
+        Earlier I briefly mentioned the <i>memcpy()</i>. This function appears to be operating on our data and performing a <i>memcpy()</i> to a stack location based on the provided length. This looks like a buffer overflow. The challenge description hints that this challenge has neither pie nor stack protectors enabled, resulting in a relatively straightforward solution using return-oriented programming.<br><br>
 
-        We start by sending an initial payload that calls puts_plt() using puts_got as an argument to bypass aslr before returning to main. Next we retrigger the same bugs to cause another overflow, this time with libc gadgets at our disposal to simply execute a ret2libc attack.<br><br>
+        We start by sending an initial payload that calls <i>puts_plt()</i> using puts_got as an argument to bypass ASLR before returning to main. Next, we retrigger the same bugs to cause another overflow, this time with Libc gadgets at our disposal to simply execute a ret2libc attack.<br><br>
 
-        If you are interested in the specifics of this attack, check out one of my previous writeups here: https://seal9055.com/ctf-writeups/cyber_apocalypse/controller
+        If you are interested in the specifics of this attack, check out one of my previous writeups here: https://seal9055.com/ctf-writeups/cyber_apocalypse/controller<br><br>
+
+        While this "firmware" image seemed almost too easy to break, this is the unfortunate reality of embedded security. Obvious mistakes such as <i>printf()</i> format string vulnerabilities or <i>strcpy()</i> buffer overflows occur much more frequently than you would think. A recent CVE I got for example, was due to a <i>printf()</i> format string bug in a popular embedded camera from a US-based company. I will be releasing a writeup on that soon too once the company has finished fixing the bugs.<br><br>
         <br><br>
     </p>
 </div>
