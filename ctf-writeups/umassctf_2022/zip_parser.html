@@ -21,7 +21,7 @@
 <H4>Problem</H4>
 <div class="paragraph">
     <p>
-        When a tree falls in the forest with noone around to hear it, some say that no sound is made. Does the same apply to processes without output?
+        When a tree falls in the forest with no one around to hear it, some say that no sound is made. Does the same apply to processes without output?
 
         <br><br>
         <a href=https://github.com/seal9055/PWN_Zero2Hero/tree/main/umass_22>challenge_files</a>
@@ -31,9 +31,9 @@
 <H4>Solution</H4>
 <div class="paragraph">
     <p>
-        This is one of the challenges I authored for UMassCTF 2022. I like modelling my challenges after real world scenarios, so I figured a file parser would get pretty close.<br><br>
+        This is one of the challenges I authored for UMassCTF 2022. I like modeling my challenges after real-world scenarios, so I figured a file parser would get pretty close.<br><br>
 
-        Executing the binary does not provide any output, and attempting to pass in commandline arguments or some stdin input does not result in any additional information either. Let's load the binary into our disassembler.<br><br>
+        Executing the binary does not provide any output, and attempting to pass in command-line arguments or some stdin input does not result in any additional information either. Let's load the binary into our disassembler.<br><br>
 
         Starting with main, it looks like it starts by reading in 2 values from the user, the first being a size that is then passed to <i>malloc()</i> to allocate the input from the second <i>read()</i> onto the heap. Next the binary is allocating more heap space for 3 different structs, and populates them using the 3 functions <i>parse_head()</i>, <i>parse_centdir</i>, and <i>parse_data()</i>. Finally the binary exits.<br><br>
 
@@ -49,13 +49,13 @@
         <br><br>
         ZIP is an archive format that makes use of a lossless compression algorithm to compress files to smaller sizes. It uses an lz compression algorithm called DEFLATE for its compression which I briefly describe in my <a href=https://seal9055.com/ctf-writeups/umassctf_2022/coffee_maker>coffee_maker</a> writeup (another challenge I wrote for this CTF).<br><br>
 
-        Since one of the main purposes of zip-archives is to store multiple files together in one archive, it requires a good way to keep track of files, even while compressed. This is where the actual file format comes in. This format has magic bytes to let tools such as the 'file' commandline tool recognize that it is dealing with a zip file. It also describes a specification that lets various zip-parsers efficiently parse the archive and extract information such as the names of the included files and their sizes without requiring the archive to be decompressed.<br><br>
+        Since one of the main purposes of zip archives is to store multiple files together in one archive, it requires a good way to keep track of files, even while compressed. This is where the actual file format comes in. This format has magic bytes to let tools such as the 'file' commandline tool recognize that it is dealing with a zip file. It also describes a specification that lets various zip-parsers efficiently parse the archive and extract information such as the names of the included files and their sizes without requiring the archive to be decompressed.<br><br>
 
-        Unlike most other file formats, when talking about zip, we need to start at the end of the data. The main header which describes many of the offsets required to parse the rest of the file is located at the very end of the file. This header is also called the end of central directory record and its start is indicated by the magic bytes PK\x05\x06. This structure encodes some important information such as the number of files in the archive, the compression method used, the central directory size and the offset to the central directory within the data.<br><br>
+        Unlike most other file formats, when talking about zip, we need to start at the end of the data. The main header which describes many of the offsets required to parse the rest of the file is located at the very end of the file. This header is also called the end of central directory record and its start is indicated by the magic bytes PK\x05\x06. This structure encodes some important information such as the number of files in the archive, the compression method used, the central directory size, and the offset to the central directory within the data.<br><br>
 
-        Using the previously calculated values we can now find the central directory listing and loop through all entries using the previous parsed num_files and centdir_size values. This central directory contains most of the meta-data for a given file. This can include access/modification times, the file data length both compressed & uncompressed, and the offset of where this file's data actually starts.<br><br>
+        Using the previously calculated values we can now find the central directory listing and loop through all entries using the previously parsed num_files and centdir_size values. This central directory contains most of the meta-data for a given file. This can include access/modification times, the file data length both compressed & uncompressed, and the offset of where this file's data actually starts.<br><br>
 
-        Finally there are the local headers. These describe the compressed data of the files themselves. These data-entries also contain some additional values repeated from the previously listed meta-data such as the compressed/uncompressed sizes or the file name.<br><br>
+        Finally, there are the local headers. These describe the compressed data of the files themselves. These data-entries also contain some additional values repeated from the previously listed meta-data such as the compressed/uncompressed sizes or the file name.<br><br>
 
         The image below showcases how exactly zip-archives are structured.
         <br><br>
@@ -69,7 +69,7 @@
         <br><br>
         Now that we have a general overview of how zip files are structured we can get back to the challenge and look at the remaining functions.<br><br>
 
-        Starting with <i>parse_head()</i>, we can see how the previously described search for the main header is conducted. The parser loops through the entire binary and compares each sequence of bytes with the magic header. Once found it stops and parses the header data structure starting at that location before returning 0. If it does not end up finding these magic bytes, it instead returns 1 to indicate that an error occured.
+        Starting with <i>parse_head()</i>, we can see how the previously described search for the main header is conducted. The parser loops through the entire binary and compares each sequence of bytes with the magic header. Once found it stops and parses the header data structure starting at that location before returning 0. If it does not end up finding these magic bytes, it instead returns 1 to indicate that an error occurred.
         <br><br>
     </p>
 </div>
@@ -79,7 +79,7 @@
 <div class="paragraph">
     <p>
         <br><br>
-        Even with some cleanup, binary ninja unfortunately struggled a little to nicely interpret this function. In reality it just loops through the previously parsed number of files, prepared a central directory entry for each of them, and parses its fields from the data. The only interesting part here is that there is a small size check that verifies that none of the compressed files have a size larger than 128.
+        Even with some cleanup, binary ninja, unfortunately, struggled a little to nicely interpret this function. In reality, it just loops through the previously parsed number of files, prepared a central directory entry for each of them, and parses its fields from the data. The only interesting part here is that there is a small size check that verifies that none of the compressed files have a size larger than 128.
         <br><br>
     </p>
 </div>
@@ -91,7 +91,7 @@
         <br><br>
         Finally, let's move on to the <i>prase_data()</i> function. It appears to follow the same pattern as the previous 2 functions of just parsing memory and filling up a global structure with parsed data. There is however one very interesting part here. The highlighted call to <i>memcpy()</i> appears to take its size from a length value parsed from the provided data. This is a buffer overflow!<br><br>
 
-        We have found our bug, although there are still a couple of aspects that make exploitation difficult. There were several prior checks that verify that we are dealing with an actual zip-file, so to properly trigger this vulnerability and trigger a segmentation fault we need to provide a malicious but valid zip file. The second issue is that while we could usually just bypass ASLR using a ret2libc attack given that pie is disabled, this is not the case here since there are no functions that can write to stdout and provide us with the leak. This makes exploitation quite a bit more complicated.
+        We have found our bug, although there are still a couple of aspects that make exploitation difficult. There were several prior checks that verify that we are dealing with an actual zip file, so to properly trigger this vulnerability and trigger a segmentation fault we need to provide a malicious but valid zip file. The second issue is that while we could usually just bypass ASLR using a ret2libc attack given that pie is disabled, this is not the case here since there are no functions that can write to stdout and provide us with the leak. This makes exploitation quite a bit more complicated.
         <br><br>
     </p>
 </div>
@@ -101,9 +101,9 @@
 <div class="paragraph">
     <p>
         <br><br>
-        There are 2 main ways of dealing with the first issue. We can either take a valid zipfile and edit it to inject our payload, or we can manually reconstruct a simplified zip-file in our exploit. I chose the latter option. The first option is good to achieve a quick poc segfault by manually editing the vulnerable size field, but actually debugging a proper exploit is much easier with the second option.<br><br>
+        There are 2 main ways of dealing with the first issue. We can either take a valid zip file and edit it to inject our payload, or we can manually reconstruct a simplified zip file in our exploit. I chose the latter option. The first option is good to achieve a quick poc segfault by manually editing the vulnerable size field, but actually debugging a proper exploit is much easier with the second option.<br><br>
 
-        There are 2 different ways I am aware off on how to deal with the second restriction. We could either write a ropchain that performs a partial overwrite on got entries to execute chosen libc functions or use a ret2dlresolve exploit chain. Once again I opted for the second approach.<br><br>
+        There are 2 different ways I am aware off to deal with the second restriction. We could either write a ropchain that performs a partial overwrite on got entries to execute chosen libc functions or use a ret2dlresolve exploit chain. Once again I opted for the second approach.<br><br>
 
         The goal of a ret2dlresolve attack is to trick the binary into resolving a function of the attacker's choice, commonly <i>system()</i>, thus completely bypassing ASLR without ever requiring a libc leak. During libc function relocation in dynamically linked elf binaries, the program counter will jump to the function's corresponding PLT entry and execute its handler. This handler requires 3 structures to properly resolve functions, and this is what we will be abusing for our exploit.<br><br>
 
@@ -120,7 +120,7 @@
     </p>
 </div>
 <div>
-    <img src="../imgs/umass_22/zip5.png" alt="">
+    <img src="../imgs/umass_22/zip6.png" alt="">
 </div>
 <div class="demo-highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pwn</span> <span class="kn">import</span> <span class="o">*</span>
 <span class="n">elf</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">binary</span> <span class="o">=</span> <span class="n">ELF</span><span class="p">(</span><span class="s1">'./chal'</span><span class="p">)</span>
