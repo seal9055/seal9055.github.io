@@ -1,0 +1,446 @@
+<head> 
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5X8D3297QB"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-5X8D3297QB');
+</script>
+</head>
+<div class="page-header">
+    <div class="page-header-inner">
+        <div class="page-header-inner2">
+            <h1>SFUZZ</h1>
+            <h2>May 2022</h2>
+            <h4>High Performance Coverage-guided Graybox Fuzzer with Custom JIT Engine</h4>
+        </div>
+    </div>
+</div>
+<H4>Introduction</H4>
+<div class="paragraph">
+    <p>
+        In this post I would like to talk a little about the project that I spent the past 6 months working on, a coverage-guided, emulation based graybox fuzzer that makes use of a custom Just-In-Time compiler to achieve near-native performance. It works by lifting RISC-V elf binaries to an intermediate representation before JIT compiling them to X86 during execution. During JIT compilation the code is instrumented to enable fuzzing-improvements such as coverage tracking, asan, cmpcov, or snapshot-fuzzing.<br><br>
+
+        In many ways this is more of a proof-of-concept that I wanted to work on to learn about compiler internals, and have an emulation based playground to play around with various fuzzing techniques such as different coverage metrics, seed schedulers, and snapshot based fuzzing. With more JIT optimizations and most importantly, extensions to include more popular architectures such as mips or arm this could however certainly be used to efficiently fuzz closed source code that cannot simply be instrumented through recompilation.<br><br>
+
+        The rest of this post is separated into 5 different parts to first provide a general overview of this fuzzer, continue to cover the individual components (memory management, code generation, fuzzing techniques), and finish off with some results and benchmarks.
+        <br><br>
+
+        The code and some additional documentation is located here: <a href=https://github.com/seal9055/sfuzz/>SFUZZ-github</a>.
+        <br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/fuzzing/sfuzz/preview.png" alt="">
+</div>
+<H4>Overview</H4>
+<div class="paragraph">
+    <p> 
+        SFUZZ starts by allocating an entirely seperate virtualized address space for each thread to run the target in (This includes separate code, stack, heap, and data sections), alongside a single thread-shared JIT-backing that is used to store the JIT-compiled x86 code. After this initial setup, the provided target is parsed, relevant regions are loaded into each thread's address space, and initial stacks are allocated. Additionally, the addresses for important functions are parsed, and memory hooks for security-critical functions such as malloc/free and string-based libc functions such as strlen/strcmp are automatically inserted (more on why string-based function hooks in the memory management section). Finally argc/argv are pushed to each thread's stack.<br><br>
+
+        After this initial setup is completed, all threads are dispatched into worker functions while the main thread remains in charge of updating statistics every second. These are transmitted to the main thread via message passing and batched in decently-sized increments to reduce the shared memory that needs to be locked while fuzzing. This means that locks only have to be held when new coverage is found, a crash is detected, or when new code has to be JIT-compiled, allowing the threads to mostly run unobstructed and scale well across many cores.<br><br>
+
+        The worker functions will now run until the fuzzer is terminated. During the initial elf parsing all function addresses & sizes were extracted, so whenever one of the fuzzing threads now encounters new code that has not yet been seen before it locks the JIT backing-buffer and starts the compilation process. This lock prevents other threads from adding new code into the backing, but does not stop them from executing (unless they run into the same code of course, at which point they need to wait until the thread that is currently compiling code is finished).<br><br>
+
+        The code generation procedure lifts all RISC-V instructions into an intermediate representation that is meant to be architecture agnostic, thus allowing the fuzzer to be extended with other architectures by implementing a new lifting frontend. This intermediate representation is then passed on to the jit backend, which takes care of compiling the code into X86_64 machine code, which it then copies into the jit backing buffer and populates the riscv -> X86 lookup table with the newly compiled addressed. <br>I played around with ssa-generation and linear-scan register allocation for a good amount of time (this honestly took up the majority of the entire time spent on this project), but decided to not use it in the end. More details about the implementation of this and why I eventually decided against it are listed in the code-gen section.<br><br>
+
+        There are many cases in which the JIT has to be left during execution to handle some special events. These can include new code that was run into and has to be compiled, the fuzzer finding a bug, hooked functions or syscalls. This is handled by returning back to the rust code alongside an exit-code that indicates what action has to be taken. All syscalls are emulated for this, which grants several important advantages such as no kernel mode transitions or shared kernel locks that would affect scaling, and the ability to fully emulate files in memory to eliminate disk I/O while fuzzing.<br><br>
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/fuzzing/sfuzz/arch.png" alt="">
+</div>
+<H4>Memory Management</H4>
+<div class="paragraph">
+    <p>
+        <strong>Overview</strong><br>
+        This component of the fuzzer is responsible for providing the memory space for the target. It provides each emulator-thread an entirely separate mmu, and makes sure that none of the target-threads can access/corrupt the memory space of another thread.<br><br>
+
+        Each mmu consists of 2 continuous blocks of memory (one for the actual memory, and another one for permissions), and an api that exposes various operations on this memory such as allocations, frees, reads and writes. The exposed functions make use of the permissions-map to achieve byte-level permission checks (similar to ASAN) on each memory access, in addition to an allocator that performs properly checked allocations/free's.<br><br>
+
+        <strong>Byte Level Permission Checks</strong><br>
+        On most architectures, permissions are handled at the hardware level through page tables. This means that whenever an instruction tries to access a memory region, without possessing the correct permissions, an abort is generated which is then handled at the software level. Since these permissions are handled at the page table level, it prevents any incorrect access crossing page boundaries. When it comes to exploitation however, a couple of out-of-bounds bytes can oftentimes already be enough to compromise the security of an application, which this type of permission checking cannot handle.<br><br>
+
+        A tool commonly used while fuzzing is address sanitizer (also referred to as asan). When a binary is compiled using asan, it is instrumented at compile time with extra checks that make sure that every memory access has the correct access permissions. This tool however has a few very relevant issues. For one it requires access to the binaries source code to recompile it with proper instrumentation. This makes it only useful to open source projects, which especially when fuzzing embedded systems, is often not available. Secondly, asan has a very non-significant performance overhead. According to a study conducted by google in 2012 (<i>AddressSanitizer: A Fast Address Sanity Checker</i>), it resulted in a 73% slowdown, which is quite a bit, especially when operating a fuzzer which is greatly reliant on its performance. This slowdown however was worth it due to the power of byte level permission checks and led to 300 new bugs being discovered in the Chrome browser at the time.<br><br>
+
+        In this case since the binary is being run in a custom JIT compiler, both of these drawbacks can be almost entirely mitigated. Not having source code available is not an issue at all anymore since all of the code is being generated based off of the binary. As for the performance aspects, EXECUTE permissions are almost entirely free since they are checked once when a function is first compiled, and then assumed to be true for the rest of program execution. This would need some changes when dealing with JIT compilers that frequently change their executable memory mappings, but for 99% of use cases it should suffice. As for load and store instructions (that require the READ and WRITE permissions), the checks consist of 5 assembly instructions (1 memory load, 1 conditional jmp and 3 arithmetic instructions). While this results in some additional overhead when performing frequent memory accesses, it is nowhere near as expensive as address sanitizer.<br><br>
+
+        These permission bits mean that every out of bounds memory access (even if it is just a single byte) instantly results in a notification to the fuzzer which can then modify its corpus to focus on this bug and attempt to increase the out of bounds bug. This permission model also applies to library functions such as malloc & free. These are hooked to instead call custom malloc/free implementations that support this byte level memory model. These hooked functions also include additional checks to completely destruct free'd memory so common heap bugs such as use after free's or double free's are instantly reported as well instead of leading to undefined behavior.
+
+        <strong>Dirty-bit Memory Resets</strong><br>
+        In the current implementation each new address space is 64mb large (although this can easily be changed depending on the complexity of the target). This means that on each new fuzz case, this entire space needs to be reset to its initial state. Doing a massive 64mb memcpy() on each new fuzz case is very expensive and leads to completely unacceptable performance. Here we can borrow a concept that is common in the operating systems world: dirty bits. In operating systems, these are mainted at the page table level similar to the permissions. This bit is set whenever a write to memory occurs. This means that when copying memory between different cache levels, or just clearing memory, the page table can be traversed, and only pages with the dirty bit set need to have work done on them.<br><br>
+
+        The same principal applies to this fuzzer. When a fuzzer is run, only a very small percentage of this 64mb address space is actually overwritten. This means that by maintaining a dirty bit list, we can selectively chose which pages are reset while leaving most of the memory intact. The memory space in this case is not maintained in a page table so some of the implementation details differ, but the principal remains.<br><br>
+
+        The implementation of memory resets in this project was heavily influenced by Brandon Falk's prior research into obtaining extremely fast memory resets and his implementation in his <a href=https://github.com/gamozolabs/fuzz_with_emus/>fuzz_with_emus</a> project. 2 array's are maintained. Whenever memory is dirtied, the address is pushed to an initially empty array that contains a listing of all dirtied memory regions. Additionally a dirty bitmap is maintained that is used to verify that only 1 address from each page (4096 bytes in this case) is pushed to this array to avoid duplicates. Populating this vector during execution is very simple and only requires 6 additional instructions during store operations. While resetting, the fuzzer can then just iterate through the previously populator vector and free the address ranges that were pushed to the vector.<br><br>
+
+        <strong>Virtualized Files</strong><br>
+        Many potential fuzz-targets read in their input from files stored on disk. This requires syscalls and disk access, which while fuzzing quickly gets extremely expensive. Instead the fuzzer emulates all syscalls in user-space and stores files within the emulator as byte-arrays & a cursor into the current position within the file. This means that file operations now no longer require a context-swap into the kernel or disk access and are instead quickly emulated resulting in massive performance increases.<br><br>
+
+        <strong>Glibc String Functions</strong><br>
+        The standard glibc implementation used on most linux distributions makes use of specialized optimizations for string operations (eg. strlen/strcmp). These functions make sure that they are page aligned when called, and then read in 8 bytes at a time. This can easily go out of bounds (eg. when calling strlen on a 3 byte string), however since the access is page aligned the 8-byte access cannot trigger a page fault and thus does not lead to any security bugs. Since this fuzzer has byte-level permission checks though, this results in unnecessary crashes being recorded. My solution was to write up custom "safe" implementations for some of these functions in assembly, dynamically recognize libc-string functions within the target, and compile in my own version instead of the default one's. This defeats the problem without adding any performance overhead.
+        <br><br>
+    </p>
+</div>
+<H4>Code Generation</H4>
+<div class="paragraph">
+    <p>
+        <strong>Overview</strong><br>
+        This emulator makes use of a custom just-in-time compiler for all of its execution. The code generation is a multi-step process that leads to a 20-50x performance increase over pure emulation.
+
+        Once execution is started, each individual emulator thread has the ability to compile new code. Whenever the emulator runs into a function that we have not yet compiled it invokes a lock on the JIT code backend and attempts to compile the entire function into the JIT backend before resuming execution. 
+
+        This lock only stops other threads from adding new code to the JIT-backing during compilation without stopping them from using the JIT-backing. This means that one thread compiling new code has basically no impact on any of the other threads, making this lock mostly free while providing 1 uniform memory region that contains all of the compiled code for all threads. Once the compilation is completed, the mutex is unlocked and the addresses of the newly generated code are added to the JIT lookup table. At this point the compiling thread can resume fuzzer execution and all other threads can access this newly compiled code via the translation table.
+
+        Most of the code pertaining to code-generation can be found in <a href=https://github.com/seal9055/sfuzz/blob/main/src/jit.rs>jit.rs</a>, <a href=https://github.com/seal9055/sfuzz/blob/main/src/irgraph.rs>irgraph.rs</a>, and <a href=https://github.com/seal9055/sfuzz/blob/main/src/emulator.rs>emulator.rs</a>. More detailed descriptions of some of the code generation procedures are provided below.
+        <br><br>
+        <strong>Lifting a Function to Custom IR</strong><br>
+        The first step of actual code generation is to lift the entire function into an intermediate representation. The size of the function is determined during the initialization phase when first loading the target. This is done by parsing the elf metadata and setting up a hashmap mapping function start addresses to their sizes.
+        <br><br>
+
+        The IR-lifting basically just iterates through the original instructions and creates an IR instruction based on the original instruction using large switch statement. The below example imitates how the intermediate representation may look like for a very minimal function that pretty much just performs a branch based on a comparison in the first block.<br><br>
+
+        Label @ 0x1000<br>
+        0x001000  A0 = 0x14<br>
+        0x001004  A1 = 0xA<br>
+        0x001008  if A0 == A1 (0x100C, 0x1028)<br><br>
+
+        Label @ 0x100C<br>
+        0x00100C  A2 = A0 + A1<br>
+        0x001010  A3 = 0x1<br>
+        0x001014  Jmp 0x1018<br><br>
+
+        Label @ 0x1018<br>
+        0x001024  Jmp 0x1034<br><br>
+
+        Label @ 0x1028<br>
+        0x001028  A2 = A0 - A1<br>
+        0x00102C  A3 = 0x2<br>
+        0x001030  Jmp 0x1018<br><br>
+
+        Label @ 0x1034<br>
+        0x001034  Ret<br><br>
+
+        At this point I attempted a couple of different approaches before settling on the current code generation procedure. My first approach was to first transform the above IR code into single static assignment form. This allows for stronger optimizations and is a very popular choice for modern compilers. Next I used a linear scan register allocator to assign registers to the code and compile the final code.<br><br>
+
+        This approach resulted in multiple issues that led to me eventually abandoning it in favor of the current implementation. Some of the reasons as to why I changed my approach are listed below.<br><br>
+
+
+        <strong>1. Debugging</strong> - Since this is meant to be a fuzzer, being able to properly debug crashes, or at least print out register states is important. After doing register allocation, determining which X86 register is allocated to each RISCV register at runtime to print out useful information is very difficult.<br><br>
+
+        <strong>2. Extendability</strong> - When it comes to register allocation, a lot of the backend features (eg. A0-A7 for arguments, or syscall number in A7) are architecture dependent. This makes it a lot harder to write the backend in a way that can be extended with new architectures by just adding a front end.<br><br>
+
+        <strong>3. Performance</strong> - In theory the ssa/regalloc approach will lead to better final code. In this case however, since its a binary translator, a lot of registers such as function arguments or stack pointers have to be hardcoded to x86 registers since we don't have information such as number of arguments when translating binary -> binary. This in addition with the meta-data required by the JIT (pointer to memory, permissions, JIT lookup table, register spill-stack, etc) led to most x86 registers being in use, leaving only 4 x86 registers available for the actual register allocation in my approach. This could obviously be greatly improved upon, but this would require a lot more time to achieve comparable results.<br><br>
+
+        <strong>4. Complexity</strong> - This approach added a lot of extra complexity to the project which caused major issues and would have delayed the completion of this project by several months to debug all of these issues<br><br>
+
+        Nevertheless, I did implement both ssa-generation and register allocation before abandoning it, and since it was a very large part of my time investment I decided to still keep notes on it. The implementation details are listed at <a href=https://github.com/seal9055/sfuzz/blob/main/docs/code_gen.md>docs/code_gen</a> in the 'Optimizing Compiler' section, and the final code for this approach can be viewed at commit 7d129ab847d171b66901f4c936dd2ad5c5a1b79a on the github repository.<br><br>
+
+        <strong>Compiling to x86 Machine Code</strong><br>
+        This phase pretty much just loops through all the previously lifted IR instructions and compiles them to x86 code. Whenever a syscall or a hooked function is encountered, appropriate instructions are generated to leave the JIT and handle the procedure. All registers are currently memory-mapped within the emulator. While this would have a very significant performance impact for normal programs, in the case of a fuzzer I can use the registers that are free'd up through this approach to point to other important frequently accessed fields such as dirty-lists or instruction counters, so in the end the performanc overhead incurred by this is negligible.<br><br>
+
+        In addition to the previously mentioned actual code compilation, a lot of other very important steps are taken at this point. Mainly, the RISC-V to x86 translation table is populated, and instructions to instrument the code for fuzzing are inserted to enable snapshotting, coverage, hooks and proper permission checks.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/fuzzing/sfuzz/debug_print.png" alt="">
+</div>
+<H4>Fuzzing Techniques</H4>
+<div class="paragraph">
+    <p>
+        Finally after covering the underlying architecture required to run targets, let's get started talking about the actual fuzzing capabilities of this fuzzer. Here I will describe the details of SFUZZ's features and their basic implementation details.
+        <br><br>
+
+        <strong>Byte Level Permission Checks</strong><br>
+        While this is an extremely important part of why this fuzzer is so effective, this capability was already covered in the above memory management section, so I will not repeat the information here.<br><br>
+
+        <strong>Code Coverage Tracking</strong><br>
+        This fuzzer implements edge, block, and call-stack based coverage tracking. Coverage is currently being tracked in a very simple way. A bytemap is maintained to determine which edges/blocks have already been hit. At the beginning of each block, a fast hash is generated to index into the bytemap and check if the block/edge has already previously been hit. If it has, we just move on. If it is a new edge/block however, the byte is set in the map, and the coverage counter is incremented to showcase that new coverage has been hit. For edge coverage this hash consists of a quick xorshift hash, and for block-level coverage, the lower 24 bits of the address are just used.<br><br>
+
+        CallStack based coverage tracking adds an additional field to the fuzzer. An evolving hash that is maintained throughout an entire input, and has new edges xor'd in. While this is far from perfect, it does allow the fuzzer to reason about what path has been taken to reach the current edge and track new coverage for new paths.<br><br>
+
+        By default the fuzzer uses edge coverage because call-stack coverage can quickly snowball out of control in some cases, but against some targets it may be worth considering, especially since some <a href=https://www.usenix.org/system/files/raid2019-wang-jinghan.pdf>papers</a> have rated it higher than basic edge coverage against many targets.<br><br>
+
+        <strong>Compare Coverage Tracking</strong><br>
+        Coverage tracking already greatly improves fuzzers and allows them to reach much more complex code paths. Unfortunately it does not however help fuzzers with multi-byte comparisons (eg. <i>if (buf[3] == 0xdeadbeef)</i>) since statements such as these are handled in a single cmp instruction that isn't instrumented by basic coverage tracking. This is where CmpCov comes in. At runtime, <i>branch-if-equal</i> & <i>branch-if-not-equal</i> instructions are replaced with several separate single byte comparisons. This results in a ~5-15% performance decrease (depending on the amount of cmp's within the target), but greatly improves the fuzzers ability to find magic values without having to bruteforce 2^32+ bytes since it can now instrument these comparisons with coverage tracking instructions. CmpCov is enabled by default.
+
+        <strong>Coverage Guided Fuzzing</strong><br>
+        This is done in pretty much the simplest way possible. Whenever a case finds new coverage, the case is added to the corpus and mutated off of for future fuzz cases. This includes both code coverage and compare coverage and makes the fuzzer much better at traversing targets.<br><br>
+
+        <strong>Persistent-mode/Snapshot Fuzzing</strong><br>
+        This is mostly a performance optimization, but since it is very specific to fuzzing I figured this category probably suits it best. The main reason for this optimization is, that the standard fork() + execve() routine used by basic fuzzers is slow and does not scale, thus making room for improved case reset techniques.<br><br>
+
+        One initial improvement <a href=https://github.com/AFLplusplus/AFLplusplus>AFL++</a> uses is the forkserver optimization, where new processes are cloned from a copy-on-write master that is kept in the original state. This reduces a lot of the overhead, but still requires the expensive <i>fork()</i> syscall. A better alternative is to instrument the api with a custom-written, single-process loop, therefore removing all of the <i>'execve()/fork()'</i> overhead. AFL mostly automates this, but still requires the user to write a small harness to designate where this loop should be positioned.<br><br>
+
+        In the case of SFUZZ, since the fuzzer is running in an emulator, this becomes almost trivial. We can specify a specific address as the snapshot starting-point, run the JIT up to that point, and take a snapshot of the entire register/memory state. All future fuzz-cases can now use this snapshot as their starting location instead of having to restart the process from the very beginning. This can be used to avoid a lot of setup that is disconnected from our fuzzing input and thus greatly speed up the fuzzing process. This becomes especially useful when dealing with larger targets, for which we can take a snapshot right before the interesting function, set an exit-point right afterwards, and then fuzz this function in a very tight/fast loop.<br><br>
+
+        This can oftentimes easily get at least a 30-50% speed improvement against simple targets, and even bigger speed improvements against larger targets where more code can be cut out of the snapshot, which makes it always always worth it to go through the manual effort of chosing a good address to snapshot at.<br><br>
+
+        To enable snapshot based fuzzing in SFUZZ, simply add the following flags with the address at which you wish to insert the snapshot <i>`-s 0x1234`</i>.<br><br>
+
+        <strong>Seed Scheduling</strong><br>
+        Seed scheduling is implemented based on power schedules, with the inputs sitting in a queue that is iterated through. Before an input is executed, its energy is calculated. This determines how often an input will be executed (20000 to 150000 times based on its energy). The energy is kept within a reasonable range to make sure no cases are completely left out, and that a case executes often enough that the cost of this seed scheduling does not matter. This simply gives slight priority to favored cases.<br><br>
+
+        The energy of a case is determined based on the input size (in bytes), execution time (measures in instructions executed), how frequently the case has found new coverage, and how often this case has found a crash. Small sizes/execution times are favored, with new coverage providing additional bonus points. While crashes are good, a case may lie in a situation where it always results in the exact same crash, in which case its energy is slowly lowered.<br><br>
+
+        For the most part I don't think this strategy matters too much (at least in a generic sense without considering the target), so I deciced to only slightly favor "better" cases over others, since especially at the start of a fuzzing campaign with an unfamiliar target, it is very hard to generalize which metrics are actually important. Slower inputs could end up finding many more new code paths than faster inputs and so on.
+        <strong>Mutation Strategies</strong><br>
+
+        The fuzzer currently has 8 different mutation strategies that are listed and described below.<br>
+
+        <ul>
+          <li>Byte Replacements - This strategy replaces 1-128 bytes in the input with random other bytes. Smaller corruptions are heavily favored over larger corruptions to avoid potentially destroying a good initial corpus.</li>
+          <li>Bitflips - This strategy flips 1-128 random bits in the target. Smaller corruptions are once again heavily favored.</li>
+          <li>Magic Numbers - This strategy maintains a small dictionary of hardcoded useful values. These are 1-8 byte values that lie on the boundaries of integer over/underflows, and can thus frequently find integer bugs.</li>
+          <li>Simple Arithmetic - This strategy simply adds or subtracts a random value from 1-32, to/from 0-128 random bytes in the fuzzcase. This technique has proven to be very useful in the past and can often find integer bugs or corrupt length fields.</li>
+          <li>Block Removals - This strategy removes a random block from the input. It is more expensive than many of the other strategies.</li>
+          <li>Block Duplication - This strategy duplicates a random block from the input. It is more expensive than many of the other strategies.</li>
+          <li>Input Resizes - This strategy resizes the input. Decreasing the size simply truncates the input, while increasing the size adds random bytes to the end.</li>
+          <li>Dictionary - This is an optional feature that is enabled with the <i>`-d`</i> flag. It allows a dictionary file to be passed in, that the mutator will then use to randomly splice entries from the dictionary into the target.</li>
+          <li>Havoc - This strategy is invoked every 100 cases and simply combines multiple of the above listed strategies together for a single case.</li>
+        </ul>
+        <br><br>
+
+        These mutation strategies are weighted. By default the cheaper/less destructive mutation strategies are favored (ByteReplace, Bitflip, MagicNum, SimpleAirhmetic), while the more expensive/more destructive strategies are prioritized a lot less (RemoveBlock, DupBlock, Resize, Dictionary).<br><br>
+        <strong>Crashes</strong><br>
+
+        Crashes are saved using a couple different methods to differentiate between different crashes. The different crash causes are ReadFaults, WriteFaults, ExecFaults, OutOfBounds accesses, Timeouts, and various heap bugs. Timeouts occur when a fuzz case executes more instructions that the timeout allwos. This is automatically calibrated using the initial seeds, but can also be manually overridden using the <i>`-t`</i> flag.<br><br>
+
+        Unique crashes are based on the type of crash and the address that the crash occured at. Only unique crashes are saved off.
+        <br><br>
+    </p>
+</div>
+<H4>Additional Tooling</H4>
+<div class="paragraph">
+    <p>
+        In addition to the fuzzer itself I spent some time developing some additional tooling. A program generator that randomly generates and compiles semi-random c code to use as fuzz-targets, a web-scrapper to download a diverse corpus of a specified file type, and a small gdb-script that collects and formats a register trace from qemu to be compared to SFUZZ's debug-trace mode. These tools are located at <a href=https://github.com/seal9055/sfuzz/tree/main/tools>sfuzz/tools</a>.<br><br>
+
+        <strong>Program Generator</strong><br>
+        SFUZZ currently only supports RISC-V and I had some trouble compiling many actual programs to RISC-V so that I could test SFUZZ. Due to this I decided to write this program generator so that I could randomly generate different test-cases of varying complexity. This testing method is obviously far from perfect, but it was a fun little side project while working on SFUZZ, that I think is still decent to quickly test basic fuzzer capabilities.<br><br>
+
+        The generated program reads in a specified number of bytes from an input file into a buffer which is then passed into various different comparisons. These eventually lead to a crash if enough checks are passed. The complexity of the generated program can easily be modified through a configuration variable, and enables the generation of program's ranging from ~100 to several million lines of code depending on the users testing preferences. The generated comparison depth is also handled based on this complexity.<br><br>
+
+        An example of how such a program might look is posted below. A sample ~6000 loc automatically generated program is located in the test_cases directory: <a href=https://github.com/seal9055/sfuzz/blob/main/test_cases/generated_program.c>generated_program.c</a>.
+        <br><br>
+    </p>
+</div>
+<div class="demo-highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdlib.h&gt;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;string.h&gt;</span><span class="cp"></span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">func_1</span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">buf</span><span class="p">);</span><span class="w"></span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">func_2</span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">buf</span><span class="p">);</span><span class="w"></span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">func_1</span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">buf</span><span class="p">)</span><span class="w"></span>
+<span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">iqdihdimbbbcddj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">62</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">245</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">brmusbepmkobbma</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">142</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">232</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">wmseagxkfkorowp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">208</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">strcmp</span><span class="p">(</span><span class="o">&amp;</span><span class="n">buf</span><span class="p">[</span><span class="mi">177</span><span class="p">],</span><span class="w"> </span><span class="s">"mdpjytxtcpazfur"</span><span class="p">))</span><span class="w"> </span>
+<span class="w">    </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="kt">int</span><span class="w"> </span><span class="n">xqjezdgbbvsihgp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">428</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">187</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="kt">int</span><span class="w"> </span><span class="n">zzsvxdtatdgqrny</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">413</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">92</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="kt">int</span><span class="w"> </span><span class="n">atzwcjybyuywsnf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">230</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">110</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">buf</span><span class="p">[</span><span class="mi">52</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">atzwcjybyuywsnf</span><span class="p">)</span><span class="w"> </span>
+<span class="w">        </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="o">*</span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">long</span><span class="o">*</span><span class="p">)</span><span class="mh">0x30e051db0582eaf2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">buf</span><span class="p">[</span><span class="mi">301</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">zzsvxdtatdgqrny</span><span class="p">)</span><span class="w"> </span>
+<span class="w">        </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="kt">int</span><span class="w"> </span><span class="n">moxqmrcxdsjqptt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">311</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">124</span><span class="p">;</span><span class="w"></span>
+<span class="w">            </span><span class="kt">int</span><span class="w"> </span><span class="n">gwfhccebdwpijrv</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">84</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">151</span><span class="p">;</span><span class="w"></span>
+<span class="w">            </span><span class="kt">int</span><span class="w"> </span><span class="n">nfazpktxseupowl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">154</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">143</span><span class="p">;</span><span class="w"></span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">short</span><span class="o">*</span><span class="p">)(</span><span class="n">buf</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">165</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">9137</span><span class="p">)</span><span class="w"> </span>
+<span class="w">            </span><span class="p">{</span><span class="w"></span>
+<span class="w">                </span><span class="o">*</span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">long</span><span class="o">*</span><span class="p">)</span><span class="mh">0x18ba0ae3902a369e</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="w">            </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">short</span><span class="o">*</span><span class="p">)(</span><span class="n">buf</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">441</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">54836</span><span class="p">)</span><span class="w"> </span>
+<span class="w">            </span><span class="p">{</span><span class="w"></span>
+<span class="w">                </span><span class="n">func_2</span><span class="p">(</span><span class="n">buf</span><span class="p">);</span><span class="w"></span>
+<span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="w">            </span><span class="p">...</span><span class="w"></span>
+
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">        </span><span class="p">...</span><span class="w"></span>
+
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">long</span><span class="o">*</span><span class="p">)(</span><span class="n">buf</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">320</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">2602043796ULL</span><span class="p">)</span><span class="w"> </span>
+<span class="w">        </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="kt">int</span><span class="w"> </span><span class="n">vhqtsvcbehdrely</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">411</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">199</span><span class="p">;</span><span class="w"></span>
+<span class="w">            </span><span class="kt">int</span><span class="w"> </span><span class="n">grpavtxhbdzbozw</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">119</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span><span class="w"></span>
+<span class="w">            </span><span class="kt">int</span><span class="w"> </span><span class="n">wvuvthivvozpmcg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">buf</span><span class="p">[</span><span class="mi">469</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">61</span><span class="p">;</span><span class="w"></span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">strcmp</span><span class="p">(</span><span class="o">&amp;</span><span class="n">buf</span><span class="p">[</span><span class="mi">299</span><span class="p">],</span><span class="w"> </span><span class="s">"vfnfzrvfnehvcjm"</span><span class="p">))</span><span class="w"> </span>
+<span class="w">            </span><span class="p">{</span><span class="w"></span>
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">buf</span><span class="p">[</span><span class="mi">225</span><span class="p">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">wvuvthivvozpmcg</span><span class="p">)</span><span class="w"> </span>
+<span class="w">                </span><span class="p">{</span><span class="w"></span>
+<span class="w">                    </span><span class="o">*</span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">long</span><span class="o">*</span><span class="p">)</span><span class="mh">0xc69c31a6a2160cb8</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="w">                </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">long</span><span class="o">*</span><span class="p">)(</span><span class="n">buf</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">425</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">207848590ULL</span><span class="p">)</span><span class="w"> </span>
+<span class="w">                </span><span class="p">{</span><span class="w"></span>
+<span class="w">                    </span><span class="o">*</span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">long</span><span class="o">*</span><span class="p">)</span><span class="mh">0xc0b00bd5b0bd8961</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="w">                </span><span class="p">}</span><span class="w"></span>
+<span class="w">                </span><span class="p">...</span><span class="w"></span>
+<span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="w">            </span><span class="p">...</span><span class="w"></span>
+<span class="w">        </span><span class="p">}</span><span class="w"></span>
+<span class="w">        </span><span class="p">...</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">func_2</span><span class="p">(</span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">buf</span><span class="p">)</span><span class="w"> </span>
+<span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="p">...</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">**</span><span class="n">argv</span><span class="p">)</span><span class="w"></span>
+<span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">argc</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="kt">FILE</span><span class="w"> </span><span class="o">*</span><span class="n">fd</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fopen</span><span class="p">(</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="s">"r"</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="kt">unsigned</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">buf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">malloc</span><span class="p">(</span><span class="mi">500</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">fgets</span><span class="p">(</span><span class="n">buf</span><span class="p">,</span><span class="w"> </span><span class="mi">500</span><span class="p">,</span><span class="w"> </span><span class="n">fd</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">    </span><span class="n">func_1</span><span class="p">(</span><span class="n">buf</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">func_2</span><span class="p">(</span><span class="n">buf</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<style id="css-style">pre { line-height: 125%; }
+td.linenos .normal { color: #586e75; background-color: #073642; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #586e75; background-color: #073642; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+.demo-highlight .hll { background-color: #073642 }
+.demo-highlight { background: #002b36; color: #839496 }
+.demo-highlight .c { color: #586e75; font-style: italic } /* Comment */
+.demo-highlight .err { color: #839496; background-color: #dc322f } /* Error */
+.demo-highlight .esc { color: #839496 } /* Escape */
+.demo-highlight .g { color: #839496 } /* Generic */
+.demo-highlight .k { color: #859900 } /* Keyword */
+.demo-highlight .l { color: #839496 } /* Literal */
+.demo-highlight .n { color: #839496 } /* Name */
+.demo-highlight .o { color: #586e75 } /* Operator */
+.demo-highlight .x { color: #839496 } /* Other */
+.demo-highlight .p { color: #839496 } /* Punctuation */
+.demo-highlight .ch { color: #586e75; font-style: italic } /* Comment.Hashbang */
+.demo-highlight .cm { color: #586e75; font-style: italic } /* Comment.Multiline */
+.demo-highlight .cp { color: #d33682 } /* Comment.Preproc */
+.demo-highlight .cpf { color: #586e75 } /* Comment.PreprocFile */
+.demo-highlight .c1 { color: #586e75; font-style: italic } /* Comment.Single */
+.demo-highlight .cs { color: #586e75; font-style: italic } /* Comment.Special */
+.demo-highlight .gd { color: #dc322f } /* Generic.Deleted */
+.demo-highlight .ge { color: #839496; font-style: italic } /* Generic.Emph */
+.demo-highlight .gr { color: #dc322f } /* Generic.Error */
+.demo-highlight .gh { color: #839496; font-weight: bold } /* Generic.Heading */
+.demo-highlight .gi { color: #859900 } /* Generic.Inserted */
+.demo-highlight .go { color: #839496 } /* Generic.Output */
+.demo-highlight .gp { color: #268bd2; font-weight: bold } /* Generic.Prompt */
+.demo-highlight .gs { color: #839496; font-weight: bold } /* Generic.Strong */
+.demo-highlight .gu { color: #839496; text-decoration: underline } /* Generic.Subheading */
+.demo-highlight .gt { color: #268bd2 } /* Generic.Traceback */
+.demo-highlight .kc { color: #2aa198 } /* Keyword.Constant */
+.demo-highlight .kd { color: #2aa198 } /* Keyword.Declaration */
+.demo-highlight .kn { color: #cb4b16 } /* Keyword.Namespace */
+.demo-highlight .kp { color: #859900 } /* Keyword.Pseudo */
+.demo-highlight .kr { color: #859900 } /* Keyword.Reserved */
+.demo-highlight .kt { color: #b58900 } /* Keyword.Type */
+.demo-highlight .ld { color: #839496 } /* Literal.Date */
+.demo-highlight .m { color: #2aa198 } /* Literal.Number */
+.demo-highlight .s { color: #2aa198 } /* Literal.String */
+.demo-highlight .na { color: #839496 } /* Name.Attribute */
+.demo-highlight .nb { color: #268bd2 } /* Name.Builtin */
+.demo-highlight .nc { color: #268bd2 } /* Name.Class */
+.demo-highlight .no { color: #268bd2 } /* Name.Constant */
+.demo-highlight .nd { color: #268bd2 } /* Name.Decorator */
+.demo-highlight .ni { color: #268bd2 } /* Name.Entity */
+.demo-highlight .ne { color: #268bd2 } /* Name.Exception */
+.demo-highlight .nf { color: #268bd2 } /* Name.Function */
+.demo-highlight .nl { color: #268bd2 } /* Name.Label */
+.demo-highlight .nn { color: #268bd2 } /* Name.Namespace */
+.demo-highlight .nx { color: #839496 } /* Name.Other */
+.demo-highlight .py { color: #839496 } /* Name.Property */
+.demo-highlight .nt { color: #268bd2 } /* Name.Tag */
+.demo-highlight .nv { color: #268bd2 } /* Name.Variable */
+.demo-highlight .ow { color: #859900 } /* Operator.Word */
+.demo-highlight .w { color: #839496 } /* Text.Whitespace */
+.demo-highlight .mb { color: #2aa198 } /* Literal.Number.Bin */
+.demo-highlight .mf { color: #2aa198 } /* Literal.Number.Float */
+.demo-highlight .mh { color: #2aa198 } /* Literal.Number.Hex */
+.demo-highlight .mi { color: #2aa198 } /* Literal.Number.Integer */
+.demo-highlight .mo { color: #2aa198 } /* Literal.Number.Oct */
+.demo-highlight .sa { color: #2aa198 } /* Literal.String.Affix */
+.demo-highlight .sb { color: #2aa198 } /* Literal.String.Backtick */
+.demo-highlight .sc { color: #2aa198 } /* Literal.String.Char */
+.demo-highlight .dl { color: #2aa198 } /* Literal.String.Delimiter */
+.demo-highlight .sd { color: #586e75 } /* Literal.String.Doc */
+.demo-highlight .s2 { color: #2aa198 } /* Literal.String.Double */
+.demo-highlight .se { color: #2aa198 } /* Literal.String.Escape */
+.demo-highlight .sh { color: #2aa198 } /* Literal.String.Heredoc */
+.demo-highlight .si { color: #2aa198 } /* Literal.String.Interpol */
+.demo-highlight .sx { color: #2aa198 } /* Literal.String.Other */
+.demo-highlight .sr { color: #cb4b16 } /* Literal.String.Regex */
+.demo-highlight .s1 { color: #2aa198 } /* Literal.String.Single */
+.demo-highlight .ss { color: #2aa198 } /* Literal.String.Symbol */
+.demo-highlight .bp { color: #268bd2 } /* Name.Builtin.Pseudo */
+.demo-highlight .fm { color: #268bd2 } /* Name.Function.Magic */
+.demo-highlight .vc { color: #268bd2 } /* Name.Variable.Class */
+.demo-highlight .vg { color: #268bd2 } /* Name.Variable.Global */
+.demo-highlight .vi { color: #268bd2 } /* Name.Variable.Instance */
+.demo-highlight .vm { color: #268bd2 } /* Name.Variable.Magic */
+.demo-highlight .il { color: #2aa198 } /* Literal.Number.Integer.Long */</style>
+<div class="paragraph">
+    <p>
+        <strong>Qemu Tracer</strong><br>
+        There is not much to say about this, it is incredibly simple. It runs the generated binary in qemu with gdb attached and single steps through the program dumping the registers in a formatted way for each instruction. While very simple, this was also extremely helpful while debugging the SFUZZ JIT. It allowed me to run <i>`diff`</i> against qemu's trace file and my own fuzzer's trace file to quickly find some bugs in my code generation.<br><br>
+
+        <strong>Web Scraper</strong><br>
+        This is also relatively simple script. It makes use of google's search engine to gather an initial corpus of files given a specific filetype. These files are then deduplicated and filtered for files that were incorrectly downloaded. What remains is a collection of unique files that can be used as the initial seeds to fuzz a target. Many filetypes have large collections out there (eg. <a href=https://datacommons.anu.edu.au/DataCommons/rest/records/anudc:6106/data/>datacommons</a>), however for some less popular file-types a simple web-scraper can help quickly setup a decent randomized initial corpus.
+        <br><br>
+    </p>
+</div>
+<div>
+    <img src="../imgs/fuzzing/sfuzz/scraper.png" alt="">
+</div>
+<H4>Results</H4>
+<div class="paragraph">
+    <p>
+        Since the fuzzer is not at a point where it can run proper benchmarks (eg. fuzzbench), my results pretty much consist solely of sample programs I wrote and other programs I chose to include. Note that this means that my conclusions may be biased towards certain metrics/test-case types.<br><br>
+
+        Overall I am very happy with the results. SFUZZ show's massive performance benefits over state of the art fuzzers such as AFL++. This benefit does get reduced with larger test-cases, since while SFUZZ does JIT compile its targets, it does not have access to the same compiler optimizations that clang/gcc offer AFL. Nevertheless, when performing test-cases with 2,500-20,0000 instructions, SFUZZ often has a 25x-200x single-threaded performance difference when compared to AFL++. This is when comparing AFL's source code instrumentation with SFUZZ's binary JIT-compilation. The performance gap widens when using AFL in emulation mode to fuzz closed source targets through qemu.<br>
+        2,500-20,000 instructions aren't a whole lot when fuzzing larger targets, but oftentimes only a small portion of a target actually needs to be fuzzed at a time, and since SFUZZ fully supports snapshot-based fuzzing, this can often be achieved with relative ease.
+        <br><br>
+
+        Additionally SFUZZ scales basically linear with cores while AFL requires an entirely separate process to be spawned for each additional "thread". This results in AFl heavily slowing down with multiple threads as it hits more and more Kernel locks, while SFUZZ keeps scaling without issues. This is a pattern that holds across many popular fuzzers and not just AFL++.<br><br>
+
+        Some more detailed benchmarks are listed in <a href=https://github.com/seal9055/sfuzz/blob/main/docs/benchmarking.md>docs/benchmarking.md</a>.<br><br>
+
+        That being said, SFUZZ still has many disadvantages that make it infeasible for proper use in its current state. The main one being that it is a fuzzer targeting closed-source binaries, while currently only supporting RISC-V. The architecture is starting to get more popular, but there is pretty much no valid target that meets these criteria. That being said, SFUZZ is fast enough to work well against open-source targets compiled to RISC-V, although that is obviously not the most optimal use-case of SFUZZ. Additionally it currently only supports around 15 syscalls, which limits the amount of targets that can be fuzzed (although new one's can generally be added very easily on a case-by-case basis).<br><br>
+
+        In its current state SFUZZ is definitely more of a proof-of-concept that is far from being generally applicable, but I believe that it does showcase several benefits of emulator-based fuzzing, while providing a simple playground to test out different fuzzing techniques without having to hack around on qemu's or llvm's massive codebases.
+        <br><br>
+        
+        Two simple sample programs are provided in the repositories <i>`test_cases`</i> directory, alongside usage instructions in the <i>`README`</i>. The different configuration options can be displayed by running SFUZZ with the <i>`-h`</i> flag.
+        <br><br>
+    </p>
+</div>
+
+<script>
+    try {
+        pageOpenedDirectly;
+    } catch (e) {
+        var loc = window.location.pathname;
+        var dir = loc.substring(0, loc.lastIndexOf('/'));
+        dir = dir.split("/")[dir.split("/").length - 1];
+        let currentLoc = location.href;
+        let currentFile = location.href.split("/").slice(-1);
+        currentLoc = currentLoc.replace(currentFile, "");
+        currentLoc = currentLoc.replace(dir+"/", "");
+        currentLoc = currentLoc.slice(0, -1);
+        if (currentFile[0].indexOf(".html") !== -1) currentFile = currentFile[0].slice(0, -5);
+        window.location = currentLoc + "?p=" + currentFile + "&d=" + dir;
+    }
+    </script>
