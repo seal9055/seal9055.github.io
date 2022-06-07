@@ -57,7 +57,7 @@
 <div class="paragraph">
     <p>
         <strong>Overview</strong><br>
-        This component of the fuzzer is responsible for providing the memory space for the target. It provides each emulator-thread an entirely separate mmu, and makes sure that none of the target-threads can access/corrupt the memory space of another thread.<br><br><br>
+        This component of the fuzzer is responsible for providing the memory space for the target. It provides each emulator-thread an entirely separate mmu, and makes sure that none of the target-threads can access/corrupt the memory space of another thread.<br><br>
 
         Each mmu consists of 2 continuous blocks of memory (one for the actual memory, and another one for permissions), and an api that exposes various operations on this memory such as allocations, frees, reads and writes. The exposed functions make use of the permissions-map to achieve byte-level permission checks (similar to ASAN) on each memory access, in addition to an allocator that performs properly checked allocations/free's.<br><br><br>
 
@@ -103,39 +103,39 @@
 
         The IR-lifting basically just iterates through the original instructions and creates an IR instruction based on the original instruction using large switch statement. The below example imitates how the intermediate representation may look like for a very minimal function that pretty much just performs a branch based on a comparison in the first block.<br><br>
 
-        Label @ 0x1000<br>
-        0x001000  A0 = 0x14<br>
-        0x001004  A1 = 0xA<br>
-        0x001008  if A0 == A1 (0x100C, 0x1028)<br><br>
+        <i>Label @ 0x1000</i><br>
+        <i>0x001000  A0 = 0x14</i><br>
+        <i>0x001004  A1 = 0xA</i><br>
+        <i>0x001008  if A0 == A1 (0x100C, 0x1028)</i><br><br>
 
-        Label @ 0x100C<br>
-        0x00100C  A2 = A0 + A1<br>
-        0x001010  A3 = 0x1<br>
-        0x001014  Jmp 0x1018<br><br>
+        <i>Label @ 0x100C</i><br>
+        <i>0x00100C  A2 = A0 + A1</i><br>
+        <i>0x001010  A3 = 0x1</i><br>
+        <i>0x001014  Jmp 0x1018</i><br><br>
 
-        Label @ 0x1018<br>
-        0x001024  Jmp 0x1034<br><br>
+        <i>Label @ 0x1018</i><br>
+        <i>0x001024  Jmp 0x1034</i><br><br>
 
-        Label @ 0x1028<br>
-        0x001028  A2 = A0 - A1<br>
-        0x00102C  A3 = 0x2<br>
-        0x001030  Jmp 0x1018<br><br>
+        <i>Label @ 0x1028</i><br>
+        <i>0x001028  A2 = A0 - A</i><br>
+        <i>0x00102C  A3 = 0x2</i><br>
+        <i>0x001030  Jmp 0x1018</i><br><br>
 
-        Label @ 0x1034<br>
-        0x001034  Ret<br><br>
+        <i>Label @ 0x1034</i><br>
+        <i>0x001034  Ret</i><br><br>
 
         At this point I attempted a couple of different approaches before settling on the current code generation procedure. My first approach was to first transform the above IR code into single static assignment form. This allows for stronger optimizations and is a very popular choice for modern compilers. Next I used a linear scan register allocator to assign registers to the code and compile the final code.<br><br>
 
         This approach resulted in multiple issues that led to me eventually abandoning it in favor of the current implementation. Some of the reasons as to why I changed my approach are listed below.<br><br>
 
 
-        <strong>1. Debugging</strong> - Since this is meant to be a fuzzer, being able to properly debug crashes, or at least print out register states is important. After doing register allocation, determining which X86 register is allocated to each RISCV register at runtime to print out useful information is very difficult.<br><br>
+        <i>1. Debugging</i> - Since this is meant to be a fuzzer, being able to properly debug crashes, or at least print out register states is important. After doing register allocation, determining which X86 register is allocated to each RISCV register at runtime to print out useful information is very difficult.<br><br>
 
-        <strong>2. Extendability</strong> - When it comes to register allocation, a lot of the backend features (eg. A0-A7 for arguments, or syscall number in A7) are architecture dependent. This makes it a lot harder to write the backend in a way that can be extended with new architectures by just adding a front end.<br><br>
+        <i>2. Extendability</i> - When it comes to register allocation, a lot of the backend features (eg. A0-A7 for arguments, or syscall number in A7) are architecture dependent. This makes it a lot harder to write the backend in a way that can be extended with new architectures by just adding a front end.<br><br>
 
-        <strong>3. Performance</strong> - In theory the ssa/regalloc approach will lead to better final code. In this case however, since its a binary translator, a lot of registers such as function arguments or stack pointers have to be hardcoded to x86 registers since we don't have information such as number of arguments when translating binary -> binary. This in addition with the meta-data required by the JIT (pointer to memory, permissions, JIT lookup table, register spill-stack, etc) led to most x86 registers being in use, leaving only 4 x86 registers available for the actual register allocation in my approach. This could obviously be greatly improved upon, but this would require a lot more time to achieve comparable results.<br><br>
+        <i>3. Performance</i> - In theory the ssa/regalloc approach will lead to better final code. In this case however, since its a binary translator, a lot of registers such as function arguments or stack pointers have to be hardcoded to x86 registers since we don't have information such as number of arguments when translating binary -> binary. This in addition with the meta-data required by the JIT (pointer to memory, permissions, JIT lookup table, register spill-stack, etc) led to most x86 registers being in use, leaving only 4 x86 registers available for the actual register allocation in my approach. This could obviously be greatly improved upon, but this would require a lot more time to achieve comparable results.<br><br>
 
-        <strong>4. Complexity</strong> - This approach added a lot of extra complexity to the project which caused major issues and would have delayed the completion of this project by several months to debug all of these issues<br><br>
+        <i>4. Complexity</i> - This approach added a lot of extra complexity to the project which caused major issues and would have delayed the completion of this project by several months to debug all of these issues<br><br>
 
         Nevertheless, I did implement both ssa-generation and register allocation before abandoning it, and since it was a very large part of my time investment I decided to still keep notes on it. The implementation details are listed at <a href=https://github.com/seal9055/sfuzz/blob/main/docs/code_gen.md>docs/code_gen</a> in the 'Optimizing Compiler' section, and the final code for this approach can be viewed at commit 7d129ab847d171b66901f4c936dd2ad5c5a1b79a on the github repository.<br><br>
 
@@ -149,6 +149,7 @@
 <div>
     <img src="../imgs/fuzzing/sfuzz/debug_print.png" alt="">
 </div>
+<br>
 <H3>Fuzzing Techniques</H3>
 <div class="paragraph">
     <p>
@@ -187,29 +188,31 @@
 
         The energy of a case is determined based on the input size (in bytes), execution time (measures in instructions executed), how frequently the case has found new coverage, and how often this case has found a crash. Small sizes/execution times are favored, with new coverage providing additional bonus points. While crashes are good, a case may lie in a situation where it always results in the exact same crash, in which case its energy is slowly lowered.<br><br>
 
-        For the most part I don't think this strategy matters too much (at least in a generic sense without considering the target), so I deciced to only slightly favor "better" cases over others, since especially at the start of a fuzzing campaign with an unfamiliar target, it is very hard to generalize which metrics are actually important. Slower inputs could end up finding many more new code paths than faster inputs and so on.
+        For the most part I don't think this strategy matters too much (at least in a generic sense without considering the target), so I deciced to only slightly favor "better" cases over others, since especially at the start of a fuzzing campaign with an unfamiliar target, it is very hard to generalize which metrics are actually important. Slower inputs could end up finding many more new code paths than faster inputs and so on.<br><br><br>
+
+        <strong>Mutation Strategies</strong><br>
+
+        The fuzzer currently has 8 different mutation strategies that are listed and described below.<br>
+    </p>
+</div>
+<div class="paragraph">
+    <p>
+        <ul>
+          <li><i>Byte Replacements</i> - This strategy replaces 1-128 bytes in the input with random other bytes. Smaller corruptions are heavily favored over larger corruptions to avoid potentially destroying a good initial corpus.</li>
+          <li><i>Bitflips</i> - This strategy flips 1-128 random bits in the target. Smaller corruptions are once again heavily favored.</li>
+          <li><i>Magic Numbers</i> - This strategy maintains a small dictionary of hardcoded useful values. These are 1-8 byte values that lie on the boundaries of integer over/underflows, and can thus frequently find integer bugs.</li>
+          <li><i>Simple Arithmetic</i> - This strategy simply adds or subtracts a random value from 1-32, to/from 0-128 random bytes in the fuzzcase. This technique has proven to be very useful in the past and can often find integer bugs or corrupt length fields.</li>
+          <li><i>Block Removals</i> - This strategy removes a random block from the input. It is more expensive than many of the other strategies.</li>
+          <li><i>Block Duplication</i> - This strategy duplicates a random block from the input. It is more expensive than many of the other strategies.</li>
+          <li><i>Input Resizes</i> - This strategy resizes the input. Decreasing the size simply truncates the input, while increasing the size adds random bytes to the end.</li>
+          <li><i>Dictionary</i> - This is an optional feature that is enabled with the <i>`-d`</i> flag. It allows a dictionary file to be passed in, that the mutator will then use to randomly splice entries from the dictionary into the target.</li>
+          <li><i>Havoc</i> - This strategy is invoked every 100 cases and simply combines multiple of the above listed strategies together for a single case.</li>
+        </ul>
         <br><br>
     </p>
 </div>
 <div class="paragraph">
     <p>
-        <strong>Mutation Strategies</strong><br>
-
-        The fuzzer currently has 8 different mutation strategies that are listed and described below.<br>
-
-        <ul>
-          <li>Byte Replacements - This strategy replaces 1-128 bytes in the input with random other bytes. Smaller corruptions are heavily favored over larger corruptions to avoid potentially destroying a good initial corpus.</li>
-          <li>Bitflips - This strategy flips 1-128 random bits in the target. Smaller corruptions are once again heavily favored.</li>
-          <li>Magic Numbers - This strategy maintains a small dictionary of hardcoded useful values. These are 1-8 byte values that lie on the boundaries of integer over/underflows, and can thus frequently find integer bugs.</li>
-          <li>Simple Arithmetic - This strategy simply adds or subtracts a random value from 1-32, to/from 0-128 random bytes in the fuzzcase. This technique has proven to be very useful in the past and can often find integer bugs or corrupt length fields.</li>
-          <li>Block Removals - This strategy removes a random block from the input. It is more expensive than many of the other strategies.</li>
-          <li>Block Duplication - This strategy duplicates a random block from the input. It is more expensive than many of the other strategies.</li>
-          <li>Input Resizes - This strategy resizes the input. Decreasing the size simply truncates the input, while increasing the size adds random bytes to the end.</li>
-          <li>Dictionary - This is an optional feature that is enabled with the <i>`-d`</i> flag. It allows a dictionary file to be passed in, that the mutator will then use to randomly splice entries from the dictionary into the target.</li>
-          <li>Havoc - This strategy is invoked every 100 cases and simply combines multiple of the above listed strategies together for a single case.</li>
-        </ul>
-        <br><br>
-
         These mutation strategies are weighted. By default the cheaper/less destructive mutation strategies are favored (ByteReplace, Bitflip, MagicNum, SimpleAirhmetic), while the more expensive/more destructive strategies are prioritized a lot less (RemoveBlock, DupBlock, Resize, Dictionary).<br><br><br>
         <strong>Crashes</strong><br>
 
@@ -432,7 +435,7 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
         <br><br>
     </p>
 </div>
-
+<br><br><br><br><br>
 <script>
     try {
         pageOpenedDirectly;
