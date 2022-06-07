@@ -25,7 +25,9 @@
         </div>
         <div class="paragraph">
             <p>
-                In this post I would like to talk a little about the project that I spent the past 6 months working on, a coverage-guided, emulation based graybox fuzzer that makes use of a custom Just-In-Time compiler to achieve near-native performance. It works by lifting RISC-V elf binaries to an intermediate representation before JIT compiling them to X86 during execution. During JIT compilation the code is instrumented to enable fuzzing-improvements such as coverage tracking, asan, cmpcov, or snapshot-fuzzing.
+                This post is about a coverage-guided, emulation based greybox fuzzer that makes use of a custom Just-In-Time compiler to achieve near-native performance.It works by lifting RISC-V elf binaries to an intermediate representation before JIT compiling them to x86 during execution. During JIT compilation the code is instrumented to enable fuzzing-improvements such as coverage tracking, asan, cmpcov, or snapshot-based fuzzing.<br><br>
+
+                Since it currently only supports RISC-V it is still mostly a proof-of-concept, but working on this had a lot of educational value for me, and I believe that it still highlights many advantages of an emulation based fuzzing approach.
             </p>
             <img src="../imgs/fuzzing/sfuzz/preview.png" width="300" height="200" alt="">
         </div>

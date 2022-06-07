@@ -14,14 +14,14 @@
         <div class="page-header-inner2">
             <h1>SFUZZ</h1>
             <h2>May 2022</h2>
-            <h4>High Performance Coverage-guided Graybox Fuzzer with Custom JIT Engine</h4>
+            <h4>High Performance Coverage-guided Greybox Fuzzer with Custom JIT Engine</h4>
         </div>
     </div>
 </div>
 <H3>Introduction</H3>
 <div class="paragraph">
     <p>
-        In this post, I would like to talk a little about the project that I spent the past 6 months working on, a coverage-guided, emulation-based graybox fuzzer that makes use of a custom Just-In-Time compiler to achieve near-native performance. It works by lifting RISC-V elf binaries to an intermediate representation before JIT compiling them to X86 during execution. During JIT compilation the code is instrumented to enable fuzzing improvements such as coverage tracking, asan, cmpcov, or snapshot-fuzzing.<br><br>
+        In this post, I would like to talk a little about the project that I spent the past 6 months working on, a coverage-guided, emulation-based greybox fuzzer that makes use of a custom Just-In-Time compiler to achieve near-native performance. It works by lifting RISC-V elf binaries to an intermediate representation before JIT compiling them to x86 during execution. During JIT compilation the code is instrumented to enable fuzzing improvements such as coverage tracking, asan, cmpcov, or snapshot-fuzzing.<br><br>
 
         In many ways, this is more of a proof-of-concept that I wanted to work on to learn about compiler internals, and have an emulation-based playground to play around with various fuzzing techniques such as different coverage metrics, seed schedulers, and snapshot-based fuzzing. With more JIT optimizations and most importantly, extensions to include more popular architectures such as mips or arm this could however certainly be used to efficiently fuzz closed source code that cannot simply be instrumented through recompilation.<br><br>
 
@@ -44,7 +44,7 @@
 
         The worker functions will now run until the fuzzer is terminated. During the initial elf parsing all function addresses & sizes were extracted, so whenever one of the fuzzing threads now encounters new code that has not yet been seen before it locks the JIT backing buffer and starts the compilation process. This lock prevents other threads from adding new code into the backing, but does not stop them from executing (unless they run into the same code of course, at which point they need to wait until the thread that is currently compiling code is finished).<br><br>
 
-        The code generation procedure lifts all RISC-V instructions into an intermediate representation that is meant to be architecture agnostic, thus allowing the fuzzer to be extended with other architectures by implementing a new lifting frontend. This intermediate representation is then passed on to the jit backend, which takes care of compiling the code into X86_64 machine code, which it then copies into the jit backing buffer and populates the RISC-V -> x86 lookup table with the newly compiled addressed. <br>I played around with ssa-generation and linear-scan register allocation for a good amount of time (this honestly took up the majority of the entire time spent on this project) but decided to not use it in the end. More details about the implementation of this and why I eventually decided against it are listed in the code-gen section.<br><br>
+        The code generation procedure lifts all RISC-V instructions into an intermediate representation that is meant to be architecture agnostic, thus allowing the fuzzer to be extended with other architectures by implementing a new lifting frontend. This intermediate representation is then passed on to the jit backend, which takes care of compiling the code into x86_64 machine code, which it then copies into the jit backing buffer and populates the RISC-V -> x86 lookup table with the newly compiled addressed. <br>I played around with ssa-generation and linear-scan register allocation for a good amount of time (this honestly took up the majority of the entire time spent on this project) but decided to not use it in the end. More details about the implementation of this and why I eventually decided against it are listed in the code-gen section.<br><br>
 
         There are many cases in which the JIT has to be left during execution to handle some special events. These can include new code that was run into and has to be compiled, the fuzzer finding a bug, hooked functions or syscalls. This is handled by returning back to the rust code alongside an exit-code that indicates what action has to be taken. All syscalls are emulated for this, which grants several important advantages such as no kernel mode transitions or shared kernel locks that would affect scaling, and the ability to fully emulate files in memory to eliminate disk I/O while fuzzing.<br><br>
         <br><br>
@@ -129,7 +129,7 @@
         This approach resulted in multiple issues that led to me eventually abandoning it in favor of the current implementation. Some of the reasons as to why I changed my approach are listed below.<br><br>
 
 
-        <i>1. Debugging</i> - Since this is meant to be a fuzzer, being able to properly debug crashes, or at least print out register states is important. After doing register allocation, determining which X86 register is allocated to each RISCV register at runtime to print out useful information is very difficult.<br><br>
+        <i>1. Debugging</i> - Since this is meant to be a fuzzer, being able to properly debug crashes, or at least print out register states is important. After doing register allocation, determining which x86 register is allocated to each RISCV register at runtime to print out useful information is very difficult.<br><br>
 
         <i>2. Extendability</i> - When it comes to register allocation, a lot of the backend features (eg. A0-A7 for arguments, or syscall number in A7) are architecture-dependent. This makes it a lot harder to write the backend in a way that can be extended with new architectures by just adding a front end.<br><br>
 
@@ -418,7 +418,8 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
     <p>
         Since the fuzzer is not at a point where it can run proper benchmarks (eg. fuzzbench), my results pretty much consist solely of sample programs I wrote and other programs I chose to include. Note that this means that my conclusions may be biased towards certain metrics/test-case types.<br><br>
 
-        Overall I am very happy with the results. SFUZZ shows massive performance benefits over state-of-the-art fuzzers such as AFL++. This benefit does get reduced with larger test cases since while SFUZZ does JIT compile its targets, it does not have access to the same compiler optimizations that clang/gcc offer AFL. Nevertheless, when performing test cases with 2,500-20,0000 instructions, SFUZZ often has a 25x-200x single-threaded performance difference when compared to AFL++. This is when comparing AFL's source code instrumentation with SFUZZ's binary JIT compilation. The performance gap widens when using AFL in emulation mode to fuzz closed source targets through qemu.<br>
+        Overall I am very happy with the results. SFUZZ shows massive performance benefits over state-of-the-art fuzzers such as AFL++. This benefit does get reduced with larger test cases since while SFUZZ does JIT compile its targets, it does not have access to the same compiler optimizations that clang/gcc offer AFL. Nevertheless, when performing test cases with 2,500-20,0000 instructions, SFUZZ often has a 25x-200x single-threaded performance difference when compared to AFL++. This is when comparing AFL's source code instrumentation with SFUZZ's binary JIT compilation. The performance gap widens when using AFL in emulation mode to fuzz closed source targets through qemu.<br><br>
+        
         2,500-20,000 instructions aren't a whole lot when fuzzing larger targets, but oftentimes only a small portion of a target actually needs to be fuzzed at a time, and since SFUZZ fully supports snapshot-based fuzzing, this can often be achieved with relative ease.
         <br><br>
 
