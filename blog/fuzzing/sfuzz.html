@@ -13,7 +13,7 @@
     <div class="page-header-inner">
         <div class="page-header-inner2">
             <h1>SFUZZ</h1>
-            <h2>May 2022</h2>
+            <h2>June 2022</h2>
             <h4>High Performance Coverage-guided Greybox Fuzzer with Custom JIT Engine</h4>
         </div>
     </div>
@@ -56,12 +56,12 @@
 <H3>Memory Management</H3>
 <div class="paragraph">
     <p>
-        <strong>Overview</strong><br>
+        <strong>Overview</strong><br><br>
         This component of the fuzzer is responsible for providing the memory space for the target. It provides each emulator thread an entirely separate mmu and makes sure that none of the target threads can access/corrupt the memory space of another thread.<br><br>
 
         Each mmu consists of 2 contiguous blocks of memory (one for the actual memory, and another one for permissions), and an api that exposes various operations on this memory such as allocations, frees, reads, and writes. The exposed functions make use of the permissions-map to achieve byte-level permission checks (similar to ASAN) on each memory access, in addition to an allocator that performs properly checked allocations/frees.<br><br><br>
 
-        <strong>Byte Level Permission Checks</strong><br>
+        <strong>Byte Level Permission Checks</strong><br><br>
         On most architectures, permissions are handled at the hardware level through page tables. This means that whenever an instruction tries to access a memory region, without possessing the correct permissions, an abort is generated which is then handled at the software level. Since these permissions are handled at the page table level, it prevents any incorrect access from crossing page boundaries. When it comes to exploitation, however, a couple of out-of-bounds bytes can oftentimes already be enough to compromise the security of an application, which this type of permission checking cannot handle.<br><br>
 
         A tool commonly used while fuzzing is address sanitizer (also referred to as asan). When a binary is compiled using asan, it is instrumented at compile time with extra checks that make sure that every memory access has the correct access permissions. This tool however has a few very relevant issues. For one it requires access to the binaries source code to recompile it with proper instrumentation. This makes it only useful to open source projects, which especially when fuzzing embedded systems, is often not available. Secondly, asan has a very non-significant performance overhead. According to a study conducted by Google in 2012 (<i>AddressSanitizer: A Fast Address Sanity Checker</i>), it resulted in a 73% slowdown, which is quite a bit, especially when considering how reliant fuzzers are on their performance. This slowdown however was worth it due to the power of byte-level permission checks and led to 300 new bugs being discovered in the Chrome browser at the time.<br><br>
@@ -70,17 +70,17 @@
 
         These permission bits mean that every out-of-bounds memory access (even if it is just a single byte) instantly results in a notification to the fuzzer which can then modify its corpus to focus on this bug and attempt to increase the out of bounds bug. This permission model also applies to library functions such as malloc & free. These are hooked to instead call custom malloc/free implementations that support this byte-level memory model. These hooked functions also include additional checks to completely destruct free'd memory so common heap bugs such as use after free's or double free's are instantly reported as well instead of leading to undefined behavior.<br><br><br>
 
-        <strong>Dirty-bit Memory Resets</strong><br>
+        <strong>Dirty-bit Memory Resets</strong><br><br>
         In the current implementation, each new address space is 64mb large (although this can easily be changed depending on the complexity of the target). This means that on each new fuzz case, this entire space needs to be reset to its initial state. Doing a massive 64mb <i>memcpy()</i> on each new fuzz case is very expensive and leads to completely unacceptable performance. Here we can borrow a concept that is common in the operating systems world: dirty bits. In operating systems, these are maintained at the page table level similar to the permissions. This bit is set whenever a write to memory occurs. This means that when copying memory between different cache levels, or just clearing memory, the page table can be traversed, and only pages with the dirty bit set need to have work done on them.<br><br>
 
         The same principle applies to this fuzzer. When a fuzzer is run, only a very small percentage of this 64mb address space is actually overwritten. This means that by maintaining a dirty bit list, we can selectively choose which pages are reset while leaving most of the memory intact. The memory space, in this case, is not maintained in a page table so some of the implementation details differ, but the principle remains.<br><br>
 
         The implementation of memory resets in this project was heavily influenced by Brandon Falk's prior research into obtaining extremely fast memory resets and his implementation in his <a href=https://github.com/gamozolabs/fuzz_with_emus/>fuzz_with_emus</a> project. 2 array's are maintained. Whenever memory is dirtied, the address is pushed to an initially empty array that contains a listing of all dirtied memory regions. Additionally, a dirty bitmap is maintained that is used to verify that only 1 address from each page (4096 bytes in this case) is pushed to this array to avoid duplicates. Populating this vector during execution is very simple and only requires 6 additional instructions during store operations. While resetting, the fuzzer can then just iterate through the previously populator vector and free the address ranges that were pushed to the vector.<br><br><br>
 
-        <strong>Virtualized Files</strong><br>
+        <strong>Virtualized Files</strong><br><br>
         Many potential fuzz-targets read in their input from files stored on disk. This requires syscalls and disk access, which while fuzzing quickly gets extremely expensive. Instead, the fuzzer emulates all syscalls in user-space and stores files within the emulator as byte-arrays & a cursor into the current position within the file. This means that file operations now no longer require a context-swap into the kernel or disk access and are instead quickly emulated resulting in massive performance increases.<br><br><br>
 
-        <strong>Glibc String Functions</strong><br>
+        <strong>Glibc String Functions</strong><br><br>
         The standard Glibc implementation used on most Linux distributions makes use of specialized optimizations for string operations (eg. strlen/strcmp). These functions make sure that they are page-aligned when called and then read in 8 bytes at a time. This can easily go out of bounds (eg. when calling strlen on a 3-byte string), however since the access is page aligned the 8-byte access cannot trigger a page fault and thus does not lead to any security bugs. Since this fuzzer has byte-level permission checks though, this results in unnecessary crashes being recorded. My solution was to write up custom "safe" implementations for some of these functions in assembly, dynamically recognize libc-string functions within the target, and compile in my own version instead of the default ones. This defeats the problem without adding any performance overhead.
         <br><br>
     </p>
@@ -88,16 +88,16 @@
 <H3>Code Generation</H3>
 <div class="paragraph">
     <p>
-        <strong>Overview</strong><br>
-        This emulator makes use of a custom just-in-time compiler for all of its execution. The code generation is a multi-step process that leads to a 20-50x performance increase over pure emulation.
+        <strong>Overview</strong><br><br>
+        This emulator makes use of a custom just-in-time compiler for all of its execution. The code generation is a multi-step process that leads to a 20-50x performance increase over pure emulation.<br><br>
 
-        Once execution is started, each individual emulator thread has the ability to compile new code. Whenever the emulator runs into a function that we have not yet compiled it invokes a lock on the JIT code backend and attempts to compile the entire function into the JIT backend before resuming execution. 
+        Once execution is started, each individual emulator thread has the ability to compile new code. Whenever the emulator runs into a function that we have not yet compiled it invokes a lock on the JIT code backend and attempts to compile the entire function into the JIT backend before resuming execution.<br><br>
 
-        This lock only stops other threads from adding new code to the JIT-backing during compilation without stopping them from using the JIT-backing. This means that one thread compiling new code has basically no impact on any of the other threads, making this lock mostly free while providing 1 uniform memory region that contains all of the compiled code for all threads. Once the compilation is completed, the mutex is unlocked and the addresses of the newly generated code are added to the JIT lookup table. At this point, the compiling thread can resume fuzzer execution and all other threads can access this newly compiled code via the translation table.
+        This lock only stops other threads from adding new code to the JIT-backing during compilation without stopping them from using the JIT-backing. This means that one thread compiling new code has basically no impact on any of the other threads, making this lock mostly free while providing 1 uniform memory region that contains all of the compiled code for all threads. Once the compilation is completed, the mutex is unlocked and the addresses of the newly generated code are added to the JIT lookup table. At this point, the compiling thread can resume fuzzer execution and all other threads can access this newly compiled code via the translation table.<br><br>
 
         Most of the code pertaining to code-generation can be found in <a href=https://github.com/seal9055/sfuzz/blob/main/src/jit.rs>jit.rs</a>, <a href=https://github.com/seal9055/sfuzz/blob/main/src/irgraph.rs>irgraph.rs</a>, and <a href=https://github.com/seal9055/sfuzz/blob/main/src/emulator.rs>emulator.rs</a>. More detailed descriptions of some of the code generation procedures are provided below.
         <br><br>
-        <strong>Lifting a Function to Custom IR</strong><br>
+        <strong>Lifting a Function to Custom IR</strong><br><br>
         The first step of actual code generation is to lift the entire function into an intermediate representation. The size of the function is determined during the initialization phase when first loading the target. This is done by parsing the elf metadata and setting up a hashmap mapping function start addresses to their sizes.
         <br><br>
 
@@ -139,7 +139,7 @@
 
         Nevertheless, I did implement both ssa-generation and register allocation before abandoning it, and since it was a very large part of my time investment I decided to still keep notes on it. The implementation details are listed at <a href=https://github.com/seal9055/sfuzz/blob/main/docs/code_gen.md>docs/code_gen</a> in the 'Optimizing Compiler' section, and the final code for this approach can be viewed at commit 7d129ab847d171b66901f4c936dd2ad5c5a1b79a on the Github repository.<br><br>
 
-        <strong>Compiling to x86 Machine Code</strong><br>
+        <strong>Compiling to x86 Machine Code</strong><br><br>
         This phase pretty much just loops through all the previously lifted IR instructions and compiles them to x86 code. Whenever a syscall or a hooked function is encountered, appropriate instructions are generated to leave the JIT and handle the procedure. All registers are currently memory-mapped within the emulator. While this would have a very significant performance impact for normal programs, in the case of a fuzzer I can use the free'd registers up through this approach to point to other important frequently accessed fields such as dirty lists or instruction counters, so in the end, the performance overhead incurred by this is negligible.<br><br>
 
         In addition to the previously mentioned actual code compilation, a lot of other very important steps are taken at this point. Mainly, the RISC-V to x86 translation table is populated, and instructions to instrument the code for fuzzing are inserted to enable snapshotting, coverage, hooks and proper permission checks.
@@ -156,23 +156,23 @@
         Finally, after covering the underlying architecture required to run targets, let's get started talking about the actual fuzzing capabilities of this fuzzer. Here I will describe the details of SFUZZ's features and their basic implementation details.
         <br><br>
 
-        <strong>Byte Level Permission Checks</strong><br>
+        <strong>Byte Level Permission Checks</strong><br><br>
         While this is an extremely important part of why this fuzzer is so effective, this capability was already covered in the above memory management section, so I will not repeat the information here.<br><br><br>
 
-        <strong>Code Coverage Tracking</strong><br>
+        <strong>Code Coverage Tracking</strong><br><br>
         This fuzzer implements edge, block, and call-stack based coverage tracking. Coverage is currently being tracked in a very simple way. A bytemap is maintained to determine which edges/blocks have already been hit. At the beginning of each block, a fast hash is generated to index into the bytemap and check if the block/edge has already previously been hit. If it has, we just move on. If it is a new edge/block, however, the byte is set in the map, and the coverage counter is incremented to showcase that new coverage has been hit. For edge coverage, this hash consists of a quick xorshift hash, and for block-level coverage, the lower 24 bits of the address are just used.<br><br>
 
         Callstack-based coverage tracking adds an additional field to the fuzzer. An evolving hash that is maintained throughout an entire input, and has new edges xor'd in. While this is far from perfect, it does allow the fuzzer to reason about what path has been taken to reach the current edge and track new coverage for new paths.<br><br>
 
         By default, the fuzzer uses edge coverage because call-stack coverage can quickly snowball out of control in some cases, but against some targets it may be worth considering, especially since some <a href=https://www.usenix.org/system/files/raid2019-wang-jinghan.pdf>papers</a> have rated it higher than basic edge coverage against many targets.<br><br><br>
 
-        <strong>Compare Coverage Tracking</strong><br>
+        <strong>Compare Coverage Tracking</strong><br><br>
         Coverage tracking already greatly improves fuzzers and allows them to reach much more complex code paths. Unfortunately, it does not however help fuzzers with multi-byte comparisons (eg. <i>if (buf[3] == 0xdeadbeef)</i>) since statements such as these are handled in a single <i>cmp</i> instruction that isn't instrumented by basic coverage tracking. This is where CmpCov comes in. At runtime, <i>branch-if-equal</i> & <i>branch-if-not-equal</i> instructions are replaced with several separate single-byte comparisons. This results in a ~5-15% performance decrease (depending on the amount of cmp's within the target), but greatly improves the fuzzers ability to find magic values without having to brute-force 2^32+ bytes since it can now instrument these comparisons with coverage tracking instructions. CmpCov is enabled by default.<br><br><br>
 
-        <strong>Coverage Guided Fuzzing</strong><br>
+        <strong>Coverage Guided Fuzzing</strong><br><br>
         This is done in pretty much the simplest way possible. Whenever a case finds new coverage, the case is added to the corpus and mutated off of for future fuzz cases. This includes both code coverage and compare coverage and makes the fuzzer much better at traversing targets.<br><br><br>
 
-        <strong>Persistent-mode/Snapshot Fuzzing</strong><br>
+        <strong>Persistent-mode/Snapshot Fuzzing</strong><br><br>
         This is mostly a performance optimization, but since it is very specific to fuzzing I figured this category probably suits it best. The main reason for this optimization is, that the standard <i>fork() + execve()</i> routine used by basic fuzzers is slow and does not scale, thus making room for improved case reset techniques.<br><br>
 
         One initial improvement <a href=https://github.com/AFLplusplus/AFLplusplus>AFL++</a> uses is the forkserver optimization, where new processes are cloned from a copy-on-write master that is kept in the original state. This reduces a lot of the overhead, but still requires the expensive <i>fork()</i> syscall. A better alternative is to instrument the api with a custom-written, single-process loop, therefore removing all of the <i>'execve()/fork()'</i> overhead. AFL mostly automates this, but still requires the user to write a small harness to designate where this loop should be positioned.<br><br>
@@ -183,16 +183,16 @@
 
         To enable snapshot-based fuzzing in SFUZZ, simply add the following flags with the address at which you wish to insert the snapshot <i>`-s 0x1234`</i>.<br><br><br>
 
-        <strong>Seed Scheduling</strong><br>
+        <strong>Seed Scheduling</strong><br><br>
         Seed scheduling is implemented based on power schedules, with the inputs sitting in a queue that is iterated through. Before an input is executed, its energy is calculated. This determines how often an input will be executed (20000 to 150000 times based on its energy). The energy is kept within a reasonable range to make sure no cases are completely left out, and that a case executes often enough that the cost of this seed scheduling does not matter. This simply gives slight priority to favored cases.<br><br>
 
         The energy of a case is determined based on the input size (in bytes), execution time (measures in instructions executed), how frequently the case has found new coverage, and how often this case has found a crash. Small sizes/execution times are favored, with new coverage providing additional bonus points. While crashes are good, a case may lie in a situation where it always results in the exact same crash, in which case its energy is slowly lowered.<br><br>
 
         For the most part, I don't think this strategy matters too much (at least in a generic sense without considering the target), so I decided to only slightly favor "better" cases over others since especially at the start of a fuzzing campaign with an unfamiliar target, it is very hard to generalize which metrics are actually important. Slower inputs could end up finding many more new code paths than faster inputs and so on.<br><br><br>
 
-        <strong>Mutation Strategies</strong><br>
+        <strong>Mutation Strategies</strong><br><br>
 
-        The fuzzer currently has 8 different mutation strategies that are listed and described below.<br>
+        The fuzzer currently has 8 different mutation strategies that are listed and described below.
     </p>
 </div>
 <div class="paragraph">
@@ -214,20 +214,23 @@
 <div class="paragraph">
     <p>
         These mutation strategies are weighted. By default the cheaper/less destructive mutation strategies are favored (ByteReplace, Bitflip, MagicNum, SimpleAirhmetic), while the more expensive/more destructive strategies are prioritized a lot less (RemoveBlock, DupBlock, Resize, Dictionary).<br><br><br>
-        <strong>Crashes</strong><br>
 
+        <strong>Crashes</strong><br><br>
         Crashes are saved using a couple of different methods to differentiate between different crashes. The different crash causes are ReadFaults, WriteFaults, ExecFaults, OutOfBounds accesses, Timeouts, and various heap bugs. Timeouts occur when a fuzz case executes more instructions than the timeout allows. This is automatically calibrated using the initial seeds, but can also be manually overridden using the <i>`-t`</i> flag.<br><br>
 
         Unique crashes are based on the type of crash and the address that the crash occured at. Only unique crashes are saved off.
         <br><br>
     </p>
 </div>
+<div>
+    <img src="../imgs/fuzzing/sfuzz/options.png" alt="">
+</div>
 <H3>Additional Tooling</H3>
 <div class="paragraph">
     <p>
         In addition to the fuzzer itself, I spent some time developing some additional tooling. A program generator that randomly generates and compiles semi-random c code to use as fuzz-targets, a web-scrapper to download a diverse corpus of a specified file type, and a small gdb-script that collects and formats a register trace from qemu to be compared to SFUZZ's debug-trace mode. These tools are located at <a href=https://github.com/seal9055/sfuzz/tree/main/tools>sfuzz/tools</a>.<br><br><br>
 
-        <strong>Program Generator</strong><br>
+        <strong>Program Generator</strong><br><br>
         SFUZZ currently only supports RISC-V and I had some trouble compiling many actual programs to RISC-V so that I could test SFUZZ. Due to this, I decided to write this program generator so that I could randomly generate different test cases of varying complexity. This testing method is far from perfect, but it was a fun little side project while working on SFUZZ, that I think is still decent to quickly test basic fuzzer capabilities.<br><br>
 
         The generated program reads in a specified number of bytes from an input file into a buffer which is then passed into various different comparisons. These eventually lead to a crash if enough checks are passed. The complexity of the generated program can easily be modified through a configuration variable and enables the generation of programs ranging from ~100 to several million lines of code depending on the users testing preferences. The generated comparison depth is also handled based on this complexity.<br><br>
@@ -402,10 +405,10 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 .demo-highlight .il { color: #2aa198 } /* Literal.Number.Integer.Long */</style>
 <div class="paragraph">
     <p>
-        <strong>Qemu Tracer</strong><br>
+        <strong>Qemu Tracer</strong><br><br>
         There is not much to say about this, it is incredibly simple. It runs the generated binary in qemu with gdb attached and single steps through the program dumping the registers in a formatted way for each instruction. While very simple, this was also extremely helpful while debugging the SFUZZ JIT. It allowed me to run <i>`diff`</i> against qemu's trace file and my own fuzzer's trace file to quickly find some bugs in my code generation.<br><br>
 
-        <strong>Web Scraper</strong><br>
+        <strong>Web Scraper</strong><br><br>
         This is also a relatively simple script. It makes use of google's search engine to gather an initial corpus of files given a specific file type. These files are then deduplicated and filtered for files that were incorrectly downloaded. What remains is a collection of unique files that can be used as the initial seeds to fuzz a target. Many filetypes have large collections out there (eg. <a href=https://datacommons.anu.edu.au/DataCommons/rest/records/anudc:6106/data/>datacommons</a>), however for some less popular file-types a simple web-scraper can help quickly setup a decent randomized initial corpus.
         <br><br>
     </p>
@@ -413,7 +416,7 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <div>
     <img src="../imgs/fuzzing/sfuzz/scraper.png" alt="">
 </div>
-<H4>Results</H4>
+<H4>Results & Final Thoughts</H4>
 <div class="paragraph">
     <p>
         Since the fuzzer is not at a point where it can run proper benchmarks (eg. fuzzbench), my results pretty much consist solely of sample programs I wrote and other programs I chose to include. Note that this means that my conclusions may be biased towards certain metrics/test-case types.<br><br>
