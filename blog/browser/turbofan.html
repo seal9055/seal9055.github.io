@@ -177,7 +177,7 @@
 <H3>Type and Range Analysis</H3>
 <div class="paragraph">
     <p>
-        The typer phase is one of the first stages initiated by the <i>OptimizeGraph()</i> function. It initially analyzes the possible types and ranges of operations. All basic operators are overloaded for various objects, so type analysis is very important for optimization. The <br><br>
+        The typer phase is one of the first stages initiated by the <i>OptimizeGraph()</i> function. It initially analyzes the possible types and ranges of operations. All basic operators are overloaded for various objects, so type analysis is very important for optimization.<br><br>
 
         The range analysis sets a range for each node depending on the values it can take. If a value is a NumberConstant n, the range of the nodes is displayed as Range(n, n). Applying an operation to this such as multiplying it by 2 would then result in the updated range of Range(2n, 2n). <br><br>
 
