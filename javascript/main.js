@@ -29,11 +29,11 @@ subject.forEach(item => {
     });
 });
 
-$(window).scroll(function() {    
-    var scroll = $(window).scrollTop();
-    if (scroll >= 80) {
-        $(".sidebar-inner").addClass("fixedSidebar");
-    } else if (scroll <= 80) {
-    $(".sidebar-inner").removeClass("fixedSidebar");
-    }
-});
+//$(window).scroll(function() {    
+//    var scroll = $(window).scrollTop();
+//    if (scroll >= 80) {
+//        $(".sidebar-inner").addClass("fixedSidebar");
+//    } else if (scroll <= 80) {
+//        $(".sidebar-inner").removeClass("fixedSidebar");
+//    }
+//});
